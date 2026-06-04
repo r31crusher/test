@@ -376,6 +376,14 @@ local function makeSlider(str, parent, minVal, maxVal, default, cb)
             dragging = false
         end
     end)
+    local function setValue(v)
+        local t = math.clamp((v - minVal) / (maxVal - minVal), 0, 1)
+        fill.Size = UDim2.new(t, 0, 1, 0)
+        knob.Position = UDim2.new(t, 0, 0.5, 0)
+        lbl.Text = str .. ":  " .. tostring(v)
+        cb(v)
+    end
+    return setValue
 end
 
 elements:Label("Welcome to Astro!  Press Insert to toggle.", Sections.Home.Container)
@@ -613,14 +621,14 @@ end
 local _walkSpeed = 50
 local _walkEnabled = false
 
-makeSlider("Walk Speed", movSection, 8, 250, 50, function(v)
+local _setWalkSpeed = makeSlider("Walk Speed", movSection, 8, 250, 50, function(v)
     _walkSpeed = v
     if _walkEnabled and plr.Character then
         local h = plr.Character:FindFirstChildOfClass("Humanoid")
         if h then h.WalkSpeed = v end
     end
 end)
-elements:Toggle("Speed Boost", movSection, function(v)
+local _setSpeedBoost = elements:Toggle("Speed Boost", movSection, function(v)
     _walkEnabled = v
     if plr.Character then
         local h = plr.Character:FindFirstChildOfClass("Humanoid")
@@ -648,7 +656,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-makeSlider("Fly Speed", movSection, 10, 300, 50, function(v)
+local _setFlySpeed = makeSlider("Fly Speed", movSection, 10, 300, 50, function(v)
     _flySpeed = v
 end)
 
@@ -697,11 +705,11 @@ end)
 local _aimFOV   = 200
 local _aimSpeed = 8
 
-makeSlider("Aim FOV",        combatSection, 50,  600, 200, function(v) _aimFOV   = v end)
-makeSlider("Aim Smoothness", combatSection,  1,   20,   8, function(v) _aimSpeed = v end)
+local _setAimFOV   = makeSlider("Aim FOV",        combatSection, 50,  600, 200, function(v) _aimFOV   = v end)
+local _setAimSmooth = makeSlider("Aim Smoothness", combatSection,  1,   20,   8, function(v) _aimSpeed = v end)
 
 getgenv()._astroAimTeamCheck = true
-elements:Toggle("Team Check", combatSection, function(v)
+local _setTeamCheck = elements:Toggle("Team Check", combatSection, function(v)
     getgenv()._astroAimTeamCheck = v
 end)
 
@@ -712,7 +720,7 @@ end)
 
 getgenv()._aimEnabled  = false
 getgenv()._astroAiming = false
-makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
+local _setAimbot = makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
     getgenv()._aimEnabled = on
     if not on then getgenv()._astroAiming = false end
 end)
@@ -781,7 +789,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 getgenv()._astroInfJump = false
-elements:Toggle("Infinite Jump", movSection, function(v)
+local _setInfJump = elements:Toggle("Infinite Jump", movSection, function(v)
     getgenv()._astroInfJump = v
 end)
 UserInputService.JumpRequest:Connect(function()
@@ -793,7 +801,9 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 local _fbOrig
-elements:Toggle("Fullbright", movSection, function(v)
+local _fullbrightOn = false
+local _setFullbright = elements:Toggle("Fullbright", movSection, function(v)
+    _fullbrightOn = v
     local L = game:GetService("Lighting")
     if v then
         _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
@@ -810,7 +820,7 @@ elements:Toggle("Fullbright", movSection, function(v)
 end)
 
 getgenv()._astroAntiAfk = false
-elements:Toggle("Anti-AFK", movSection, function(v)
+local _setAntiAfk = elements:Toggle("Anti-AFK", movSection, function(v)
     getgenv()._astroAntiAfk = v
     if v then
         task.spawn(function()
@@ -831,12 +841,117 @@ end)
 local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
 local _espD = {}
 
-elements:Toggle("Box",        espSection, function(v) _esp.box      = v end)
-elements:Toggle("Skeleton",   espSection, function(v) _esp.skeleton = v end)
-elements:Toggle("Name",       espSection, function(v) _esp.name     = v end)
-elements:Toggle("Distance",   espSection, function(v) _esp.distance = v end)
-elements:Toggle("Weapon",     espSection, function(v) _esp.weapon   = v end)
-elements:Toggle("Health Bar", espSection, function(v) _esp.health   = v end)
+local _setBoxEsp  = elements:Toggle("Box",        espSection, function(v) _esp.box      = v end)
+local _setSkelEsp = elements:Toggle("Skeleton",   espSection, function(v) _esp.skeleton = v end)
+local _setNameEsp = elements:Toggle("Name",       espSection, function(v) _esp.name     = v end)
+local _setDistEsp = elements:Toggle("Distance",   espSection, function(v) _esp.distance = v end)
+local _setWeapEsp = elements:Toggle("Weapon",     espSection, function(v) _esp.weapon   = v end)
+local _setHpEsp   = elements:Toggle("Health Bar", espSection, function(v) _esp.health   = v end)
+
+-- ── Config system ──────────────────────────────────────────────────────────────
+local CFG_FILE = "astro/universal/config.json"
+
+local function _cfgEnsureDirs()
+    if not isfolder("astro")           then makefolder("astro")           end
+    if not isfolder("astro/universal") then makefolder("astro/universal") end
+end
+
+local function _serializeBind(b)
+    return {
+        displayName = b.displayName,
+        keyName     = b.key.Name,
+        mouseName   = b.mouseBtn and b.mouseBtn.Name or nil,
+    }
+end
+
+local function _applyBind(b, s)
+    if not s then return end
+    b.displayName = s.displayName or b.displayName
+    if s.mouseName then
+        b.key      = Enum.KeyCode.Unknown
+        b.mouseBtn = Enum.UserInputType[s.mouseName]
+    else
+        b.key      = Enum.KeyCode[s.keyName] or b.key
+        b.mouseBtn = nil
+    end
+    if b.hudLabel then b.hudLabel.Text = b.displayName end
+end
+
+local function saveConfig()
+    _cfgEnsureDirs()
+    local data = {
+        walkSpeed    = _walkSpeed,
+        walkEnabled  = _walkEnabled,
+        flySpeed     = _flySpeed,
+        noclipEnabled = getgenv()._astroNoclip,
+        infJump      = getgenv()._astroInfJump,
+        fullbright   = _fullbrightOn,
+        antiAfk      = getgenv()._astroAntiAfk,
+        aimEnabled   = getgenv()._aimEnabled,
+        aimFOV       = _aimFOV,
+        aimSpeed     = _aimSpeed,
+        aimTeamCheck = getgenv()._astroAimTeamCheck,
+        aimMode      = _aimMode,
+        espBox       = _esp.box,
+        espSkeleton  = _esp.skeleton,
+        espName      = _esp.name,
+        espDistance  = _esp.distance,
+        espWeapon    = _esp.weapon,
+        espHealth    = _esp.health,
+        bindFly      = _serializeBind(_binds.fly),
+        bindNoclip   = _serializeBind(_binds.noclip),
+        bindAim      = _serializeBind(_binds.aim),
+    }
+    writefile(CFG_FILE, HttpService:JSONEncode(data))
+end
+
+local function loadConfig()
+    if not isfile(CFG_FILE) then return false end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
+    if not ok or type(data) ~= "table" then return false end
+
+    if data.walkSpeed   then _setWalkSpeed(data.walkSpeed)   end
+    if data.flySpeed    then _setFlySpeed(data.flySpeed)     end
+    if data.aimFOV      then _setAimFOV(data.aimFOV)        end
+    if data.aimSpeed    then _setAimSmooth(data.aimSpeed)    end
+
+    if data.walkEnabled   ~= nil then _setSpeedBoost(data.walkEnabled)   end
+    if data.noclipEnabled ~= nil then setNoclip(data.noclipEnabled)      end
+    if data.infJump       ~= nil then _setInfJump(data.infJump)          end
+    if data.fullbright    ~= nil then _setFullbright(data.fullbright)    end
+    if data.antiAfk       ~= nil then _setAntiAfk(data.antiAfk)         end
+    if data.aimEnabled    ~= nil then _setAimbot(data.aimEnabled)        end
+    if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)   end
+    if data.aimMode             then _aimMode = data.aimMode             end
+
+    if data.espBox      ~= nil then _setBoxEsp(data.espBox)       end
+    if data.espSkeleton ~= nil then _setSkelEsp(data.espSkeleton) end
+    if data.espName     ~= nil then _setNameEsp(data.espName)     end
+    if data.espDistance ~= nil then _setDistEsp(data.espDistance) end
+    if data.espWeapon   ~= nil then _setWeapEsp(data.espWeapon)   end
+    if data.espHealth   ~= nil then _setHpEsp(data.espHealth)     end
+
+    _applyBind(_binds.fly,    data.bindFly)
+    _applyBind(_binds.noclip, data.bindNoclip)
+    _applyBind(_binds.aim,    data.bindAim)
+
+    return true
+end
+
+-- Settings tab config buttons
+elements:Label("— Universal Config —", Sections.Settings.Container)
+elements:Button("Save Config", Sections.Settings.Container, function()
+    local ok, err = pcall(saveConfig)
+    if not ok then warn("Astro: saveConfig failed: " .. tostring(err)) end
+end)
+elements:Button("Load Config", Sections.Settings.Container, function()
+    local ok, err = pcall(loadConfig)
+    if not ok then warn("Astro: loadConfig failed: " .. tostring(err)) end
+end)
+
+-- Auto-load on start
+pcall(loadConfig)
+-- ──────────────────────────────────────────────────────────────────────────────
 
 local SKL_R15 = {
     {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},

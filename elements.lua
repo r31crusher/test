@@ -222,8 +222,8 @@ function stuff:Toggle(str, king, cb)
     tog.TextLabel.Text = str
     tog.Parent = king
     local on = false
-    tog.MouseButton1Click:Connect(function()
-        on = not on
+    local function setState(v)
+        on = v
         if on then
             tog.togglebg.BackgroundColor3 = Color3.fromRGB(80, 55, 180)
             tog.togglebg.leftrightlol.AnchorPoint = Vector2.new(1, 0.5)
@@ -236,7 +236,9 @@ function stuff:Toggle(str, king, cb)
             tog.togglebg.leftrightlol.BackgroundColor3 = Color3.fromRGB(160, 150, 220)
         end
         cb(on)
-    end)
+    end
+    tog.MouseButton1Click:Connect(function() setState(not on) end)
+    return setState
 end
 
 function stuff:Slider(str, king, minVal, maxVal, default, cb)
