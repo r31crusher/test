@@ -849,11 +849,23 @@ local _setWeapEsp = elements:Toggle("Weapon",     espSection, function(v) _esp.w
 local _setHpEsp   = elements:Toggle("Health Bar", espSection, function(v) _esp.health   = v end)
 
 -- ── Config system ──────────────────────────────────────────────────────────────
-local CFG_FILE = "astro/universal/config.json"
+local CFG_FILE  = "astro/universal/config.json"
+local META_FILE = "astro/universal/meta.json"
 
 local function _cfgEnsureDirs()
     if not isfolder("astro")           then makefolder("astro")           end
     if not isfolder("astro/universal") then makefolder("astro/universal") end
+end
+
+local function _readMeta()
+    if not isfile(META_FILE) then return {} end
+    local ok, d = pcall(function() return HttpService:JSONDecode(readfile(META_FILE)) end)
+    return (ok and type(d) == "table") and d or {}
+end
+
+local function _writeMeta(tbl)
+    _cfgEnsureDirs()
+    writefile(META_FILE, HttpService:JSONEncode(tbl))
 end
 
 local function _serializeBind(b)
@@ -880,27 +892,27 @@ end
 local function saveConfig()
     _cfgEnsureDirs()
     local data = {
-        walkSpeed    = _walkSpeed,
-        walkEnabled  = _walkEnabled,
-        flySpeed     = _flySpeed,
+        walkSpeed     = _walkSpeed,
+        walkEnabled   = _walkEnabled,
+        flySpeed      = _flySpeed,
         noclipEnabled = getgenv()._astroNoclip,
-        infJump      = getgenv()._astroInfJump,
-        fullbright   = _fullbrightOn,
-        antiAfk      = getgenv()._astroAntiAfk,
-        aimEnabled   = getgenv()._aimEnabled,
-        aimFOV       = _aimFOV,
-        aimSpeed     = _aimSpeed,
-        aimTeamCheck = getgenv()._astroAimTeamCheck,
-        aimMode      = _aimMode,
-        espBox       = _esp.box,
-        espSkeleton  = _esp.skeleton,
-        espName      = _esp.name,
-        espDistance  = _esp.distance,
-        espWeapon    = _esp.weapon,
-        espHealth    = _esp.health,
-        bindFly      = _serializeBind(_binds.fly),
-        bindNoclip   = _serializeBind(_binds.noclip),
-        bindAim      = _serializeBind(_binds.aim),
+        infJump       = getgenv()._astroInfJump,
+        fullbright    = _fullbrightOn,
+        antiAfk       = getgenv()._astroAntiAfk,
+        aimEnabled    = getgenv()._aimEnabled,
+        aimFOV        = _aimFOV,
+        aimSpeed      = _aimSpeed,
+        aimTeamCheck  = getgenv()._astroAimTeamCheck,
+        aimMode       = _aimMode,
+        espBox        = _esp.box,
+        espSkeleton   = _esp.skeleton,
+        espName       = _esp.name,
+        espDistance   = _esp.distance,
+        espWeapon     = _esp.weapon,
+        espHealth     = _esp.health,
+        bindFly       = _serializeBind(_binds.fly),
+        bindNoclip    = _serializeBind(_binds.noclip),
+        bindAim       = _serializeBind(_binds.aim),
     }
     writefile(CFG_FILE, HttpService:JSONEncode(data))
 end
@@ -910,19 +922,19 @@ local function loadConfig()
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
     if not ok or type(data) ~= "table" then return false end
 
-    if data.walkSpeed   then _setWalkSpeed(data.walkSpeed)   end
-    if data.flySpeed    then _setFlySpeed(data.flySpeed)     end
-    if data.aimFOV      then _setAimFOV(data.aimFOV)        end
-    if data.aimSpeed    then _setAimSmooth(data.aimSpeed)    end
+    if data.walkSpeed  then _setWalkSpeed(data.walkSpeed)  end
+    if data.flySpeed   then _setFlySpeed(data.flySpeed)    end
+    if data.aimFOV     then _setAimFOV(data.aimFOV)       end
+    if data.aimSpeed   then _setAimSmooth(data.aimSpeed)   end
 
-    if data.walkEnabled   ~= nil then _setSpeedBoost(data.walkEnabled)   end
-    if data.noclipEnabled ~= nil then setNoclip(data.noclipEnabled)      end
-    if data.infJump       ~= nil then _setInfJump(data.infJump)          end
-    if data.fullbright    ~= nil then _setFullbright(data.fullbright)    end
-    if data.antiAfk       ~= nil then _setAntiAfk(data.antiAfk)         end
-    if data.aimEnabled    ~= nil then _setAimbot(data.aimEnabled)        end
-    if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)   end
-    if data.aimMode             then _aimMode = data.aimMode             end
+    if data.walkEnabled   ~= nil then _setSpeedBoost(data.walkEnabled)  end
+    if data.noclipEnabled ~= nil then setNoclip(data.noclipEnabled)     end
+    if data.infJump       ~= nil then _setInfJump(data.infJump)         end
+    if data.fullbright    ~= nil then _setFullbright(data.fullbright)   end
+    if data.antiAfk       ~= nil then _setAntiAfk(data.antiAfk)        end
+    if data.aimEnabled    ~= nil then _setAimbot(data.aimEnabled)       end
+    if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)  end
+    if data.aimMode             then _aimMode = data.aimMode            end
 
     if data.espBox      ~= nil then _setBoxEsp(data.espBox)       end
     if data.espSkeleton ~= nil then _setSkelEsp(data.espSkeleton) end
@@ -938,19 +950,43 @@ local function loadConfig()
     return true
 end
 
--- Settings tab config buttons
-elements:Label("— Universal Config —", Sections.Settings.Container)
-elements:Button("Save Config", Sections.Settings.Container, function()
-    local ok, err = pcall(saveConfig)
-    if not ok then warn("Astro: saveConfig failed: " .. tostring(err)) end
-end)
-elements:Button("Load Config", Sections.Settings.Container, function()
-    local ok, err = pcall(loadConfig)
-    if not ok then warn("Astro: loadConfig failed: " .. tostring(err)) end
-end)
+-- Silent load: restores preference values only (speeds, FOV, aim mode, keybinds).
+-- Intentionally skips feature toggles so no hacks activate automatically.
+local function silentLoadConfig()
+    if not isfile(CFG_FILE) then return false end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
+    if not ok or type(data) ~= "table" then return false end
 
--- Auto-load on start
-pcall(loadConfig)
+    if data.walkSpeed then _walkSpeed = data.walkSpeed end
+    if data.flySpeed  then _flySpeed  = data.flySpeed  end
+    if data.aimFOV    then _aimFOV    = data.aimFOV    end
+    if data.aimSpeed  then _aimSpeed  = data.aimSpeed  end
+    if data.aimMode   then _aimMode   = data.aimMode   end
+
+    _applyBind(_binds.fly,    data.bindFly)
+    _applyBind(_binds.noclip, data.bindNoclip)
+    _applyBind(_binds.aim,    data.bindAim)
+
+    return true
+end
+
+-- Settings tab config buttons
+local _autoLoad = _readMeta().autoLoad == true
+
+elements:Label("— Universal Config —", Sections.Settings.Container)
+elements:Button("Save Config",  Sections.Settings.Container, function() pcall(saveConfig)       end)
+elements:Button("Load Config",  Sections.Settings.Container, function() pcall(loadConfig)       end)
+elements:Button("Silent Load",  Sections.Settings.Container, function() pcall(silentLoadConfig) end)
+local _setAutoLoad = elements:Toggle("Auto Load on Start", Sections.Settings.Container, function(v)
+    _autoLoad = v
+    local m = _readMeta()
+    m.autoLoad = v
+    pcall(_writeMeta, m)
+end)
+_setAutoLoad(_autoLoad)  -- reflect persisted preference immediately
+
+-- Auto-load on start (only when the preference is saved as enabled)
+if _autoLoad then pcall(loadConfig) end
 -- ──────────────────────────────────────────────────────────────────────────────
 
 local SKL_R15 = {
