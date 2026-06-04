@@ -45,7 +45,35 @@ local function loadRemoteOrLocal(name)
         error("Unable to load: " .. name)
     end
 
-    return loadstring(source)()
+    local func, err = loadstring(source)
+    if not func then
+        if isfile(name) then
+            source = readfile(name)
+            func, err = loadstring(source)
+        end
+    end
+
+    if not func then
+        error("Unable to compile: " .. tostring(err))
+    end
+
+    local ok, result = pcall(func)
+    if ok then
+        return result
+    end
+
+    if source ~= nil and isfile(name) then
+        local localSource = readfile(name)
+        local localFunc, localErr = loadstring(localSource)
+        if localFunc then
+            local ok2, result2 = pcall(localFunc)
+            if ok2 then
+                return result2
+            end
+        end
+    end
+
+    error("Unable to execute " .. name .. ": " .. tostring(result))
 end
 
 game:GetService("GuiService").ErrorMessageChanged:Connect(function()
