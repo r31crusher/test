@@ -1000,14 +1000,21 @@ local function updateESP(p)
         while #d.sklLines < #conns do
             table.insert(d.sklLines, newLine(Color3.fromRGB(255,255,255), 1))
         end
+        local camPos  = cam.CFrame.Position
+        local camLook = cam.CFrame.LookVector
         for i, c in ipairs(conns) do
             local p0 = char:FindFirstChild(c[1])
             local p1 = char:FindFirstChild(c[2])
             local ln = d.sklLines[i]
             if p0 and p1 then
-                local s0, o0 = cam:WorldToViewportPoint(p0.Position)
-                local s1, o1 = cam:WorldToViewportPoint(p1.Position)
-                if o0 and o1 and s0.Z > 0 and s1.Z > 0 then
+                -- dot product check: both endpoints must be in front of the camera plane.
+                -- WorldToViewportPoint Z is always positive (absolute distance), so it
+                -- cannot detect behind-camera points; the dot product is the correct test.
+                local inFront0 = (p0.Position - camPos):Dot(camLook) > 0
+                local inFront1 = (p1.Position - camPos):Dot(camLook) > 0
+                if inFront0 and inFront1 then
+                    local s0 = cam:WorldToViewportPoint(p0.Position)
+                    local s1 = cam:WorldToViewportPoint(p1.Position)
                     ln.From = Vector2.new(s0.X, s0.Y)
                     ln.To   = Vector2.new(s1.X, s1.Y)
                     ln.Visible = true
