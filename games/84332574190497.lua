@@ -1,7 +1,7 @@
 -- +1 Wings for brainrot
 
-return (function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+return (function(section, elements)
+    elements = elements or loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
 
     local player = game:GetService("Players").LocalPlayer
     local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]

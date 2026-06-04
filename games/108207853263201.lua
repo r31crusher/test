@@ -1,7 +1,7 @@
 -- "Rizz Tower" because it was the first result
 
-return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+return function(section, elements)
+    elements = elements or loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
 
     getgenv().WinFarm = false
 

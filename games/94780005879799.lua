@@ -1,7 +1,7 @@
 -- scream for brainrots
 
-return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+return function(section, elements)
+    elements = elements or loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
     getgenv().AddingSpins = false
     getgenv().AutoSleepy = false
     getgenv().AutoOg = false

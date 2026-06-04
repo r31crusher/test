@@ -1,7 +1,7 @@
 -- nuke for brainrots
 
-return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+return function(section, elements)
+    elements = elements or loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
 
     local brainrotFold = workspace.Camera.BrainrotContainer
     local wallDurabilities = require(game:GetService("ReplicatedStorage").Modules.Constants.WallDurabilities)

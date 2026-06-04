@@ -329,26 +329,26 @@ local function safeLoadGameModule(placeId)
         if not fn then
             return nil, err
         end
-        return fn
+        return fn, nil
     end
+
+    local lastErr
 
     local localFile = readLocal("games/" .. tostring(placeId) .. ".lua")
     if localFile then
         local fn, err = compileSource(localFile)
-        if fn then
-            return fn
-        end
+        if fn then return fn end
+        lastErr = err
     end
 
     local remote = fetchRemote(getGitPath("games") .. tostring(placeId) .. ".lua")
     if remote then
         local fn, err = compileSource(remote)
-        if fn then
-            return fn
-        end
+        if fn then return fn end
+        lastErr = err
     end
 
-    return nil
+    return nil, lastErr
 end
 
 local function createCardContent(title, subtitle, parent)
@@ -373,17 +373,17 @@ local homeCard = createCardContent("Welcome", "Press Insert to toggle menu", sec
 elements:Label("Navigate using the sidebar", homeCard)
 
 -- Game Section
-local gameModule = safeLoadGameModule(game.PlaceId)
+local gameModule, gameModuleErr = safeLoadGameModule(game.PlaceId)
 if type(gameModule) == "function" then
     local ok, result = pcall(function()
-        gameModule(sectionFrames.Game)
+        gameModule(sectionFrames.Game, elements)
     end)
     if not ok then
-        elements:Label("Game module error: " .. tostring(result), sectionFrames.Game)
+        createCardContent("Game Error", tostring(result), sectionFrames.Game)
     end
 else
-    local noGameCard = createCardContent("No Game Module", "This game doesn't have custom UI.", sectionFrames.Game)
-    elements:Label("Browse other games in Gameslist.", sectionFrames.Game)
+    local reason = gameModuleErr and ("Compile error: " .. tostring(gameModuleErr)) or "No module for this game."
+    createCardContent("No Game Module", reason, sectionFrames.Game)
 end
 
 -- Gameslist Section
