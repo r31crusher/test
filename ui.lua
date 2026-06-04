@@ -230,6 +230,90 @@ end
 
 local elements = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
 
+local function makeDropdown(label, parent, options, default, cb)
+    local itemH = 28
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(1, 0, 0, 32)
+    frame.BackgroundTransparency = 1
+    frame.ClipsDescendants = false
+
+    local header = Instance.new("TextButton", frame)
+    header.Size = UDim2.new(1, 0, 1, 0)
+    header.BackgroundColor3 = Color3.fromRGB(20, 17, 38)
+    header.BorderSizePixel = 0
+    header.AutoButtonColor = false
+    header.Font = Enum.Font.GothamSemibold
+    header.TextSize = 13
+    header.TextColor3 = Color3.fromRGB(200, 190, 255)
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    header.Text = "  " .. label .. ":  " .. default
+    Instance.new("UICorner", header).CornerRadius = UDim.new(0, 6)
+    local hStroke = Instance.new("UIStroke", header)
+    hStroke.Color = Color3.fromRGB(100, 80, 190) ; hStroke.Transparency = 0.6
+
+    local arrow = Instance.new("TextLabel", header)
+    arrow.Size = UDim2.new(0, 22, 1, 0)
+    arrow.Position = UDim2.new(1, -26, 0, 0)
+    arrow.BackgroundTransparency = 1
+    arrow.Font = Enum.Font.GothamBold
+    arrow.TextSize = 11
+    arrow.TextColor3 = Color3.fromRGB(160, 150, 210)
+    arrow.Text = "▼"
+
+    local list = Instance.new("Frame", frame)
+    list.Size = UDim2.new(1, 0, 0, #options * itemH)
+    list.Position = UDim2.new(0, 0, 0, 34)
+    list.BackgroundColor3 = Color3.fromRGB(16, 14, 28)
+    list.BorderSizePixel = 0
+    list.Visible = false
+    list.ZIndex = 8
+    Instance.new("UICorner", list).CornerRadius = UDim.new(0, 6)
+    local lStroke = Instance.new("UIStroke", list)
+    lStroke.Color = Color3.fromRGB(100, 80, 190) ; lStroke.Transparency = 0.5
+    local lLayout = Instance.new("UIListLayout", list)
+    lLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local isOpen = false
+
+    for i, opt in ipairs(options) do
+        local btn = Instance.new("TextButton", list)
+        btn.Size = UDim2.new(1, 0, 0, itemH)
+        btn.BackgroundTransparency = 1
+        btn.BorderSizePixel = 0
+        btn.AutoButtonColor = false
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 12
+        btn.TextColor3 = opt == default
+            and Color3.fromRGB(210, 195, 255)
+            or  Color3.fromRGB(140, 130, 180)
+        btn.Text = opt
+        btn.LayoutOrder = i
+        btn.ZIndex = 9
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundTransparency = 0
+            btn.BackgroundColor3 = Color3.fromRGB(30, 24, 55)
+        end)
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundTransparency = 1
+        end)
+        btn.MouseButton1Click:Connect(function()
+            isOpen = false
+            list.Visible = false
+            arrow.Text = "▼"
+            frame.Size = UDim2.new(1, 0, 0, 32)
+            header.Text = "  " .. label .. ":  " .. opt
+            cb(opt)
+        end)
+    end
+
+    header.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        list.Visible = isOpen
+        arrow.Text = isOpen and "▲" or "▼"
+        frame.Size = UDim2.new(1, 0, 0, isOpen and (32 + #options * itemH + 4) or 32)
+    end)
+end
+
 local function makeSlider(str, parent, minVal, maxVal, default, cb)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1, 0, 0, 46)
@@ -618,6 +702,11 @@ elements:Toggle("Team Check", combatSection, function(v)
     getgenv()._astroAimTeamCheck = v
 end)
 
+local _aimMode = "Legacy"
+makeDropdown("Aim Mode", combatSection, {"Legacy", "Silent"}, "Legacy", function(v)
+    _aimMode = v
+end)
+
 getgenv()._astroAiming = false
 local setAim = makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
     getgenv()._astroAiming = on
@@ -644,20 +733,40 @@ local function getAimTarget()
     return best
 end
 
+local _silentOrig = nil
+
 RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Camera.Value + 1, function()
-    if not getgenv()._astroAiming then return end
+    if not getgenv()._astroAiming then
+        _silentOrig = nil
+        return
+    end
     local target = getAimTarget()
     if not target then return end
     local cam = workspace.CurrentCamera
-    local t = math.clamp(_aimSpeed / 20, 0.05, 1)
-    cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, target.Position), t)
+    if _aimMode == "Legacy" then
+        local t = math.clamp(_aimSpeed / 20, 0.05, 1)
+        cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, target.Position), t)
+    else
+        _silentOrig = cam.CFrame
+        cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
+    end
+end)
+
+RunService:BindToRenderStep("AstroAimRestore", Enum.RenderPriority.Last.Value + 1, function()
+    if _silentOrig then
+        workspace.CurrentCamera.CFrame = _silentOrig
+        _silentOrig = nil
+    end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if isBound(input, _binds.fly)    then setFly(not getgenv()._astroFlying)    end
     if isBound(input, _binds.noclip) then setNoclip(not getgenv()._astroNoclip) end
-    if isBound(input, _binds.aim)    then setAim(not getgenv()._astroAiming)    end
+    if isBound(input, _binds.aim)    then setAim(true)                          end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if isBound(input, _binds.aim) then setAim(false) end
 end)
 
 getgenv()._astroInfJump = false
