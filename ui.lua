@@ -824,133 +824,204 @@ elements:Toggle("Anti-AFK", movSection, function(v)
     end
 end)
 
-local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false}
-local _espData = {}
+local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
+local _espD = {}
 
-elements:Toggle("Box",      espSection, function(v) _esp.box      = v end)
-elements:Toggle("Skeleton", espSection, function(v) _esp.skeleton = v end)
-elements:Toggle("Name",     espSection, function(v) _esp.name     = v end)
-elements:Toggle("Distance", espSection, function(v) _esp.distance = v end)
-elements:Toggle("Weapon",   espSection, function(v) _esp.weapon   = v end)
+elements:Toggle("Box",        espSection, function(v) _esp.box      = v end)
+elements:Toggle("Skeleton",   espSection, function(v) _esp.skeleton = v end)
+elements:Toggle("Name",       espSection, function(v) _esp.name     = v end)
+elements:Toggle("Distance",   espSection, function(v) _esp.distance = v end)
+elements:Toggle("Weapon",     espSection, function(v) _esp.weapon   = v end)
+elements:Toggle("Health Bar", espSection, function(v) _esp.health   = v end)
+
+local SKL_R15 = {
+    {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+    {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+    {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+    {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+    {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+}
+local SKL_R6 = {
+    {"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},
+    {"Torso","Left Leg"},{"Torso","Right Leg"},
+}
+
+local function newLine(color, thick)
+    local l = Drawing.new("Line")
+    l.Color = color or Color3.fromRGB(255,50,50)
+    l.Thickness = thick or 1.5
+    l.Visible = false
+    return l
+end
+local function newText(size, color)
+    local t = Drawing.new("Text")
+    t.Size = size or 13
+    t.Color = color or Color3.fromRGB(255,255,255)
+    t.Outline = true
+    t.Center = true
+    t.Visible = false
+    return t
+end
+
+local function getESPData(uid)
+    if not _espD[uid] then
+        _espD[uid] = {
+            box      = Drawing.new("Square"),
+            hpBg     = newLine(Color3.fromRGB(0,0,0), 3),
+            hpBar    = newLine(Color3.fromRGB(0,255,0), 3),
+            nameT    = newText(13, Color3.fromRGB(255,255,255)),
+            distT    = newText(11, Color3.fromRGB(160,210,255)),
+            weapT    = newText(11, Color3.fromRGB(255,210,80)),
+            sklLines = {},
+        }
+        local b = _espD[uid].box
+        b.Filled = false
+        b.Thickness = 1.5
+        b.Color = Color3.fromRGB(255,50,50)
+        b.Visible = false
+    end
+    return _espD[uid]
+end
+
+local function hideAll(d)
+    d.box.Visible = false
+    d.hpBg.Visible = false
+    d.hpBar.Visible = false
+    d.nameT.Visible = false
+    d.distT.Visible = false
+    d.weapT.Visible = false
+    for _, l in ipairs(d.sklLines) do l.Visible = false end
+end
 
 local function cleanESP(uid)
-    local d = _espData[uid]
+    local d = _espD[uid]
     if not d then return end
-    pcall(function() if d.highlight then d.highlight:Destroy() end end)
-    pcall(function() if d.billboard then d.billboard:Destroy() end end)
-    for _, b in ipairs(d.beams or {}) do
-        pcall(function() b.beam:Destroy(); b.a0:Destroy(); b.a1:Destroy() end)
-    end
-    _espData[uid] = nil
+    pcall(function() d.box:Remove() end)
+    pcall(function() d.hpBg:Remove() end)
+    pcall(function() d.hpBar:Remove() end)
+    pcall(function() d.nameT:Remove() end)
+    pcall(function() d.distT:Remove() end)
+    pcall(function() d.weapT:Remove() end)
+    for _, l in ipairs(d.sklLines) do pcall(function() l:Remove() end) end
+    _espD[uid] = nil
 end
 
 local function updateESP(p)
     local char = p.Character
-    if not char then cleanESP(p.UserId); return end
+    local d = getESPData(p.UserId)
+    if not char then hideAll(d); return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum or hum.Health <= 0 then cleanESP(p.UserId); return end
+    if not hrp or not hum or hum.Health <= 0 then hideAll(d); return end
 
-    if not _espData[p.UserId] then _espData[p.UserId] = {beams={}} end
-    local d = _espData[p.UserId]
+    local cam = workspace.CurrentCamera
+    local probeNames = {"Head","HumanoidRootPart","LeftFoot","RightFoot","LeftHand","RightHand",
+                        "LeftLowerLeg","RightLowerLeg","LeftLowerArm","RightLowerArm",
+                        "Left Leg","Right Leg","Left Arm","Right Arm","Torso"}
+    local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
+    local hit = false
+    for _, pn in ipairs(probeNames) do
+        local part = char:FindFirstChild(pn)
+        if part then
+            local sp, on = cam:WorldToViewportPoint(part.Position)
+            if on then
+                hit = true
+                if sp.X < minX then minX = sp.X end
+                if sp.Y < minY then minY = sp.Y end
+                if sp.X > maxX then maxX = sp.X end
+                if sp.Y > maxY then maxY = sp.Y end
+            end
+        end
+    end
+    if not hit then hideAll(d); return end
+
+    local pad = 4
+    minX, minY, maxX, maxY = minX-pad, minY-pad, maxX+pad, maxY+pad
+    local cx = (minX+maxX)/2
 
     if _esp.box then
-        if not d.highlight or not d.highlight.Parent then
-            local h = Instance.new("Highlight", char)
-            h.FillTransparency = 1
-            h.OutlineColor = Color3.fromRGB(255, 50, 50)
-            d.highlight = h
-        end
+        d.box.Position = Vector2.new(minX, minY)
+        d.box.Size     = Vector2.new(maxX-minX, maxY-minY)
+        d.box.Visible  = true
     else
-        if d.highlight then d.highlight:Destroy(); d.highlight = nil end
+        d.box.Visible = false
     end
 
-    local needsBB = _esp.name or _esp.distance or _esp.weapon
-    if needsBB then
-        if not d.billboard or not d.billboard.Parent then
-            local bb = Instance.new("BillboardGui", hrp)
-            bb.Size = UDim2.new(0, 200, 0, 58)
-            bb.StudsOffset = Vector3.new(0, 3.5, 0)
-            bb.AlwaysOnTop = true
-            bb.Adornee = hrp
-            d.billboard = bb
-            local function makeEspLabel(yPos, size, color)
-                local l = Instance.new("TextLabel", bb)
-                l.Size = UDim2.new(1, 0, 0, size)
-                l.Position = UDim2.new(0, 0, 0, yPos)
-                l.BackgroundTransparency = 1
-                l.Font = Enum.Font.GothamBold
-                l.TextSize = size
-                l.TextColor3 = color
-                l.TextStrokeTransparency = 0.4
-                return l
-            end
-            makeEspLabel(0,  14, Color3.fromRGB(255,255,255)).Name = "NameL"
-            makeEspLabel(16, 12, Color3.fromRGB(180,220,255)).Name = "DistL"
-            makeEspLabel(30, 12, Color3.fromRGB(255,210,80)).Name  = "WeapL"
-        end
-        local bb = d.billboard
-        local nl = bb:FindFirstChild("NameL")
-        local dl = bb:FindFirstChild("DistL")
-        local wl = bb:FindFirstChild("WeapL")
-        if nl then nl.Visible = _esp.name;     nl.Text = p.DisplayName end
-        if dl then
-            dl.Visible = _esp.distance
-            if _esp.distance and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                dl.Text = math.floor((plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude) .. "m"
-            end
-        end
-        if wl then
-            wl.Visible = _esp.weapon
-            if _esp.weapon then
-                local tool = char:FindFirstChildOfClass("Tool")
-                wl.Text = tool and tool.Name or ""
-            end
-        end
+    if _esp.health then
+        local ratio = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+        local r = math.clamp(math.floor(255*(1-ratio)*2), 0, 255)
+        local g = math.clamp(math.floor(255*ratio*2),     0, 255)
+        local barX = minX - 5
+        d.hpBg.From = Vector2.new(barX, minY)
+        d.hpBg.To   = Vector2.new(barX, maxY)
+        d.hpBg.Visible = true
+        d.hpBar.Color = Color3.fromRGB(r, g, 0)
+        d.hpBar.From  = Vector2.new(barX, maxY)
+        d.hpBar.To    = Vector2.new(barX, maxY - (maxY-minY)*ratio)
+        d.hpBar.Visible = true
     else
-        if d.billboard then d.billboard:Destroy(); d.billboard = nil end
+        d.hpBg.Visible = false
+        d.hpBar.Visible = false
+    end
+
+    local textY = minY - 15
+    if _esp.name then
+        d.nameT.Text     = p.DisplayName
+        d.nameT.Position = Vector2.new(cx, textY)
+        d.nameT.Visible  = true
+        textY = textY - 13
+    else
+        d.nameT.Visible = false
+    end
+    if _esp.distance and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local dist = math.floor((plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
+        d.distT.Text     = dist .. "m"
+        d.distT.Position = Vector2.new(cx, textY)
+        d.distT.Visible  = true
+    else
+        d.distT.Visible = false
+    end
+    if _esp.weapon then
+        local tool = char:FindFirstChildOfClass("Tool")
+        d.weapT.Text    = tool and tool.Name or ""
+        d.weapT.Position = Vector2.new(cx, maxY + 2)
+        d.weapT.Visible  = d.weapT.Text ~= ""
+    else
+        d.weapT.Visible = false
     end
 
     if _esp.skeleton then
-        if #d.beams == 0 then
-            local isR15 = char:FindFirstChild("UpperTorso") ~= nil
-            local conns = isR15 and {
-                {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
-                {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
-                {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
-                {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
-                {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
-            } or {
-                {"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},
-                {"Torso","Left Leg"},{"Torso","Right Leg"},
-            }
-            for _, c in ipairs(conns) do
-                local p0 = char:FindFirstChild(c[1])
-                local p1 = char:FindFirstChild(c[2])
-                if p0 and p1 then
-                    local a0 = Instance.new("Attachment", p0)
-                    local a1 = Instance.new("Attachment", p1)
-                    local beam = Instance.new("Beam", p0)
-                    beam.Attachment0 = a0; beam.Attachment1 = a1
-                    beam.Width0 = 0.06;   beam.Width1 = 0.06
-                    beam.Color = ColorSequence.new(Color3.fromRGB(255, 50, 50))
-                    beam.FaceCamera = true
-                    beam.Transparency = NumberSequence.new(0)
-                    beam.Segments = 1
-                    table.insert(d.beams, {beam=beam, a0=a0, a1=a1})
+        local isR15 = char:FindFirstChild("UpperTorso") ~= nil
+        local conns = isR15 and SKL_R15 or SKL_R6
+        while #d.sklLines < #conns do
+            table.insert(d.sklLines, newLine(Color3.fromRGB(255,255,255), 1))
+        end
+        for i, c in ipairs(conns) do
+            local p0 = char:FindFirstChild(c[1])
+            local p1 = char:FindFirstChild(c[2])
+            local ln = d.sklLines[i]
+            if p0 and p1 then
+                local s0, o0 = cam:WorldToViewportPoint(p0.Position)
+                local s1, o1 = cam:WorldToViewportPoint(p1.Position)
+                if o0 and o1 then
+                    ln.From = Vector2.new(s0.X, s0.Y)
+                    ln.To   = Vector2.new(s1.X, s1.Y)
+                    ln.Visible = true
+                else
+                    ln.Visible = false
                 end
+            else
+                ln.Visible = false
             end
         end
+        for i = #conns+1, #d.sklLines do d.sklLines[i].Visible = false end
     else
-        for _, b in ipairs(d.beams) do
-            pcall(function() b.beam:Destroy(); b.a0:Destroy(); b.a1:Destroy() end)
-        end
-        d.beams = {}
+        for _, l in ipairs(d.sklLines) do l.Visible = false end
     end
 end
 
 RunService.RenderStepped:Connect(function()
-    if not (_esp.box or _esp.skeleton or _esp.name or _esp.distance or _esp.weapon) then return end
+    if not (_esp.box or _esp.skeleton or _esp.name or _esp.distance or _esp.weapon or _esp.health) then return end
     for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
         if p ~= plr then updateESP(p) end
     end
