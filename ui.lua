@@ -30,13 +30,11 @@ local function readLocal(name)
 end
 
 local function getGitPath(name)
-    if type(getgitpath) == "function" then
-        if name == "games" then
-            return getgitpath("games")
-        end
-        return getgitpath()
+    local base = "https://raw.githubusercontent.com/r31crusher/test/main/"
+    if name == "games" then
+        return base .. "games/"
     end
-    return "https://raw.githubusercontent.com/r31crusher/test/main/"
+    return base
 end
 
 local function fetchRemoteOrLocal(name)
@@ -307,7 +305,7 @@ local function safeLoadGameModule(placeId)
         warn("Remote game module compile failed: " .. tostring(err))
     end
 
-    local localFile = readLocal("test/" .. tostring(placeId) .. ".lua")
+    local localFile = readLocal("games/" .. tostring(placeId) .. ".lua")
     if localFile then
         local fn, err = compileSource(localFile)
         if fn then
