@@ -2,7 +2,7 @@ local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
-local ExperienceService = game:GetService("ExperienceService")
+local TeleportService = game:GetService("TeleportService")
 
 local function getPlayerGui()
     local player = Players.LocalPlayer
@@ -71,7 +71,13 @@ local function safeLoad(name)
     return result
 end
 
-local elements = safeLoad("elements.lua")
+local elementsOk, elementsResult = pcall(safeLoad, "elements.lua")
+if not elementsOk then
+    warn("Solaris: failed to load elements.lua - " .. tostring(elementsResult))
+end
+local elements = elementsOk and elementsResult or setmetatable({}, {
+    __index = function() return function() end end
+})
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "SolarisUI"
@@ -385,7 +391,7 @@ local gamesList = safeJson("gameslist.json") or {}
 if #gamesList > 0 then
     for _, gameEntry in ipairs(gamesList) do
         elements:Button((gameEntry.status or "●") .. " " .. tostring(gameEntry.game), sectionFrames.Gameslist, function()
-            ExperienceService:LaunchExperience({placeId = gameEntry.id})
+            TeleportService:Teleport(gameEntry.id)
         end)
     end
 else
