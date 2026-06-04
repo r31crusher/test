@@ -263,10 +263,8 @@ elements:Toggle("Auto Rejoin on kick", Sections.Settings.Container, function(v)
     getgenv().autorjjjj = v
 end)
 
-elements:Label("── Universal Tools ──", Sections.Settings.Container)
-
 local _walkSpeed = 16
-elements:Slider("Walk Speed", Sections.Settings.Container, 8, 150, 16, function(v)
+elements:Slider("Walk Speed", Sections.Universal.Container, 8, 150, 16, function(v)
     _walkSpeed = v
     if plr.Character then
         local h = plr.Character:FindFirstChildOfClass("Humanoid")
@@ -279,7 +277,7 @@ plr.CharacterAdded:Connect(function(char)
 end)
 
 getgenv()._astroNoclip = false
-elements:Toggle("Noclip", Sections.Settings.Container, function(v)
+elements:Toggle("Noclip", Sections.Universal.Container, function(v)
     getgenv()._astroNoclip = v
 end)
 RunService.Stepped:Connect(function()
@@ -294,12 +292,12 @@ end)
 local _flySpeed = 50
 local _flyBV, _flyBG
 
-elements:Slider("Fly Speed", Sections.Settings.Container, 10, 300, 50, function(v)
+elements:Slider("Fly Speed", Sections.Universal.Container, 10, 300, 50, function(v)
     _flySpeed = v
 end)
 
 getgenv()._astroFlying = false
-elements:Toggle("Fly  (WASD · Space=up · Shift=down)", Sections.Settings.Container, function(on)
+elements:Toggle("Fly  (WASD · Space=up · Shift=down)", Sections.Universal.Container, function(on)
     getgenv()._astroFlying = on
     local char = plr.Character
     if not char then return end
@@ -341,7 +339,7 @@ elements:Toggle("Fly  (WASD · Space=up · Shift=down)", Sections.Settings.Conta
 end)
 
 getgenv()._astroInfJump = false
-elements:Toggle("Infinite Jump", Sections.Settings.Container, function(v)
+elements:Toggle("Infinite Jump", Sections.Universal.Container, function(v)
     getgenv()._astroInfJump = v
 end)
 UserInputService.JumpRequest:Connect(function()
@@ -353,7 +351,7 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 local _fbOrig
-elements:Toggle("Fullbright", Sections.Settings.Container, function(v)
+elements:Toggle("Fullbright", Sections.Universal.Container, function(v)
     local L = game:GetService("Lighting")
     if v then
         _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
@@ -370,7 +368,7 @@ elements:Toggle("Fullbright", Sections.Settings.Container, function(v)
 end)
 
 getgenv()._astroAntiAfk = false
-elements:Toggle("Anti-AFK", Sections.Settings.Container, function(v)
+elements:Toggle("Anti-AFK", Sections.Universal.Container, function(v)
     getgenv()._astroAntiAfk = v
     if v then
         task.spawn(function()
