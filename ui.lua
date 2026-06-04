@@ -740,7 +740,7 @@ end
 
 local _silentOrig = nil
 
-RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Camera.Value + 1, function()
+RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function()
     if not getgenv()._astroAiming then
         _silentOrig = nil
         return
@@ -768,6 +768,10 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if isBound(input, _binds.fly)    then setFly(not getgenv()._astroFlying)    end
     if isBound(input, _binds.noclip) then setNoclip(not getgenv()._astroNoclip) end
+end)
+-- Aim uses a separate connection with no gp guard so it fires in FPS games
+-- that intercept the bound key (e.g. M2 for ADS, E for interact)
+UserInputService.InputBegan:Connect(function(input)
     if isBound(input, _binds.aim) and getgenv()._aimEnabled then
         getgenv()._astroAiming = true
     end
@@ -1003,7 +1007,7 @@ local function updateESP(p)
             if p0 and p1 then
                 local s0, o0 = cam:WorldToViewportPoint(p0.Position)
                 local s1, o1 = cam:WorldToViewportPoint(p1.Position)
-                if o0 and o1 then
+                if o0 and o1 and s0.Z > 0 and s1.Z > 0 then
                     ln.From = Vector2.new(s0.X, s0.Y)
                     ln.To   = Vector2.new(s1.X, s1.Y)
                     ln.Visible = true
