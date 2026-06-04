@@ -327,35 +327,84 @@ elements:Toggle("Auto Rejoin on kick", Sections.Settings.Container, function(v)
     getgenv().autorjjjj = v
 end)
 
-local _walkSpeed = 50
-local _walkEnabled = false
-
-makeSlider("Walk Speed", Sections.Universal.Container, 8, 250, 50, function(v)
-    _walkSpeed = v
-    if _walkEnabled and plr.Character then
-        local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.WalkSpeed = v end
-    end
-end)
-
-elements:Toggle("Speed Boost", Sections.Universal.Container, function(v)
-    _walkEnabled = v
-    if plr.Character then
-        local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.WalkSpeed = v and _walkSpeed or 16 end
-    end
-end)
-
-plr.CharacterAdded:Connect(function(char)
-    local h = char:WaitForChild("Humanoid", 5)
-    if h then h.WalkSpeed = _walkEnabled and _walkSpeed or 16 end
-end)
-
 local _binds = {
-    fly    = {key = Enum.KeyCode.F, hudLabel = nil},
-    noclip = {key = Enum.KeyCode.V, hudLabel = nil},
-    aim    = {key = Enum.KeyCode.E, hudLabel = nil},
+    fly    = {key = Enum.KeyCode.F, mouseBtn = nil, displayName = "F", hudLabel = nil},
+    noclip = {key = Enum.KeyCode.V, mouseBtn = nil, displayName = "V", hudLabel = nil},
+    aim    = {key = Enum.KeyCode.E, mouseBtn = nil, displayName = "E", hudLabel = nil},
 }
+
+local _mouseBtnNames = {
+    [Enum.UserInputType.MouseButton1] = "M1",
+    [Enum.UserInputType.MouseButton2] = "M2",
+    [Enum.UserInputType.MouseButton3] = "M3",
+}
+
+local function isBound(input, bind)
+    if bind.mouseBtn and input.UserInputType == bind.mouseBtn then return true end
+    if bind.key ~= Enum.KeyCode.Unknown and input.KeyCode == bind.key then return true end
+    return false
+end
+
+local function makeSubSection(parent)
+    local f = Instance.new("Frame", parent)
+    f.Size = UDim2.new(1, 0, 0, 0)
+    f.BackgroundTransparency = 1
+    f.Visible = false
+    local lay = Instance.new("UIListLayout", f)
+    lay.SortOrder = Enum.SortOrder.LayoutOrder
+    lay.Padding = UDim.new(0, 8)
+    lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        f.Size = UDim2.new(1, 0, 0, lay.AbsoluteContentSize.Y)
+    end)
+    return f
+end
+
+local uniBar = Instance.new("Frame", Sections.Universal.Container)
+uniBar.Size = UDim2.new(1, 0, 0, 32)
+uniBar.BackgroundTransparency = 1
+local uniBarLayout = Instance.new("UIListLayout", uniBar)
+uniBarLayout.FillDirection = Enum.FillDirection.Horizontal
+uniBarLayout.Padding = UDim.new(0, 6)
+
+local movSection    = makeSubSection(Sections.Universal.Container)
+local combatSection = makeSubSection(Sections.Universal.Container)
+
+local uniActiveSection, uniActiveBtn
+
+local function makeSubTabBtn(label, section)
+    local btn = Instance.new("TextButton", uniBar)
+    btn.Size = UDim2.new(0.5, -3, 1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 12
+    btn.TextColor3 = Color3.fromRGB(170, 160, 210)
+    btn.Text = label
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseButton1Click:Connect(function()
+        if uniActiveSection then
+            uniActiveSection.Visible = false
+            uniActiveBtn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
+            uniActiveBtn.TextColor3 = Color3.fromRGB(170, 160, 210)
+        end
+        section.Visible = true
+        btn.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
+        btn.TextColor3 = Color3.fromRGB(210, 195, 255)
+        uniActiveSection = section
+        uniActiveBtn = btn
+    end)
+    return btn
+end
+
+local movBtn    = makeSubTabBtn("Movement", movSection)
+local combatBtn = makeSubTabBtn("Combat",   combatSection)
+
+movSection.Visible = true
+movBtn.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
+movBtn.TextColor3 = Color3.fromRGB(210, 195, 255)
+uniActiveSection = movSection
+uniActiveBtn = movBtn
 
 local function makeLocalToggle(str, parent, bindRef, cb)
     local tog = Instance.new("TextButton", parent)
@@ -388,7 +437,7 @@ local function makeLocalToggle(str, parent, bindRef, cb)
     chip.Font = Enum.Font.GothamBold
     chip.TextSize = 10
     chip.TextColor3 = Color3.fromRGB(200, 185, 255)
-    chip.Text = bindRef.key.Name
+    chip.Text = bindRef.displayName
     chip.TextScaled = true
     Instance.new("UICorner", chip).CornerRadius = UDim.new(0, 4)
 
@@ -426,25 +475,56 @@ local function makeLocalToggle(str, parent, bindRef, cb)
         chip.BackgroundColor3 = Color3.fromRGB(80, 55, 180)
         local conn
         conn = UserInputService.InputBegan:Connect(function(input)
-            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            local isKey   = input.UserInputType == Enum.UserInputType.Keyboard
+            local isMouse = _mouseBtnNames[input.UserInputType] ~= nil
+            if not isKey and not isMouse then return end
             conn:Disconnect()
             rebinding = false
-            bindRef.key = input.KeyCode
-            local name = input.KeyCode.Name
-            chip.Text = name
+            if isKey then
+                bindRef.key         = input.KeyCode
+                bindRef.mouseBtn    = nil
+                bindRef.displayName = input.KeyCode.Name
+            else
+                bindRef.key         = Enum.KeyCode.Unknown
+                bindRef.mouseBtn    = input.UserInputType
+                bindRef.displayName = _mouseBtnNames[input.UserInputType]
+            end
+            chip.Text = bindRef.displayName
             chip.BackgroundColor3 = Color3.fromRGB(35, 28, 65)
-            if bindRef.hudLabel then bindRef.hudLabel.Text = name end
+            if bindRef.hudLabel then bindRef.hudLabel.Text = bindRef.displayName end
         end)
     end)
 
     return setState
 end
 
+local _walkSpeed = 50
+local _walkEnabled = false
+
+makeSlider("Walk Speed", movSection, 8, 250, 50, function(v)
+    _walkSpeed = v
+    if _walkEnabled and plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = v end
+    end
+end)
+elements:Toggle("Speed Boost", movSection, function(v)
+    _walkEnabled = v
+    if plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = v and _walkSpeed or 16 end
+    end
+end)
+plr.CharacterAdded:Connect(function(char)
+    local h = char:WaitForChild("Humanoid", 5)
+    if h then h.WalkSpeed = _walkEnabled and _walkSpeed or 16 end
+end)
+
 local _flySpeed = 50
 local _flyBV, _flyBG
 
 getgenv()._astroNoclip = false
-local setNoclip = makeLocalToggle("Noclip", Sections.Universal.Container, _binds.noclip, function(on)
+local setNoclip = makeLocalToggle("Noclip", movSection, _binds.noclip, function(on)
     getgenv()._astroNoclip = on
 end)
 RunService.Stepped:Connect(function()
@@ -456,12 +536,12 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-makeSlider("Fly Speed", Sections.Universal.Container, 10, 300, 50, function(v)
+makeSlider("Fly Speed", movSection, 10, 300, 50, function(v)
     _flySpeed = v
 end)
 
 getgenv()._astroFlying = false
-local setFly = makeLocalToggle("Fly  (WASD · Space=up · Shift=down)", Sections.Universal.Container, _binds.fly, function(on)
+local setFly = makeLocalToggle("Fly  (WASD · Space=up · Shift=down)", movSection, _binds.fly, function(on)
     getgenv()._astroFlying = on
     local char = plr.Character
     if not char then return end
@@ -505,16 +585,16 @@ end)
 local _aimFOV   = 200
 local _aimSpeed = 8
 
-makeSlider("Aim FOV",        Sections.Universal.Container, 50,  600, 200, function(v) _aimFOV   = v end)
-makeSlider("Aim Smoothness", Sections.Universal.Container,  1,   20,   8, function(v) _aimSpeed = v end)
+makeSlider("Aim FOV",        combatSection, 50,  600, 200, function(v) _aimFOV   = v end)
+makeSlider("Aim Smoothness", combatSection,  1,   20,   8, function(v) _aimSpeed = v end)
 
 getgenv()._astroAimTeamCheck = true
-elements:Toggle("Team Check", Sections.Universal.Container, function(v)
+elements:Toggle("Team Check", combatSection, function(v)
     getgenv()._astroAimTeamCheck = v
 end)
 
 getgenv()._astroAiming = false
-local setAim = makeLocalToggle("Aimbot", Sections.Universal.Container, _binds.aim, function(on)
+local setAim = makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
     getgenv()._astroAiming = on
 end)
 
@@ -550,13 +630,13 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if input.KeyCode == _binds.fly.key    then setFly(not getgenv()._astroFlying)    end
-    if input.KeyCode == _binds.noclip.key then setNoclip(not getgenv()._astroNoclip) end
-    if input.KeyCode == _binds.aim.key    then setAim(not getgenv()._astroAiming)    end
+    if isBound(input, _binds.fly)    then setFly(not getgenv()._astroFlying)    end
+    if isBound(input, _binds.noclip) then setNoclip(not getgenv()._astroNoclip) end
+    if isBound(input, _binds.aim)    then setAim(not getgenv()._astroAiming)    end
 end)
 
 getgenv()._astroInfJump = false
-elements:Toggle("Infinite Jump", Sections.Universal.Container, function(v)
+elements:Toggle("Infinite Jump", movSection, function(v)
     getgenv()._astroInfJump = v
 end)
 UserInputService.JumpRequest:Connect(function()
@@ -568,7 +648,7 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 local _fbOrig
-elements:Toggle("Fullbright", Sections.Universal.Container, function(v)
+elements:Toggle("Fullbright", movSection, function(v)
     local L = game:GetService("Lighting")
     if v then
         _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
@@ -585,7 +665,7 @@ elements:Toggle("Fullbright", Sections.Universal.Container, function(v)
 end)
 
 getgenv()._astroAntiAfk = false
-elements:Toggle("Anti-AFK", Sections.Universal.Container, function(v)
+elements:Toggle("Anti-AFK", movSection, function(v)
     getgenv()._astroAntiAfk = v
     if v then
         task.spawn(function()
@@ -618,9 +698,9 @@ setTab("Home")
 
 local hudRows = {
     {keyStr = "Insert",               desc = "Toggle Menu", bindRef = nil},
-    {keyStr = _binds.fly.key.Name,    desc = "Fly",         bindRef = _binds.fly},
-    {keyStr = _binds.noclip.key.Name, desc = "Noclip",      bindRef = _binds.noclip},
-    {keyStr = _binds.aim.key.Name,    desc = "Aimbot",      bindRef = _binds.aim},
+    {keyStr = _binds.fly.displayName,    desc = "Fly",    bindRef = _binds.fly},
+    {keyStr = _binds.noclip.displayName, desc = "Noclip", bindRef = _binds.noclip},
+    {keyStr = _binds.aim.displayName,    desc = "Aimbot", bindRef = _binds.aim},
 }
 
 local kbFrame = Instance.new("Frame", gui)
