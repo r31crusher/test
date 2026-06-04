@@ -1,5 +1,6 @@
 local hui = gethui or get_hidden_gui
 local getexec = identifyexecutor
+local players = game:GetService("Players")
 local coregui = game:GetService("CoreGui")
 local userinputservice = game:GetService("UserInputService")
 local httpservice = game:GetService("HttpService")
@@ -9,7 +10,11 @@ local tweenservice = game:GetService("TweenService")
 -- Build UI programmatically (replaces external asset)
 local ui = Instance.new("ScreenGui")
 ui.Name = "CustomUI"
-ui.Parent = hui and hui() or coregui
+ui.ResetOnSpawn = false
+ui.DisplayOrder = 10
+local player = players.LocalPlayer
+local playerGui = player and player:FindFirstChild("PlayerGui")
+ui.Parent = playerGui or hui and hui() or coregui
 
 -- Top-left astro label
 local AstroLabel = Instance.new("TextLabel")
@@ -86,6 +91,8 @@ local function makeSection(name)
     local f = Instance.new("Frame")
     f.Name = name
     f.Size = UDim2.new(1,0,1,0)
+    f.AnchorPoint = Vector2.new(0.5, 0)
+    f.Position = UDim2.new(0.5, 0, 1, 0)
     f.Visible = false
     f.Parent = SectionContainers
     return f
@@ -177,6 +184,18 @@ local Sections = {
 
 local CurSection
 
+local function setActiveSection(sect)
+    if CurSection then
+        CurSection.TabBtn.BackgroundTransparency = 1
+        CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
+    end
+
+    sect.TabBtn.BackgroundTransparency = 0
+    sect.Container.Visible = true
+    sect.Container.Position = UDim2.new(0.5, 0, 0, 0)
+    CurSection = sect
+end
+
 for _, sect in pairs(Sections) do
     sect.TabBtn.MouseEnter:Connect(function()
         for _, stroke in pairs(sect.TabBtn:GetChildren()) do
@@ -196,19 +215,11 @@ for _, sect in pairs(Sections) do
 
     sect.TabBtn.MouseButton1Click:Connect(function()
         if CurSection == sect then return end
-
-        if CurSection then
-            CurSection.TabBtn.BackgroundTransparency = 1
-            CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
-        end
-
-        sect.TabBtn.BackgroundTransparency = 0
-        sect.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
-        sect.Container.Visible = true
-
-        CurSection = sect
+        setActiveSection(sect)
     end)
 end
+
+setActiveSection(Sections.Home)
 
 HideButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
@@ -269,10 +280,18 @@ userinputservice.InputChanged:Connect(function(input)
     end
 end)
 
-Sections.Home.Container.bugsLabel.Text = Sections.Home.Container.bugsLabel.Text:gsub("redacted", "discord.gg/C2ySUrv99U")
-Sections.Home.Container.discan.Text = Sections.Home.Container.discan.Text:gsub("redacted", "discord.gg/C2ySUrv99U")
-Sections.Home.Container.ythead.Text = Sections.Home.Container.ythead.Text:gsub("redacted", "astro")
-Sections.Home.Container.execLabel.Text = "Executor: astro"
+if Sections.Home.Container:FindFirstChild("bugsLabel") then
+    Sections.Home.Container.bugsLabel.Text = Sections.Home.Container.bugsLabel.Text:gsub("redacted", "discord.gg/C2ySUrv99U")
+end
+if Sections.Home.Container:FindFirstChild("discan") then
+    Sections.Home.Container.discan.Text = Sections.Home.Container.discan.Text:gsub("redacted", "discord.gg/C2ySUrv99U")
+end
+if Sections.Home.Container:FindFirstChild("ythead") then
+    Sections.Home.Container.ythead.Text = Sections.Home.Container.ythead.Text:gsub("redacted", "astro")
+end
+if Sections.Home.Container:FindFirstChild("execLabel") then
+    Sections.Home.Container.execLabel.Text = "Executor: astro"
+end
 
 
 local ok, gamePath = pcall(function()
