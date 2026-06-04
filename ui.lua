@@ -340,9 +340,100 @@ plr.CharacterAdded:Connect(function(char)
     if h then h.WalkSpeed = _walkSpeed end
 end)
 
+local _binds = {
+    fly    = {key = Enum.KeyCode.F, hudLabel = nil},
+    noclip = {key = Enum.KeyCode.V, hudLabel = nil},
+}
+
+local function makeLocalToggle(str, parent, bindRef, cb)
+    local tog = Instance.new("TextButton", parent)
+    tog.Size = UDim2.new(1, 0, 0, 32)
+    tog.BackgroundColor3 = Color3.fromRGB(20, 17, 38)
+    tog.BorderSizePixel = 0
+    tog.AutoButtonColor = false
+    tog.Text = ""
+    Instance.new("UICorner", tog).CornerRadius = UDim.new(0, 6)
+    local ts = Instance.new("UIStroke", tog)
+    ts.Color = Color3.fromRGB(100, 80, 190) ; ts.Transparency = 0.6
+
+    local lbl = Instance.new("TextLabel", tog)
+    lbl.Size = UDim2.new(1, -98, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamSemibold
+    lbl.TextSize = 13
+    lbl.TextColor3 = Color3.fromRGB(200, 190, 255)
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text = str
+
+    local chip = Instance.new("TextButton", tog)
+    chip.Size = UDim2.new(0, 38, 0, 20)
+    chip.AnchorPoint = Vector2.new(1, 0.5)
+    chip.Position = UDim2.new(1, -54, 0.5, 0)
+    chip.BackgroundColor3 = Color3.fromRGB(35, 28, 65)
+    chip.BorderSizePixel = 0
+    chip.AutoButtonColor = false
+    chip.Font = Enum.Font.GothamBold
+    chip.TextSize = 10
+    chip.TextColor3 = Color3.fromRGB(200, 185, 255)
+    chip.Text = bindRef.key.Name
+    chip.TextScaled = true
+    Instance.new("UICorner", chip).CornerRadius = UDim.new(0, 4)
+
+    local bg = Instance.new("Frame", tog)
+    bg.Size = UDim2.new(0, 36, 0, 18)
+    bg.AnchorPoint = Vector2.new(1, 0.5)
+    bg.Position = UDim2.new(1, -8, 0.5, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(35, 28, 65)
+    bg.BorderSizePixel = 0
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+    local dot = Instance.new("Frame", bg)
+    dot.Size = UDim2.new(0, 12, 0, 12)
+    dot.AnchorPoint = Vector2.new(0, 0.5)
+    dot.Position = UDim2.new(0, 3, 0.5, 0)
+    dot.BackgroundColor3 = Color3.fromRGB(160, 150, 220)
+    dot.BorderSizePixel = 0
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+    local on = false
+    local function setState(v)
+        on = v
+        bg.BackgroundColor3 = v and Color3.fromRGB(80,55,180) or Color3.fromRGB(35,28,65)
+        dot.AnchorPoint = v and Vector2.new(1,0.5) or Vector2.new(0,0.5)
+        dot.Position = v and UDim2.new(1,-3,0.5,0) or UDim2.new(0,3,0.5,0)
+        dot.BackgroundColor3 = v and Color3.fromRGB(210,200,255) or Color3.fromRGB(160,150,220)
+        cb(v)
+    end
+    tog.MouseButton1Click:Connect(function() setState(not on) end)
+
+    local rebinding = false
+    chip.MouseButton1Click:Connect(function()
+        if rebinding then return end
+        rebinding = true
+        chip.Text = "..."
+        chip.BackgroundColor3 = Color3.fromRGB(80, 55, 180)
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            conn:Disconnect()
+            rebinding = false
+            bindRef.key = input.KeyCode
+            local name = input.KeyCode.Name
+            chip.Text = name
+            chip.BackgroundColor3 = Color3.fromRGB(35, 28, 65)
+            if bindRef.hudLabel then bindRef.hudLabel.Text = name end
+        end)
+    end)
+
+    return setState
+end
+
+local _flySpeed = 50
+local _flyBV, _flyBG
+
 getgenv()._astroNoclip = false
-elements:Toggle("Noclip", Sections.Universal.Container, function(v)
-    getgenv()._astroNoclip = v
+local setNoclip = makeLocalToggle("Noclip", Sections.Universal.Container, _binds.noclip, function(on)
+    getgenv()._astroNoclip = on
 end)
 RunService.Stepped:Connect(function()
     if not getgenv()._astroNoclip then return end
@@ -353,15 +444,12 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-local _flySpeed = 50
-local _flyBV, _flyBG
-
 makeSlider("Fly Speed", Sections.Universal.Container, 10, 300, 50, function(v)
     _flySpeed = v
 end)
 
 getgenv()._astroFlying = false
-elements:Toggle("Fly  (WASD · Space=up · Shift=down)", Sections.Universal.Container, function(on)
+local setFly = makeLocalToggle("Fly  (WASD · Space=up · Shift=down)", Sections.Universal.Container, _binds.fly, function(on)
     getgenv()._astroFlying = on
     local char = plr.Character
     if not char then return end
@@ -400,6 +488,12 @@ elements:Toggle("Fly  (WASD · Space=up · Shift=down)", Sections.Universal.Cont
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then hum.PlatformStand = false end
     end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == _binds.fly.key    then setFly(not getgenv()._astroFlying)    end
+    if input.KeyCode == _binds.noclip.key then setNoclip(not getgenv()._astroNoclip) end
 end)
 
 getgenv()._astroInfJump = false
@@ -462,3 +556,85 @@ if ok3 and credSrc then
 end
 
 setTab("Home")
+
+local hudRows = {
+    {keyStr = "Insert",            desc = "Toggle Menu", bindRef = nil},
+    {keyStr = _binds.fly.key.Name,    desc = "Fly",         bindRef = _binds.fly},
+    {keyStr = _binds.noclip.key.Name, desc = "Noclip",      bindRef = _binds.noclip},
+}
+
+local kbFrame = Instance.new("Frame", gui)
+kbFrame.Name = "KeybindHUD"
+kbFrame.Size = UDim2.new(0, 160, 0, #hudRows * 22 + 28)
+kbFrame.Position = UDim2.new(1, -170, 1, -(#hudRows * 22 + 38))
+kbFrame.BackgroundColor3 = Color3.fromRGB(10, 9, 18)
+kbFrame.BorderSizePixel = 0
+kbFrame.Active = true
+Instance.new("UICorner", kbFrame).CornerRadius = UDim.new(0, 8)
+local kbStroke = Instance.new("UIStroke", kbFrame)
+kbStroke.Color = Color3.fromRGB(110, 85, 210)
+kbStroke.Transparency = 0.5
+
+local kbTitle = Instance.new("TextLabel", kbFrame)
+kbTitle.Size = UDim2.new(1, 0, 0, 20)
+kbTitle.Position = UDim2.new(0, 0, 0, 4)
+kbTitle.BackgroundTransparency = 1
+kbTitle.Font = Enum.Font.GothamBold
+kbTitle.TextSize = 11
+kbTitle.TextColor3 = Color3.fromRGB(170, 160, 210)
+kbTitle.Text = "KEYBINDS"
+
+for i, row in ipairs(hudRows) do
+    local r = Instance.new("Frame", kbFrame)
+    r.Size = UDim2.new(1, -12, 0, 18)
+    r.Position = UDim2.new(0, 6, 0, 22 + (i - 1) * 22)
+    r.BackgroundTransparency = 1
+
+    local keyLbl = Instance.new("TextLabel", r)
+    keyLbl.Size = UDim2.new(0, 52, 1, 0)
+    keyLbl.BackgroundColor3 = Color3.fromRGB(28, 24, 50)
+    keyLbl.BorderSizePixel = 0
+    keyLbl.Font = Enum.Font.GothamBold
+    keyLbl.TextSize = 11
+    keyLbl.TextColor3 = Color3.fromRGB(200, 185, 255)
+    keyLbl.Text = row.keyStr
+    keyLbl.TextScaled = true
+    Instance.new("UICorner", keyLbl).CornerRadius = UDim.new(0, 4)
+
+    if row.bindRef then
+        row.bindRef.hudLabel = keyLbl
+    end
+
+    local desc = Instance.new("TextLabel", r)
+    desc.Size = UDim2.new(1, -58, 1, 0)
+    desc.Position = UDim2.new(0, 58, 0, 0)
+    desc.BackgroundTransparency = 1
+    desc.Font = Enum.Font.Gotham
+    desc.TextSize = 11
+    desc.TextColor3 = Color3.fromRGB(160, 152, 200)
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.Text = row.desc
+end
+
+do
+    local dragging, dragStart, startPos
+    kbFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = kbFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local d = input.Position - dragStart
+            kbFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+                                          startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+end
