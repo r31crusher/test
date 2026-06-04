@@ -105,10 +105,15 @@ local MainFrame = createFrame("MainFrame", gui, UDim2.new(0, 760, 0, 520), UDim2
 
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 52)
+TopBar.Size = UDim2.new(1, 0, 0, 50)
 TopBar.Position = UDim2.new(0, 0, 0, 0)
-TopBar.BackgroundTransparency = 1
+TopBar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 14)
+topCorner.Parent = TopBar
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
@@ -117,7 +122,7 @@ TitleLabel.Position = UDim2.new(0, 20, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "Solaris"
 TitleLabel.Font = Enum.Font.GothamBlack
-TitleLabel.TextSize = 24
+TitleLabel.TextSize = 22
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -125,34 +130,44 @@ TitleLabel.Parent = TopBar
 
 local Subtitle = Instance.new("TextLabel")
 Subtitle.Name = "Subtitle"
-Subtitle.Size = UDim2.new(0.7, 0, 0, 20)
-Subtitle.Position = UDim2.new(0, 20, 0, 28)
+Subtitle.Size = UDim2.new(0.7, 0, 0, 18)
+Subtitle.Position = UDim2.new(0, 20, 0, 26)
 Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "Clean GUI powered by Solaris-style design"
+Subtitle.Text = "Clean GUI powered by Solaris"
 Subtitle.Font = Enum.Font.Gotham
-Subtitle.TextSize = 14
-Subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+Subtitle.TextSize = 12
+Subtitle.TextColor3 = Color3.fromRGB(150, 150, 150)
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.TextYAlignment = Enum.TextYAlignment.Top
 Subtitle.Parent = TopBar
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 44, 0, 32)
-CloseButton.Position = UDim2.new(1, -52, 0.5, -16)
-CloseButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-CloseButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.BorderSizePixel = 1
+CloseButton.Size = UDim2.new(0, 40, 0, 30)
+CloseButton.Position = UDim2.new(1, -48, 0.5, -15)
+CloseButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+CloseButton.BorderSizePixel = 0
 CloseButton.Text = "X"
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 18
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 16
+CloseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 CloseButton.Parent = TopBar
+
+CloseButton.MouseEnter:Connect(function()
+    CloseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    CloseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+end)
+
+CloseButton.MouseLeave:Connect(function()
+    CloseButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    CloseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+end)
+
 local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = CloseButton
 
-local sidebar = createFrame("Sidebar", MainFrame, UDim2.new(0, 160, 1, -52), UDim2.new(0, 0, 0, 52), Color3.fromRGB(20, 20, 20))
+local sidebar = createFrame("Sidebar", MainFrame, UDim2.new(0, 160, 1, -50), UDim2.new(0, 0, 0, 50), Color3.fromRGB(20, 20, 20))
 local sidebarLayout = Instance.new("UIListLayout")
 sidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 sidebarLayout.Padding = UDim.new(0, 10)
@@ -163,25 +178,38 @@ sidebarLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 local function createSidebarButton(text)
     local btn = Instance.new("TextButton")
     btn.Name = text .. "Button"
-    btn.Size = UDim2.new(1, -24, 0, 44)
-    btn.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-    btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BorderSizePixel = 1
+    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    btn.BorderSizePixel = 0
     btn.Text = text
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 14
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 13
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
     btn.AutoButtonColor = false
+    
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
+    
+    btn.MouseEnter:Connect(function()
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        if activeName ~= text then
+            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+        end
+    end)
+    
     return btn
 end
 
 local contentFrame = Instance.new("Frame")
 contentFrame.Name = "ContentFrame"
-contentFrame.Size = UDim2.new(1, -160, 1, -52)
-contentFrame.Position = UDim2.new(0, 160, 0, 52)
+contentFrame.Size = UDim2.new(1, -160, 1, -50)
+contentFrame.Position = UDim2.new(0, 160, 0, 50)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = MainFrame
 
@@ -206,15 +234,15 @@ local function createSection(name)
 end
 
 local function createCard(parent, title)
-    local card = createFrame(title .. "Card", parent, UDim2.new(1, 0, 0, 120), UDim2.new(0, 0, 0, 0), Color3.fromRGB(22, 22, 22))
+    local card = createFrame(title .. "Card", parent, UDim2.new(1, 0, 0, 110), UDim2.new(0, 0, 0, 0), Color3.fromRGB(20, 20, 20))
     local cardTitle = Instance.new("TextLabel")
     cardTitle.Name = "CardTitle"
-    cardTitle.Size = UDim2.new(1, -24, 0, 28)
-    cardTitle.Position = UDim2.new(0, 12, 0, 12)
+    cardTitle.Size = UDim2.new(1, -20, 0, 26)
+    cardTitle.Position = UDim2.new(0, 10, 0, 10)
     cardTitle.BackgroundTransparency = 1
     cardTitle.Text = title
     cardTitle.Font = Enum.Font.GothamBold
-    cardTitle.TextSize = 16
+    cardTitle.TextSize = 15
     cardTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
     cardTitle.TextXAlignment = Enum.TextXAlignment.Left
     cardTitle.Parent = card
@@ -235,15 +263,17 @@ local activeButton
 local function setActiveSection(name)
     if activeName then
         sectionFrames[activeName].Visible = false
-    end
-    if activeButton then
-        activeButton.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+        if sectionButtons[activeName] then
+            sectionButtons[activeName].BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+            sectionButtons[activeName].TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
     end
     activeName = name
     activeButton = sectionButtons[name]
     sectionFrames[name].Visible = true
     if activeButton then
-        activeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        activeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        activeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
 end
 
@@ -296,38 +326,36 @@ local function safeLoadGameModule(placeId)
         return fn
     end
 
-    local remote = fetchRemote(getGitPath("games") .. tostring(placeId) .. ".lua")
-    if remote then
-        local fn, err = compileSource(remote)
-        if fn then
-            return fn
-        end
-        warn("Remote game module compile failed: " .. tostring(err))
-    end
-
     local localFile = readLocal("games/" .. tostring(placeId) .. ".lua")
     if localFile then
         local fn, err = compileSource(localFile)
         if fn then
             return fn
         end
-        warn("Local game module compile failed: " .. tostring(err))
     end
 
-    return nil, "Game module unavailable"
+    local remote = fetchRemote(getGitPath("games") .. tostring(placeId) .. ".lua")
+    if remote then
+        local fn, err = compileSource(remote)
+        if fn then
+            return fn
+        end
+    end
+
+    return nil
 end
 
 local function createCardContent(title, subtitle, parent)
     local card = createCard(parent, title)
     local sub = Instance.new("TextLabel")
     sub.Name = "CardSubtitle"
-    sub.Size = UDim2.new(1, -24, 0, 20)
-    sub.Position = UDim2.new(0, 12, 0, 42)
+    sub.Size = UDim2.new(1, -20, 0, 18)
+    sub.Position = UDim2.new(0, 10, 0, 38)
     sub.BackgroundTransparency = 1
     sub.Text = subtitle
     sub.Font = Enum.Font.Gotham
-    sub.TextSize = 14
-    sub.TextColor3 = Color3.fromRGB(175, 175, 175)
+    sub.TextSize = 12
+    sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.TextYAlignment = Enum.TextYAlignment.Top
     sub.Parent = card
@@ -335,41 +363,34 @@ local function createCardContent(title, subtitle, parent)
 end
 
 -- Home Section
-local homeCard = createCardContent("Welcome", "Solaris-style UI rebuilt with clean layout.", sectionFrames.Home)
-elements:Label("Use the sidebar to jump between sections.", homeCard)
-
-elements:Label("Tips:", homeCard)
-elements:Label("- Insert toggles visibility.", homeCard)
-elements:Label("- All sections are powered by Solaris style.", homeCard)
+local homeCard = createCardContent("Welcome", "Press Insert to toggle menu", sectionFrames.Home)
+elements:Label("Navigate using the sidebar", homeCard)
 
 -- Game Section
-local gameModule, gameError = safeLoadGameModule(game.PlaceId)
+local gameModule = safeLoadGameModule(game.PlaceId)
 if type(gameModule) == "function" then
     local ok, result = pcall(function()
         gameModule(sectionFrames.Game)
     end)
     if not ok then
-        elements:Label("Game module executed with an error.", sectionFrames.Game)
-        elements:Label(tostring(result), sectionFrames.Game)
+        elements:Label("Game module error: " .. tostring(result), sectionFrames.Game)
     end
 else
-    elements:Unsupported(sectionFrames.Game, function()
-        setActiveSection("Gameslist")
-    end)
-    elements:Label("Game-specific UI is unavailable.", sectionFrames.Game)
-    elements:Label("Error: " .. tostring(gameError), sectionFrames.Game)
+    local noGameCard = createCardContent("No Game Module", "This game doesn't have custom UI.", sectionFrames.Game)
+    elements:Label("Browse other games in Gameslist.", sectionFrames.Game)
 end
 
 -- Gameslist Section
 local gamesList = safeJson("gameslist.json") or {}
-if #gamesList == 0 then
-    elements:Label("No games found.", sectionFrames.Gameslist)
-else
+if #gamesList > 0 then
     for _, gameEntry in ipairs(gamesList) do
-        elements:Button(gameEntry.status .. " " .. tostring(gameEntry.game), sectionFrames.Gameslist, function()
+        elements:Button((gameEntry.status or "●") .. " " .. tostring(gameEntry.game), sectionFrames.Gameslist, function()
             ExperienceService:LaunchExperience({placeId = gameEntry.id})
         end)
     end
+else
+    local gamesCard = createCardContent("Library", "No games in list", sectionFrames.Gameslist)
+    elements:Label("Add games to gameslist.json", sectionFrames.Gameslist)
 end
 
 -- Settings Section
@@ -384,7 +405,8 @@ end)
 -- Credits Section
 local creditsData = safeJson("credits.json") or {}
 if next(creditsData) == nil then
-    elements:Label("No credits available.", sectionFrames.Credits)
+    local credCard = createCardContent("Credits", "No credits data", sectionFrames.Credits)
+    elements:Label("credits.json not found", sectionFrames.Credits)
 else
     for sectionName, people in pairs(creditsData) do
         elements:CredHead(sectionFrames.Credits, sectionName)
