@@ -327,22 +327,34 @@ elements:Toggle("Auto Rejoin on kick", Sections.Settings.Container, function(v)
     getgenv().autorjjjj = v
 end)
 
-local _walkSpeed = 16
-makeSlider("Walk Speed", Sections.Universal.Container, 8, 150, 16, function(v)
+local _walkSpeed = 50
+local _walkEnabled = false
+
+makeSlider("Walk Speed", Sections.Universal.Container, 8, 250, 50, function(v)
     _walkSpeed = v
-    if plr.Character then
+    if _walkEnabled and plr.Character then
         local h = plr.Character:FindFirstChildOfClass("Humanoid")
         if h then h.WalkSpeed = v end
     end
 end)
+
+elements:Toggle("Speed Boost", Sections.Universal.Container, function(v)
+    _walkEnabled = v
+    if plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = v and _walkSpeed or 16 end
+    end
+end)
+
 plr.CharacterAdded:Connect(function(char)
     local h = char:WaitForChild("Humanoid", 5)
-    if h then h.WalkSpeed = _walkSpeed end
+    if h then h.WalkSpeed = _walkEnabled and _walkSpeed or 16 end
 end)
 
 local _binds = {
     fly    = {key = Enum.KeyCode.F, hudLabel = nil},
     noclip = {key = Enum.KeyCode.V, hudLabel = nil},
+    aim    = {key = Enum.KeyCode.E, hudLabel = nil},
 }
 
 local function makeLocalToggle(str, parent, bindRef, cb)
@@ -490,10 +502,57 @@ local setFly = makeLocalToggle("Fly  (WASD · Space=up · Shift=down)", Sections
     end
 end)
 
+local _aimFOV   = 200
+local _aimSpeed = 8
+
+makeSlider("Aim FOV",        Sections.Universal.Container, 50,  600, 200, function(v) _aimFOV   = v end)
+makeSlider("Aim Smoothness", Sections.Universal.Container,  1,   20,   8, function(v) _aimSpeed = v end)
+
+getgenv()._astroAimTeamCheck = true
+elements:Toggle("Team Check", Sections.Universal.Container, function(v)
+    getgenv()._astroAimTeamCheck = v
+end)
+
+getgenv()._astroAiming = false
+local setAim = makeLocalToggle("Aimbot", Sections.Universal.Container, _binds.aim, function(on)
+    getgenv()._astroAiming = on
+end)
+
+local function getAimTarget()
+    local cam      = workspace.CurrentCamera
+    local lp       = game:GetService("Players").LocalPlayer
+    local center   = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+    local best, bestDist = nil, _aimFOV
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        if p == lp then continue end
+        if getgenv()._astroAimTeamCheck and lp.Team and p.Team == lp.Team then continue end
+        local char = p.Character
+        if not char then continue end
+        local head = char:FindFirstChild("Head")
+        local hum  = char:FindFirstChildOfClass("Humanoid")
+        if not head or not hum or hum.Health <= 0 then continue end
+        local sp, onScreen = cam:WorldToViewportPoint(head.Position)
+        if not onScreen then continue end
+        local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+        if d < bestDist then bestDist = d; best = head end
+    end
+    return best
+end
+
+RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Camera.Value + 1, function()
+    if not getgenv()._astroAiming then return end
+    local target = getAimTarget()
+    if not target then return end
+    local cam = workspace.CurrentCamera
+    local t = math.clamp(_aimSpeed / 20, 0.05, 1)
+    cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, target.Position), t)
+end)
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == _binds.fly.key    then setFly(not getgenv()._astroFlying)    end
     if input.KeyCode == _binds.noclip.key then setNoclip(not getgenv()._astroNoclip) end
+    if input.KeyCode == _binds.aim.key    then setAim(not getgenv()._astroAiming)    end
 end)
 
 getgenv()._astroInfJump = false
@@ -558,9 +617,10 @@ end
 setTab("Home")
 
 local hudRows = {
-    {keyStr = "Insert",            desc = "Toggle Menu", bindRef = nil},
+    {keyStr = "Insert",               desc = "Toggle Menu", bindRef = nil},
     {keyStr = _binds.fly.key.Name,    desc = "Fly",         bindRef = _binds.fly},
     {keyStr = _binds.noclip.key.Name, desc = "Noclip",      bindRef = _binds.noclip},
+    {keyStr = _binds.aim.key.Name,    desc = "Aimbot",      bindRef = _binds.aim},
 }
 
 local kbFrame = Instance.new("Frame", gui)
