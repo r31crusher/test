@@ -415,6 +415,7 @@ elements:Button("Unload", Sections.Settings.Container, function()
     getgenv()._astroFlying    = false
     getgenv()._astroNoclip    = false
     getgenv()._astroAiming    = false
+    getgenv()._aimEnabled     = false
     getgenv()._astroInfJump   = false
     getgenv()._astroAntiAfk   = false
     getgenv()._astroFullbright = false
@@ -477,12 +478,13 @@ uniBarLayout.Padding = UDim.new(0, 6)
 
 local movSection    = makeSubSection(Sections.Universal.Container)
 local combatSection = makeSubSection(Sections.Universal.Container)
+local espSection    = makeSubSection(Sections.Universal.Container)
 
 local uniActiveSection, uniActiveBtn
 
 local function makeSubTabBtn(label, section)
     local btn = Instance.new("TextButton", uniBar)
-    btn.Size = UDim2.new(0.5, -3, 1, 0)
+    btn.Size = UDim2.new(1/3, -4, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
     btn.BorderSizePixel = 0
     btn.AutoButtonColor = false
@@ -508,6 +510,7 @@ end
 
 local movBtn    = makeSubTabBtn("Movement", movSection)
 local combatBtn = makeSubTabBtn("Combat",   combatSection)
+local espBtn    = makeSubTabBtn("ESP",      espSection)
 
 movSection.Visible = true
 movBtn.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
@@ -707,9 +710,11 @@ makeDropdown("Aim Mode", combatSection, {"Legacy", "Silent"}, "Legacy", function
     _aimMode = v
 end)
 
+getgenv()._aimEnabled  = false
 getgenv()._astroAiming = false
-local setAim = makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
-    getgenv()._astroAiming = on
+makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
+    getgenv()._aimEnabled = on
+    if not on then getgenv()._astroAiming = false end
 end)
 
 local function getAimTarget()
@@ -763,10 +768,12 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if isBound(input, _binds.fly)    then setFly(not getgenv()._astroFlying)    end
     if isBound(input, _binds.noclip) then setNoclip(not getgenv()._astroNoclip) end
-    if isBound(input, _binds.aim)    then setAim(true)                          end
+    if isBound(input, _binds.aim) and getgenv()._aimEnabled then
+        getgenv()._astroAiming = true
+    end
 end)
 UserInputService.InputEnded:Connect(function(input)
-    if isBound(input, _binds.aim) then setAim(false) end
+    if isBound(input, _binds.aim) then getgenv()._astroAiming = false end
 end)
 
 getgenv()._astroInfJump = false
@@ -815,6 +822,142 @@ elements:Toggle("Anti-AFK", movSection, function(v)
             end
         end)
     end
+end)
+
+local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false}
+local _espData = {}
+
+elements:Toggle("Box",      espSection, function(v) _esp.box      = v end)
+elements:Toggle("Skeleton", espSection, function(v) _esp.skeleton = v end)
+elements:Toggle("Name",     espSection, function(v) _esp.name     = v end)
+elements:Toggle("Distance", espSection, function(v) _esp.distance = v end)
+elements:Toggle("Weapon",   espSection, function(v) _esp.weapon   = v end)
+
+local function cleanESP(uid)
+    local d = _espData[uid]
+    if not d then return end
+    pcall(function() if d.highlight then d.highlight:Destroy() end end)
+    pcall(function() if d.billboard then d.billboard:Destroy() end end)
+    for _, b in ipairs(d.beams or {}) do
+        pcall(function() b.beam:Destroy(); b.a0:Destroy(); b.a1:Destroy() end)
+    end
+    _espData[uid] = nil
+end
+
+local function updateESP(p)
+    local char = p.Character
+    if not char then cleanESP(p.UserId); return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum or hum.Health <= 0 then cleanESP(p.UserId); return end
+
+    if not _espData[p.UserId] then _espData[p.UserId] = {beams={}} end
+    local d = _espData[p.UserId]
+
+    if _esp.box then
+        if not d.highlight or not d.highlight.Parent then
+            local h = Instance.new("Highlight", char)
+            h.FillTransparency = 1
+            h.OutlineColor = Color3.fromRGB(255, 50, 50)
+            d.highlight = h
+        end
+    else
+        if d.highlight then d.highlight:Destroy(); d.highlight = nil end
+    end
+
+    local needsBB = _esp.name or _esp.distance or _esp.weapon
+    if needsBB then
+        if not d.billboard or not d.billboard.Parent then
+            local bb = Instance.new("BillboardGui", hrp)
+            bb.Size = UDim2.new(0, 200, 0, 58)
+            bb.StudsOffset = Vector3.new(0, 3.5, 0)
+            bb.AlwaysOnTop = true
+            bb.Adornee = hrp
+            d.billboard = bb
+            local function makeEspLabel(yPos, size, color)
+                local l = Instance.new("TextLabel", bb)
+                l.Size = UDim2.new(1, 0, 0, size)
+                l.Position = UDim2.new(0, 0, 0, yPos)
+                l.BackgroundTransparency = 1
+                l.Font = Enum.Font.GothamBold
+                l.TextSize = size
+                l.TextColor3 = color
+                l.TextStrokeTransparency = 0.4
+                return l
+            end
+            makeEspLabel(0,  14, Color3.fromRGB(255,255,255)).Name = "NameL"
+            makeEspLabel(16, 12, Color3.fromRGB(180,220,255)).Name = "DistL"
+            makeEspLabel(30, 12, Color3.fromRGB(255,210,80)).Name  = "WeapL"
+        end
+        local bb = d.billboard
+        local nl = bb:FindFirstChild("NameL")
+        local dl = bb:FindFirstChild("DistL")
+        local wl = bb:FindFirstChild("WeapL")
+        if nl then nl.Visible = _esp.name;     nl.Text = p.DisplayName end
+        if dl then
+            dl.Visible = _esp.distance
+            if _esp.distance and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                dl.Text = math.floor((plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude) .. "m"
+            end
+        end
+        if wl then
+            wl.Visible = _esp.weapon
+            if _esp.weapon then
+                local tool = char:FindFirstChildOfClass("Tool")
+                wl.Text = tool and tool.Name or ""
+            end
+        end
+    else
+        if d.billboard then d.billboard:Destroy(); d.billboard = nil end
+    end
+
+    if _esp.skeleton then
+        if #d.beams == 0 then
+            local isR15 = char:FindFirstChild("UpperTorso") ~= nil
+            local conns = isR15 and {
+                {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+                {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+                {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+                {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+                {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+            } or {
+                {"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},
+                {"Torso","Left Leg"},{"Torso","Right Leg"},
+            }
+            for _, c in ipairs(conns) do
+                local p0 = char:FindFirstChild(c[1])
+                local p1 = char:FindFirstChild(c[2])
+                if p0 and p1 then
+                    local a0 = Instance.new("Attachment", p0)
+                    local a1 = Instance.new("Attachment", p1)
+                    local beam = Instance.new("Beam", p0)
+                    beam.Attachment0 = a0; beam.Attachment1 = a1
+                    beam.Width0 = 0.06;   beam.Width1 = 0.06
+                    beam.Color = ColorSequence.new(Color3.fromRGB(255, 50, 50))
+                    beam.FaceCamera = true
+                    beam.Transparency = NumberSequence.new(0)
+                    beam.Segments = 1
+                    table.insert(d.beams, {beam=beam, a0=a0, a1=a1})
+                end
+            end
+        end
+    else
+        for _, b in ipairs(d.beams) do
+            pcall(function() b.beam:Destroy(); b.a0:Destroy(); b.a1:Destroy() end)
+        end
+        d.beams = {}
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    if not (_esp.box or _esp.skeleton or _esp.name or _esp.distance or _esp.weapon) then return end
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        if p ~= plr then updateESP(p) end
+    end
+end)
+
+game:GetService("Players").PlayerRemoving:Connect(function(p)
+    cleanESP(p.UserId)
 end)
 
 local ok3, credSrc = pcall(game.HttpGet, game, getgitpath("src") .. "credits.json")
