@@ -1,8 +1,6 @@
--- Local UI templates to avoid external asset dependency (Solaris-style)
 local elements = {}
 local stuff = {}
 
--- Helper to make simple instances as templates
 local function makeLabelTemplate()
     local lbl = Instance.new("TextLabel")
     lbl.Name = "LabelElement"
@@ -28,15 +26,21 @@ local function makeButtonTemplate()
 end
 
 local function makeToggleTemplate()
-    local tog = Instance.new("Frame")
+    local tog = Instance.new("TextButton")
     tog.Name = "ToggleElement"
     tog.Size = UDim2.new(1,0,0,24)
+    tog.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    tog.AutoButtonColor = false
+    tog.Text = ""
+    tog.TextTransparency = 1
     local txt = Instance.new("TextLabel")
     txt.Name = "TextLabel"
     txt.Size = UDim2.new(1, -40, 1, 0)
     txt.Position = UDim2.new(0,0,0,0)
     txt.BackgroundTransparency = 1
     txt.Text = "Toggle"
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.TextYAlignment = Enum.TextYAlignment.Center
     txt.Parent = tog
 
     local togglebg = Instance.new("Frame")

@@ -281,9 +281,14 @@ if not ok or #gamePath == 0 or gamePath == "404: Not Found" then
 
     if getgenv().FileScripts then
         if isfile("test/"..tostring(game.PlaceId)..".lua") then
-            local gameModule = loadstring(readfile("test/"..tostring(game.PlaceId)..".lua"))()
-            gameModule(Sections.Game.Container)
-            handledLocally = true
+            local localSource = readfile("test/"..tostring(game.PlaceId)..".lua")
+            local gameModule, err = loadstring(localSource)
+            if type(gameModule) == "function" then
+                gameModule(Sections.Game.Container)
+                handledLocally = true
+            else
+                warn("Local game module failed to compile: " .. tostring(err))
+            end
         end
     end
 
