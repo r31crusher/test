@@ -137,11 +137,11 @@ elements.CreditHeader = makeCreditHeader()
 elements.CreditPerson = makeCreditPerson()
 
 local function styleGuiObject(obj)
-    pcall(function() obj.BackgroundColor3 = Color3.fromRGB(0, 0, 0) end)
-    pcall(function() obj.BorderColor3 = Color3.fromRGB(255, 255, 255) end)
-    pcall(function() obj.TextColor3 = Color3.fromRGB(255, 255, 255) end)
-    pcall(function() obj.PlaceholderColor3 = Color3.fromRGB(255, 255, 255) end)
-    pcall(function() obj.ImageColor3 = Color3.fromRGB(255, 255, 255) end)
+    pcall(function() obj.BackgroundColor3 = Color3.fromRGB(16, 14, 28) end)
+    pcall(function() obj.BorderColor3 = Color3.fromRGB(110, 85, 210) end)
+    pcall(function() obj.TextColor3 = Color3.fromRGB(210, 200, 255) end)
+    pcall(function() obj.PlaceholderColor3 = Color3.fromRGB(130, 118, 175) end)
+    pcall(function() obj.ImageColor3 = Color3.fromRGB(210, 200, 255) end)
     -- hide/remove unwanted 'brainrot police' labels or similar
     pcall(function()
         if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
@@ -161,8 +161,8 @@ local function styleGuiObject(obj)
         end
     end)
     if obj:IsA("UIStroke") then
-        obj.Color = Color3.fromRGB(255, 255, 255)
-        obj.Transparency = 0
+        obj.Color = Color3.fromRGB(110, 85, 210)
+        obj.Transparency = 0.5
     end
     if obj:IsA("UIGradient") then
         obj.Enabled = false
@@ -196,7 +196,7 @@ function stuff:Toggle(str, king, cb)
     local newTog = elements.ToggleElement:Clone()
     newTog.TextLabel.Text = str
     styleElement(newTog)
-    newTog.togglebg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    newTog.togglebg.BackgroundColor3 = Color3.fromRGB(20, 16, 38)
     newTog.Parent = king
 
     local isTog = false
@@ -204,12 +204,12 @@ function stuff:Toggle(str, king, cb)
     newTog.MouseButton1Click:Connect(function()
         isTog = not isTog
         if isTog then
-            newTog.togglebg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            newTog.togglebg.BackgroundColor3 = Color3.fromRGB(110, 75, 220)
             newTog.togglebg.leftrightlol.AnchorPoint = Vector2.new(1, 0.5)
             newTog.togglebg.leftrightlol.Position = UDim2.new(1, 0, 0.5, 0)
             cb(isTog)
         else
-            newTog.togglebg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            newTog.togglebg.BackgroundColor3 = Color3.fromRGB(20, 16, 38)
             newTog.togglebg.leftrightlol.AnchorPoint = Vector2.new(0, 0.5)
             newTog.togglebg.leftrightlol.Position = UDim2.new(0, 0, 0.5, 0)
             cb(isTog)

@@ -77,6 +77,7 @@ return (function(section)
             if cosmics == nil then
                 teleportTo(worldPositions.cosmic)
                 continue
+            end
             doFarm(cosmics)
         end
     end)

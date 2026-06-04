@@ -84,7 +84,7 @@ local function createFrame(name, parent, size, position, bgColor)
     frame.Name = name
     frame.Size = size
     frame.Position = position
-    frame.BackgroundColor3 = bgColor or Color3.fromRGB(18, 18, 18)
+    frame.BackgroundColor3 = bgColor or Color3.fromRGB(15, 13, 26)
     frame.BorderSizePixel = 0
     frame.Parent = parent
 
@@ -93,21 +93,21 @@ local function createFrame(name, parent, size, position, bgColor)
     corner.Parent = frame
 
     local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(255, 255, 255)
-    stroke.Transparency = 0.8
+    stroke.Color = Color3.fromRGB(110, 85, 210)
+    stroke.Transparency = 0.6
     stroke.Thickness = 1
     stroke.Parent = frame
 
     return frame
 end
 
-local MainFrame = createFrame("MainFrame", gui, UDim2.new(0, 760, 0, 520), UDim2.new(0.5, -380, 0.5, -260), Color3.fromRGB(14, 14, 14))
+local MainFrame = createFrame("MainFrame", gui, UDim2.new(0, 760, 0, 520), UDim2.new(0.5, -380, 0.5, -260), Color3.fromRGB(10, 9, 18))
 
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 50)
 TopBar.Position = UDim2.new(0, 0, 0, 0)
-TopBar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+TopBar.BackgroundColor3 = Color3.fromRGB(8, 7, 15)
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
 
@@ -123,7 +123,7 @@ TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "Solaris"
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextSize = 22
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextColor3 = Color3.fromRGB(220, 210, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.TextYAlignment = Enum.TextYAlignment.Center
 TitleLabel.Parent = TopBar
@@ -136,7 +136,7 @@ Subtitle.BackgroundTransparency = 1
 Subtitle.Text = "Clean GUI powered by Solaris"
 Subtitle.Font = Enum.Font.Gotham
 Subtitle.TextSize = 12
-Subtitle.TextColor3 = Color3.fromRGB(150, 150, 150)
+Subtitle.TextColor3 = Color3.fromRGB(130, 118, 175)
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.TextYAlignment = Enum.TextYAlignment.Top
 Subtitle.Parent = TopBar
@@ -145,29 +145,29 @@ local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
 CloseButton.Size = UDim2.new(0, 40, 0, 30)
 CloseButton.Position = UDim2.new(1, -48, 0.5, -15)
-CloseButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+CloseButton.BackgroundColor3 = Color3.fromRGB(20, 16, 38)
 CloseButton.BorderSizePixel = 0
 CloseButton.Text = "X"
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.TextSize = 16
-CloseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+CloseButton.TextColor3 = Color3.fromRGB(180, 170, 220)
 CloseButton.Parent = TopBar
 
 CloseButton.MouseEnter:Connect(function()
-    CloseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(40, 28, 70)
     CloseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
 end)
 
 CloseButton.MouseLeave:Connect(function()
-    CloseButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    CloseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(20, 16, 38)
+    CloseButton.TextColor3 = Color3.fromRGB(180, 170, 220)
 end)
 
 local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = CloseButton
 
-local sidebar = createFrame("Sidebar", MainFrame, UDim2.new(0, 160, 1, -50), UDim2.new(0, 0, 0, 50), Color3.fromRGB(20, 20, 20))
+local sidebar = createFrame("Sidebar", MainFrame, UDim2.new(0, 160, 1, -50), UDim2.new(0, 0, 0, 50), Color3.fromRGB(13, 11, 22))
 local sidebarLayout = Instance.new("UIListLayout")
 sidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 sidebarLayout.Padding = UDim.new(0, 10)
@@ -179,27 +179,27 @@ local function createSidebarButton(text)
     local btn = Instance.new("TextButton")
     btn.Name = text .. "Button"
     btn.Size = UDim2.new(1, -20, 0, 40)
-    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
     btn.BorderSizePixel = 0
     btn.Text = text
     btn.Font = Enum.Font.GothamSemibold
     btn.TextSize = 13
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.TextColor3 = Color3.fromRGB(170, 160, 210)
     btn.AutoButtonColor = false
-    
+
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
-    
+
     btn.MouseEnter:Connect(function()
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        btn.TextColor3 = Color3.fromRGB(220, 210, 255)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 20, 48)
     end)
-    
+
     btn.MouseLeave:Connect(function()
         if activeName ~= text then
-            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-            btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+            btn.TextColor3 = Color3.fromRGB(170, 160, 210)
+            btn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
         end
     end)
     
@@ -234,7 +234,7 @@ local function createSection(name)
 end
 
 local function createCard(parent, title)
-    local card = createFrame(title .. "Card", parent, UDim2.new(1, 0, 0, 110), UDim2.new(0, 0, 0, 0), Color3.fromRGB(20, 20, 20))
+    local card = createFrame(title .. "Card", parent, UDim2.new(1, 0, 0, 110), UDim2.new(0, 0, 0, 0), Color3.fromRGB(16, 14, 28))
     local cardTitle = Instance.new("TextLabel")
     cardTitle.Name = "CardTitle"
     cardTitle.Size = UDim2.new(1, -20, 0, 26)
@@ -264,16 +264,16 @@ local function setActiveSection(name)
     if activeName then
         sectionFrames[activeName].Visible = false
         if sectionButtons[activeName] then
-            sectionButtons[activeName].BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-            sectionButtons[activeName].TextColor3 = Color3.fromRGB(200, 200, 200)
+            sectionButtons[activeName].BackgroundColor3 = Color3.fromRGB(15, 13, 26)
+            sectionButtons[activeName].TextColor3 = Color3.fromRGB(170, 160, 210)
         end
     end
     activeName = name
     activeButton = sectionButtons[name]
     sectionFrames[name].Visible = true
     if activeButton then
-        activeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        activeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        activeButton.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
+        activeButton.TextColor3 = Color3.fromRGB(210, 195, 255)
     end
 end
 
@@ -355,7 +355,7 @@ local function createCardContent(title, subtitle, parent)
     sub.Text = subtitle
     sub.Font = Enum.Font.Gotham
     sub.TextSize = 12
-    sub.TextColor3 = Color3.fromRGB(150, 150, 150)
+    sub.TextColor3 = Color3.fromRGB(130, 118, 175)
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.TextYAlignment = Enum.TextYAlignment.Top
     sub.Parent = card
