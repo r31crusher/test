@@ -1,7 +1,6 @@
 local elements = {}
 local stuff = {}
 
--- ── Templates (astro palette, no runtime re-styling) ─────────────────────────
 
 local function newLabel()
     local lbl = Instance.new("TextLabel")
@@ -194,7 +193,6 @@ local function newCredPerson()
     return p
 end
 
--- ── Store templates ───────────────────────────────────────────────────────────
 elements.LabelElement     = newLabel()
 elements.ButtonElement    = newButton()
 elements.ToggleElement    = newToggle()
@@ -203,7 +201,6 @@ elements.unsupportElement = newUnsupported()
 elements.CreditHeader     = newCredHead()
 elements.CreditPerson     = newCredPerson()
 
--- ── API ───────────────────────────────────────────────────────────────────────
 
 function stuff:Label(str, king)
     local lbl = elements.LabelElement:Clone()
@@ -239,6 +236,83 @@ function stuff:Toggle(str, king, cb)
             tog.togglebg.leftrightlol.BackgroundColor3 = Color3.fromRGB(160, 150, 220)
         end
         cb(on)
+    end)
+end
+
+function stuff:Slider(str, king, minVal, maxVal, default, cb)
+    local UIS = game:GetService("UserInputService")
+
+    local frame = Instance.new("Frame")
+    frame.Name = "SliderElement"
+    frame.Size = UDim2.new(1, 0, 0, 46)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 17, 38)
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+    local fStroke = Instance.new("UIStroke", frame)
+    fStroke.Color = Color3.fromRGB(100, 80, 190)
+    fStroke.Transparency = 0.6
+
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(1, -12, 0, 18)
+    lbl.Position = UDim2.new(0, 10, 0, 5)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamSemibold
+    lbl.TextSize = 12
+    lbl.TextColor3 = Color3.fromRGB(200, 190, 255)
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text = str .. ":  " .. tostring(default)
+
+    local track = Instance.new("Frame", frame)
+    track.Size = UDim2.new(1, -20, 0, 6)
+    track.Position = UDim2.new(0, 10, 0, 32)
+    track.BackgroundColor3 = Color3.fromRGB(35, 28, 65)
+    track.BorderSizePixel = 0
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local initPct = (default - minVal) / (maxVal - minVal)
+
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new(initPct, 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(110, 85, 210)
+    fill.BorderSizePixel = 0
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame", track)
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = UDim2.new(initPct, 0, 0.5, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(200, 185, 255)
+    knob.BorderSizePixel = 0
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    frame.Parent = king
+
+    local dragging = false
+
+    local function update(x)
+        local t   = math.clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local val = math.round(minVal + t * (maxVal - minVal))
+        fill.Size     = UDim2.new(t, 0, 1, 0)
+        knob.Position = UDim2.new(t, 0, 0.5, 0)
+        lbl.Text      = str .. ":  " .. tostring(val)
+        cb(val)
+    end
+
+    track.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            update(inp.Position.X)
+        end
+    end)
+    UIS.InputChanged:Connect(function(inp)
+        if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+            update(inp.Position.X)
+        end
+    end)
+    UIS.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
     end)
 end
 

@@ -3,12 +3,10 @@ local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 
--- Use hidden GUI container if the executor provides one
 local container = (type(gethui) == "function" and gethui())
     or (type(get_hidden_gui) == "function" and get_hidden_gui())
     or CoreGui
 
--- ── Astro palette ─────────────────────────────────────────────────────────────
 local C = {
     bg      = Color3.fromRGB(10,  9,  18),
     topbar  = Color3.fromRGB( 8,  7,  15),
@@ -23,7 +21,6 @@ local C = {
     tAct    = Color3.fromRGB(210,195, 255),
 }
 
--- ── Root GUI ──────────────────────────────────────────────────────────────────
 local gui = Instance.new("ScreenGui")
 gui.Name = "AstroUI"
 gui.ResetOnSpawn = false
@@ -41,7 +38,6 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
 local mStroke = Instance.new("UIStroke", MainFrame)
 mStroke.Color = C.stroke ; mStroke.Transparency = 0.6
 
--- ── Top bar ───────────────────────────────────────────────────────────────────
 local TopBar = Instance.new("Frame", MainFrame)
 TopBar.Size = UDim2.new(1, 0, 0, 50)
 TopBar.BackgroundColor3 = C.topbar
@@ -87,7 +83,6 @@ CloseBtn.MouseLeave:Connect(function()
     CloseBtn.TextColor3 = C.tBtn
 end)
 
--- Small re-open button shown when UI is closed
 local ShowBtn = Instance.new("TextButton", gui)
 ShowBtn.Name = "ShowBtn"
 ShowBtn.Size = UDim2.new(0, 80, 0, 28)
@@ -116,7 +111,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ── Dragging ──────────────────────────────────────────────────────────────────
 do
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(input)
@@ -140,7 +134,6 @@ do
     end)
 end
 
--- ── Sidebar ───────────────────────────────────────────────────────────────────
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Size = UDim2.new(0, 148, 1, -50)
 Sidebar.Position = UDim2.new(0, 0, 0, 50)
@@ -156,14 +149,12 @@ sbLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 local sbPad = Instance.new("UIPadding", Sidebar)
 sbPad.PaddingTop = UDim.new(0, 10)
 
--- ── Section area ──────────────────────────────────────────────────────────────
 local SectionArea = Instance.new("Frame", MainFrame)
 SectionArea.Size = UDim2.new(1, -158, 1, -60)
 SectionArea.Position = UDim2.new(0, 153, 0, 55)
 SectionArea.BackgroundTransparency = 1
 SectionArea.ClipsDescendants = true
 
--- Build one scrolling section container
 local function makeSection(name)
     local sf = Instance.new("ScrollingFrame", SectionArea)
     sf.Name = name
@@ -187,7 +178,6 @@ local function makeSection(name)
     return sf
 end
 
--- ── Tab system ────────────────────────────────────────────────────────────────
 local tabNames = {"Home", "Universal", "Game", "Gameslist", "Settings", "Credits"}
 local Sections = {}
 local CurSection
@@ -238,14 +228,11 @@ for _, name in ipairs(tabNames) do
     btn.MouseButton1Click:Connect(function() setTab(name) end)
 end
 
--- ── Load elements ─────────────────────────────────────────────────────────────
 local elements = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
 
--- ── Home ──────────────────────────────────────────────────────────────────────
 elements:Label("Welcome to Astro!  Press Insert to toggle.", Sections.Home.Container)
 elements:Label("Select a tab on the left to get started.", Sections.Home.Container)
 
--- ── Game ──────────────────────────────────────────────────────────────────────
 local ok, gameSrc = pcall(game.HttpGet, game, getgitpath("games") .. tostring(game.PlaceId) .. ".lua")
 if ok and gameSrc and #gameSrc > 0 and gameSrc ~= "404: Not Found" then
     local gameModule = loadstring(gameSrc)()
@@ -256,7 +243,6 @@ else
     end)
 end
 
--- ── Gameslist ─────────────────────────────────────────────────────────────────
 local ok2, listSrc = pcall(game.HttpGet, game, getgitpath("src") .. "gameslist.json")
 if ok2 and listSrc then
     local gameList = HttpService:JSONDecode(listSrc)
@@ -267,9 +253,8 @@ if ok2 and listSrc then
     end
 end
 
--- ── Settings ──────────────────────────────────────────────────────────────────
 local RunService = game:GetService("RunService")
-local plr = game:GetService("Players").LocalPlayer
+local plr        = game:GetService("Players").LocalPlayer
 
 elements:Toggle("Disable 3D Rendering", Sections.Settings.Container, function(v)
     RunService:Set3dRenderingEnabled(not v)
@@ -280,19 +265,78 @@ end)
 
 elements:Label("── Universal Tools ──", Sections.Settings.Container)
 
-elements:Textbox("Walk Speed  (default 16)", Sections.Settings.Container, function(v)
-    local n = tonumber(v)
-    if n and plr.Character then
+local _walkSpeed = 16
+elements:Slider("Walk Speed", Sections.Settings.Container, 8, 150, 16, function(v)
+    _walkSpeed = v
+    if plr.Character then
         local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.WalkSpeed = n end
+        if h then h.WalkSpeed = v end
+    end
+end)
+plr.CharacterAdded:Connect(function(char)
+    local h = char:WaitForChild("Humanoid", 5)
+    if h then h.WalkSpeed = _walkSpeed end
+end)
+
+getgenv()._astroNoclip = false
+elements:Toggle("Noclip", Sections.Settings.Container, function(v)
+    getgenv()._astroNoclip = v
+end)
+RunService.Stepped:Connect(function()
+    if not getgenv()._astroNoclip then return end
+    local char = plr.Character
+    if not char then return end
+    for _, p in ipairs(char:GetDescendants()) do
+        if p:IsA("BasePart") then p.CanCollide = false end
     end
 end)
 
-elements:Textbox("Jump Power  (default 50)", Sections.Settings.Container, function(v)
-    local n = tonumber(v)
-    if n and plr.Character then
-        local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.JumpPower = n end
+local _flySpeed = 50
+local _flyBV, _flyBG
+
+elements:Slider("Fly Speed", Sections.Settings.Container, 10, 300, 50, function(v)
+    _flySpeed = v
+end)
+
+getgenv()._astroFlying = false
+elements:Toggle("Fly  (WASD · Space=up · Shift=down)", Sections.Settings.Container, function(on)
+    getgenv()._astroFlying = on
+    local char = plr.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    if on then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = true end
+        _flyBV = Instance.new("BodyVelocity", hrp)
+        _flyBV.Velocity = Vector3.zero
+        _flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        _flyBG = Instance.new("BodyGyro", hrp)
+        _flyBG.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+        _flyBG.P = 9e4
+        _flyBG.D = 1e3
+        RunService:BindToRenderStep("AstroFly", Enum.RenderPriority.Character.Value + 1, function()
+            if not getgenv()._astroFlying then
+                RunService:UnbindFromRenderStep("AstroFly")
+                return
+            end
+            local cam = workspace.CurrentCamera
+            local dir = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector  end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector  end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space)     then dir += Vector3.yAxis end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.yAxis end
+            _flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * _flySpeed or Vector3.zero
+            _flyBG.CFrame   = cam.CFrame
+        end)
+    else
+        RunService:UnbindFromRenderStep("AstroFly")
+        if _flyBV then _flyBV:Destroy(); _flyBV = nil end
+        if _flyBG then _flyBG:Destroy(); _flyBG = nil end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
     end
 end)
 
@@ -301,83 +345,27 @@ elements:Toggle("Infinite Jump", Sections.Settings.Container, function(v)
     getgenv()._astroInfJump = v
 end)
 UserInputService.JumpRequest:Connect(function()
-    if getgenv()._astroInfJump and plr.Character then
-        local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
-    end
-end)
-
-getgenv()._astroNoclip = false
-elements:Toggle("Noclip", Sections.Settings.Container, function(v)
-    getgenv()._astroNoclip = v
-end)
-RunService.Stepped:Connect(function()
-    if getgenv()._astroNoclip and plr.Character then
-        for _, p in ipairs(plr.Character:GetDescendants()) do
-            if p:IsA("BasePart") then p.CanCollide = false end
-        end
-    end
-end)
-
-getgenv()._astroFlying = false
-local _flyBV, _flyBG
-elements:Toggle("Fly  (WASD + Space/Shift)", Sections.Settings.Container, function(v)
-    getgenv()._astroFlying = v
+    if not getgenv()._astroInfJump then return end
     local char = plr.Character
     if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    if v then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = true end
-        _flyBV = Instance.new("BodyVelocity", hrp)
-        _flyBV.Velocity = Vector3.zero
-        _flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-        _flyBG = Instance.new("BodyGyro", hrp)
-        _flyBG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-        _flyBG.P = 1e4
-        RunService:BindToRenderStep("AstroFly", 350, function()
-            if not getgenv()._astroFlying then
-                RunService:UnbindFromRenderStep("AstroFly")
-                return
-            end
-            local cam   = workspace.CurrentCamera
-            local speed = 50
-            local dir   = Vector3.zero
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space)     then dir += Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
-            _flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * speed or Vector3.zero
-            _flyBG.CFrame   = cam.CFrame
-        end)
-    else
-        RunService:UnbindFromRenderStep("AstroFly")
-        if _flyBV then _flyBV:Destroy() end
-        if _flyBG then _flyBG:Destroy() end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end
-    end
+    local h = char:FindFirstChildOfClass("Humanoid")
+    if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
 end)
 
-getgenv()._astroFullbright = false
 local _fbOrig
 elements:Toggle("Fullbright", Sections.Settings.Container, function(v)
-    getgenv()._astroFullbright = v
     local L = game:GetService("Lighting")
     if v then
         _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
-        L.Brightness = 2
-        L.Ambient = Color3.fromRGB(178,178,178)
-        L.OutdoorAmbient = Color3.fromRGB(178,178,178)
-        L.FogEnd = 1e6
+        L.Brightness     = 2
+        L.Ambient        = Color3.fromRGB(178, 178, 178)
+        L.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
+        L.FogEnd         = 1e6
     elseif _fbOrig then
-        L.Brightness = _fbOrig[1]
-        L.Ambient = _fbOrig[2]
+        L.Brightness     = _fbOrig[1]
+        L.Ambient        = _fbOrig[2]
         L.OutdoorAmbient = _fbOrig[3]
-        L.FogEnd = _fbOrig[4]
+        L.FogEnd         = _fbOrig[4]
     end
 end)
 
@@ -400,7 +388,6 @@ elements:Toggle("Anti-AFK", Sections.Settings.Container, function(v)
     end
 end)
 
--- ── Credits ───────────────────────────────────────────────────────────────────
 local ok3, credSrc = pcall(game.HttpGet, game, getgitpath("src") .. "credits.json")
 if ok3 and credSrc then
     local credits = HttpService:JSONDecode(credSrc)
@@ -412,5 +399,4 @@ if ok3 and credSrc then
     end
 end
 
--- ── Show Home by default ──────────────────────────────────────────────────────
 setTab("Home")
