@@ -104,24 +104,6 @@ local gamelistFrame = makeSection("gamelistFrame")
 local settingsFrame = makeSection("settingsFrame")
 local creditsFrame = makeSection("creditsFrame")
 
--- Expose expected references in a table to match previous code
-ui.togglebtn = ToggleButton
-ui.Frame = MainFrame
-MainFrame.TopBar = TopBar
-MainFrame.sectionContainers = SectionContainers
-MainFrame.tablist = TabList
-TopBar.hidebtn = hidebtn
-TabList.HomeTab = HomeTab
-TabList.GameTab = GameTab
-TabList.GameslistTab = GameslistTab
-TabList.SettingsTab = SettingsTab
-TabList.CreditsTab = CreditsTab
-SectionContainers.homeframe = homeframe
-SectionContainers.gameFrame = gameFrame
-SectionContainers.gamelistFrame = gamelistFrame
-SectionContainers.settingsFrame = settingsFrame
-SectionContainers.creditsFrame = creditsFrame
-
 local function styleGuiObject(obj)
     pcall(function() obj.BackgroundColor3 = Color3.fromRGB(0, 0, 0) end)
     pcall(function() obj.BorderColor3 = Color3.fromRGB(255, 255, 255) end)
@@ -146,39 +128,33 @@ end
 
 applyBlackAndWhiteTheme(ui)
 
-local ToggleButton = ui.togglebtn
-local MainFrame = ui.Frame
-
-local Topbar = MainFrame.TopBar
-local SectionContainers = MainFrame.sectionContainers
-local TabList = MainFrame.tablist
-
-local HideButton = Topbar.hidebtn
+local Topbar = TopBar
+local HideButton = hidebtn
 
 local Sections = {
     Home = {
-        TabBtn = TabList.HomeTab,
-        Container = SectionContainers.homeframe
+        TabBtn = HomeTab,
+        Container = homeframe
     },
 
     Game = {
-        TabBtn = TabList.GameTab,
-        Container = SectionContainers.gameFrame
+        TabBtn = GameTab,
+        Container = gameFrame
     },
 
     GamesList = {
-        TabBtn = TabList.GameslistTab,
-        Container = SectionContainers.gamelistFrame
+        TabBtn = GameslistTab,
+        Container = gamelistFrame
     },
 
     Settings = {
-        TabBtn = TabList.SettingsTab,
-        Container = SectionContainers.settingsFrame
+        TabBtn = SettingsTab,
+        Container = settingsFrame
     },
 
     Credits = {
-        TabBtn = TabList.CreditsTab,
-        Container = SectionContainers.creditsFrame
+        TabBtn = CreditsTab,
+        Container = creditsFrame
     }
 }
 
