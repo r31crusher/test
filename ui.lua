@@ -25,7 +25,7 @@ local C = {
 
 -- ── Root GUI ──────────────────────────────────────────────────────────────────
 local gui = Instance.new("ScreenGui")
-gui.Name = "SolarisUI"
+gui.Name = "AstroUI"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -52,7 +52,7 @@ local Title = Instance.new("TextLabel", TopBar)
 Title.Size = UDim2.new(0, 200, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Solaris"
+Title.Text = "Astro"
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 22
 Title.TextColor3 = C.tMain
@@ -62,7 +62,7 @@ local Sub = Instance.new("TextLabel", TopBar)
 Sub.Size = UDim2.new(0, 300, 0, 14)
 Sub.Position = UDim2.new(0, 16, 0, 32)
 Sub.BackgroundTransparency = 1
-Sub.Text = "brainrot tools"
+Sub.Text = "universal tools"
 Sub.Font = Enum.Font.Gotham
 Sub.TextSize = 11
 Sub.TextColor3 = C.tSub
@@ -94,7 +94,7 @@ ShowBtn.Size = UDim2.new(0, 80, 0, 28)
 ShowBtn.Position = UDim2.new(0, 10, 0, 10)
 ShowBtn.BackgroundColor3 = C.btnAct
 ShowBtn.BorderSizePixel = 0
-ShowBtn.Text = "Solaris"
+ShowBtn.Text = "Astro"
 ShowBtn.Font = Enum.Font.GothamBold
 ShowBtn.TextSize = 13
 ShowBtn.TextColor3 = C.tMain
@@ -188,7 +188,7 @@ local function makeSection(name)
 end
 
 -- ── Tab system ────────────────────────────────────────────────────────────────
-local tabNames = {"Home", "Game", "Gameslist", "Settings", "Credits"}
+local tabNames = {"Home", "Universal", "Game", "Gameslist", "Settings", "Credits"}
 local Sections = {}
 local CurSection
 
@@ -242,7 +242,7 @@ end
 local elements = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
 
 -- ── Home ──────────────────────────────────────────────────────────────────────
-elements:Label("Welcome to Solaris!  Press Insert to toggle.", Sections.Home.Container)
+elements:Label("Welcome to Astro!  Press Insert to toggle.", Sections.Home.Container)
 elements:Label("Select a tab on the left to get started.", Sections.Home.Container)
 
 -- ── Game ──────────────────────────────────────────────────────────────────────
@@ -268,11 +268,136 @@ if ok2 and listSrc then
 end
 
 -- ── Settings ──────────────────────────────────────────────────────────────────
+local RunService = game:GetService("RunService")
+local plr = game:GetService("Players").LocalPlayer
+
 elements:Toggle("Disable 3D Rendering", Sections.Settings.Container, function(v)
-    game:GetService("RunService"):Set3dRenderingEnabled(not v)
+    RunService:Set3dRenderingEnabled(not v)
 end)
 elements:Toggle("Auto Rejoin on kick", Sections.Settings.Container, function(v)
     getgenv().autorjjjj = v
+end)
+
+elements:Label("── Universal Tools ──", Sections.Settings.Container)
+
+elements:Textbox("Walk Speed  (default 16)", Sections.Settings.Container, function(v)
+    local n = tonumber(v)
+    if n and plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = n end
+    end
+end)
+
+elements:Textbox("Jump Power  (default 50)", Sections.Settings.Container, function(v)
+    local n = tonumber(v)
+    if n and plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.JumpPower = n end
+    end
+end)
+
+getgenv()._astroInfJump = false
+elements:Toggle("Infinite Jump", Sections.Settings.Container, function(v)
+    getgenv()._astroInfJump = v
+end)
+UserInputService.JumpRequest:Connect(function()
+    if getgenv()._astroInfJump and plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+getgenv()._astroNoclip = false
+elements:Toggle("Noclip", Sections.Settings.Container, function(v)
+    getgenv()._astroNoclip = v
+end)
+RunService.Stepped:Connect(function()
+    if getgenv()._astroNoclip and plr.Character then
+        for _, p in ipairs(plr.Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
+    end
+end)
+
+getgenv()._astroFlying = false
+local _flyBV, _flyBG
+elements:Toggle("Fly  (WASD + Space/Shift)", Sections.Settings.Container, function(v)
+    getgenv()._astroFlying = v
+    local char = plr.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    if v then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = true end
+        _flyBV = Instance.new("BodyVelocity", hrp)
+        _flyBV.Velocity = Vector3.zero
+        _flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        _flyBG = Instance.new("BodyGyro", hrp)
+        _flyBG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+        _flyBG.P = 1e4
+        RunService:BindToRenderStep("AstroFly", 350, function()
+            if not getgenv()._astroFlying then
+                RunService:UnbindFromRenderStep("AstroFly")
+                return
+            end
+            local cam   = workspace.CurrentCamera
+            local speed = 50
+            local dir   = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space)     then dir += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+            _flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * speed or Vector3.zero
+            _flyBG.CFrame   = cam.CFrame
+        end)
+    else
+        RunService:UnbindFromRenderStep("AstroFly")
+        if _flyBV then _flyBV:Destroy() end
+        if _flyBG then _flyBG:Destroy() end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+    end
+end)
+
+getgenv()._astroFullbright = false
+local _fbOrig
+elements:Toggle("Fullbright", Sections.Settings.Container, function(v)
+    getgenv()._astroFullbright = v
+    local L = game:GetService("Lighting")
+    if v then
+        _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
+        L.Brightness = 2
+        L.Ambient = Color3.fromRGB(178,178,178)
+        L.OutdoorAmbient = Color3.fromRGB(178,178,178)
+        L.FogEnd = 1e6
+    elseif _fbOrig then
+        L.Brightness = _fbOrig[1]
+        L.Ambient = _fbOrig[2]
+        L.OutdoorAmbient = _fbOrig[3]
+        L.FogEnd = _fbOrig[4]
+    end
+end)
+
+getgenv()._astroAntiAfk = false
+elements:Toggle("Anti-AFK", Sections.Settings.Container, function(v)
+    getgenv()._astroAntiAfk = v
+    if v then
+        task.spawn(function()
+            while getgenv()._astroAntiAfk do
+                task.wait(60)
+                if getgenv()._astroAntiAfk then
+                    pcall(function()
+                        local vim = game:GetService("VirtualInputManager")
+                        vim:SendKeyEvent(true,  "Q", false, game)
+                        vim:SendKeyEvent(false, "Q", false, game)
+                    end)
+                end
+            end
+        end)
+    end
 end)
 
 -- ── Credits ───────────────────────────────────────────────────────────────────
