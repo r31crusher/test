@@ -1,7 +1,7 @@
 -- Cross road for brainrots
 
-return function(section, elements)
-    elements = elements or loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+return function(section)
+    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
 
     local plr = game:GetService("Players").LocalPlayer
 

@@ -1,7 +1,7 @@
 -- dream for brainrots
 
-return function(section, elements)
-    elements = elements or loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+return function(section)
+    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
     getgenv().farming = false
 
     elements:Toggle("Farming", section, function(v)
