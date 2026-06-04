@@ -327,6 +327,31 @@ elements:Toggle("Auto Rejoin on kick", Sections.Settings.Container, function(v)
     getgenv().autorjjjj = v
 end)
 
+elements:Button("Unload", Sections.Settings.Container, function()
+    getgenv()._astroFlying    = false
+    getgenv()._astroNoclip    = false
+    getgenv()._astroAiming    = false
+    getgenv()._astroInfJump   = false
+    getgenv()._astroAntiAfk   = false
+    getgenv()._astroFullbright = false
+    getgenv().autorjjjj       = false
+    RunService:UnbindFromRenderStep("AstroFly")
+    RunService:UnbindFromRenderStep("AstroAim")
+    RunService:Set3dRenderingEnabled(true)
+    if _flyBV then _flyBV:Destroy() end
+    if _flyBG then _flyBG:Destroy() end
+    if _fbOrig then
+        local L = game:GetService("Lighting")
+        L.Brightness = _fbOrig[1]; L.Ambient = _fbOrig[2]
+        L.OutdoorAmbient = _fbOrig[3]; L.FogEnd = _fbOrig[4]
+    end
+    if plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = 16; h.PlatformStand = false end
+    end
+    gui:Destroy()
+end)
+
 local _binds = {
     fly    = {key = Enum.KeyCode.F, mouseBtn = nil, displayName = "F", hudLabel = nil},
     noclip = {key = Enum.KeyCode.V, mouseBtn = nil, displayName = "V", hudLabel = nil},
