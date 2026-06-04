@@ -1,356 +1,350 @@
-local hui = gethui or get_hidden_gui
-local getexec = identifyexecutor
-local players = game:GetService("Players")
-local coregui = game:GetService("CoreGui")
-local userinputservice = game:GetService("UserInputService")
-local httpservice = game:GetService("HttpService")
-local exservice = game:GetService("ExperienceService")
-local tweenservice = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local ExperienceService = game:GetService("ExperienceService")
 
--- Build UI programmatically (replaces external asset)
-local ui = Instance.new("ScreenGui")
-ui.Name = "CustomUI"
-ui.ResetOnSpawn = false
-ui.DisplayOrder = 10
-local player = players.LocalPlayer
-local playerGui = player and player:FindFirstChild("PlayerGui")
-ui.Parent = playerGui or hui and hui() or coregui
+local function getPlayerGui()
+    local player = Players.LocalPlayer
+    if not player then
+        return nil
+    end
+    return player:FindFirstChild("PlayerGui")
+end
 
--- Top-left astro label
-local AstroLabel = Instance.new("TextLabel")
-AstroLabel.Name = "AstroLabel"
-AstroLabel.Size = UDim2.new(0, 120, 0, 28)
-AstroLabel.Position = UDim2.new(0, 8, 0, 8)
-AstroLabel.BackgroundTransparency = 1
-AstroLabel.Text = "astro"
-AstroLabel.TextXAlignment = Enum.TextXAlignment.Left
-AstroLabel.Parent = ui
+local function fetchRemote(path)
+    local ok, result = pcall(function()
+        return game:HttpGet(path, true)
+    end)
+    if ok and result and result ~= "" and result ~= "404: Not Found" then
+        return result
+    end
+    return nil
+end
 
--- Toggle button (visible when menu hidden)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "togglebtn"
-ToggleButton.Size = UDim2.new(0, 36, 0, 36)
-ToggleButton.Position = UDim2.new(0, 8, 0, 44)
-ToggleButton.Text = "+"
-ToggleButton.Parent = ui
+local function readLocal(name)
+    if type(isfile) == "function" and isfile(name) then
+        return readfile(name)
+    end
+    return nil
+end
 
--- MainFrame container
+local function getGitPath(name)
+    if type(getgitpath) == "function" then
+        if name == "games" then
+            return getgitpath("games")
+        end
+        return getgitpath()
+    end
+    return "https://raw.githubusercontent.com/r31crusher/test/main/"
+end
+
+local function fetchRemoteOrLocal(name)
+    local remotePath
+    if name:match("^games/") then
+        remotePath = getGitPath("games") .. name:sub(7)
+    else
+        remotePath = getGitPath() .. name
+    end
+
+    local source = fetchRemote(remotePath)
+    if not source then
+        source = readLocal(name)
+    end
+    return source
+end
+
+local function safeLoad(name)
+    local source = fetchRemoteOrLocal(name)
+    if not source then
+        error("Unable to load: " .. name)
+    end
+
+    local fn, compileError = loadstring(source)
+    if not fn then
+        error("Unable to compile " .. name .. ": " .. tostring(compileError))
+    end
+
+    local ok, result = pcall(fn)
+    if not ok then
+        error("Unable to execute " .. name .. ": " .. tostring(result))
+    end
+
+    return result
+end
+
+local elements = safeLoad("elements.lua")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SolarisUI"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 1000
+gui.Parent = getPlayerGui() or CoreGui
+
+local function createNavButton(text, positionY)
+    local button = Instance.new("TextButton")
+    button.Name = text .. "Button"
+    button.Size = UDim2.new(1, -16, 0, 36)
+    button.Position = UDim2.new(0, 8, 0, positionY)
+    button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    button.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    button.BorderSizePixel = 1
+    button.Text = text
+    button.Font = Enum.Font.SourceSans
+    button.TextSize = 16
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.AutoButtonColor = false
+    return button
+end
+
+local function createSection(name)
+    local frame = Instance.new("Frame")
+    frame.Name = name
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.Position = UDim2.new(0, 0, 0, 0)
+    frame.BackgroundTransparency = 1
+    frame.Visible = false
+
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = frame
+
+    return frame
+end
+
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "Frame"
-MainFrame.Size = UDim2.new(0, 520, 0, 340)
-MainFrame.Position = UDim2.new(0.5, -260, 0.5, -170)
+MainFrame.Name = "MainFrame"
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.Visible = false
-MainFrame.Parent = ui
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = UDim2.new(0, 640, 0, 420)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.BorderSizePixel = 1
+MainFrame.Parent = gui
 
--- TopBar inside MainFrame
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1,0,0,36)
-TopBar.Position = UDim2.new(0,0,0,0)
+TopBar.Size = UDim2.new(1, 0, 0, 36)
+TopBar.Position = UDim2.new(0, 0, 0, 0)
+TopBar.BackgroundTransparency = 1
 TopBar.Parent = MainFrame
 
-local hidebtn = Instance.new("TextButton")
-hidebtn.Name = "hidebtn"
-hidebtn.Size = UDim2.new(0, 48, 0, 28)
-hidebtn.Position = UDim2.new(1, -56, 0.5, -14)
-hidebtn.Text = "x"
-hidebtn.Parent = TopBar
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(0.5, 0, 1, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Solaris Menu"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.TextYAlignment = Enum.TextYAlignment.Center
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.Parent = TopBar
 
--- Tablist (left side)
-local TabList = Instance.new("Frame")
-TabList.Name = "tablist"
-TabList.Size = UDim2.new(0, 120, 1, -36)
-TabList.Position = UDim2.new(0,0,0,36)
-TabList.Parent = MainFrame
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 36, 0, 28)
+CloseButton.Position = UDim2.new(1, -44, 0.5, -14)
+CloseButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+CloseButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.BorderSizePixel = 1
+CloseButton.Text = "X"
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.TextSize = 18
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Parent = TopBar
 
-local function makeTab(name, y)
-    local b = Instance.new("TextButton")
-    b.Name = name
-    b.Size = UDim2.new(1, -8, 0, 32)
-    b.Position = UDim2.new(0, 4, 0, y)
-    b.Text = name:gsub("Tab", "")
-    b.Parent = TabList
-    return b
-end
+local NavFrame = Instance.new("Frame")
+NavFrame.Name = "NavFrame"
+NavFrame.Size = UDim2.new(0, 140, 1, -36)
+NavFrame.Position = UDim2.new(0, 0, 0, 36)
+NavFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+NavFrame.BorderSizePixel = 0
+NavFrame.Parent = MainFrame
 
-local HomeTab = makeTab("HomeTab", 8)
-local GameTab = makeTab("GameTab", 48)
-local GameslistTab = makeTab("GameslistTab", 88)
-local SettingsTab = makeTab("SettingsTab", 128)
-local CreditsTab = makeTab("CreditsTab", 168)
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -140, 1, -36)
+ContentFrame.Position = UDim2.new(0, 140, 0, 36)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainFrame
 
--- Section containers (right side)
-local SectionContainers = Instance.new("Frame")
-SectionContainers.Name = "sectionContainers"
-SectionContainers.Size = UDim2.new(1, -120, 1, -36)
-SectionContainers.Position = UDim2.new(0,120,0,36)
-SectionContainers.Parent = MainFrame
+local toggleOpen = Instance.new("TextButton")
+toggleOpen.Name = "ToggleOpen"
+toggleOpen.Size = UDim2.new(0, 40, 0, 40)
+toggleOpen.Position = UDim2.new(0, 8, 0, 8)
+toggleOpen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+toggleOpen.BorderColor3 = Color3.fromRGB(255, 255, 255)
+toggleOpen.BorderSizePixel = 1
+toggleOpen.Text = "+"
+toggleOpen.Font = Enum.Font.SourceSansBold
+toggleOpen.TextSize = 24
+toggleOpen.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleOpen.Parent = gui
 
-local function makeSection(name)
-    local f = Instance.new("Frame")
-    f.Name = name
-    f.Size = UDim2.new(1,0,1,0)
-    f.AnchorPoint = Vector2.new(0.5, 0)
-    f.Position = UDim2.new(0.5, 0, 1, 0)
-    f.Visible = false
-    f.Parent = SectionContainers
-    return f
-end
-
-local homeframe = makeSection("homeframe")
-local gameFrame = makeSection("gameFrame")
-local gamelistFrame = makeSection("gamelistFrame")
-local settingsFrame = makeSection("settingsFrame")
-local creditsFrame = makeSection("creditsFrame")
-
-local function styleGuiObject(obj)
-    pcall(function() obj.BackgroundColor3 = Color3.fromRGB(0, 0, 0) end)
-    pcall(function() obj.BorderColor3 = Color3.fromRGB(255, 255, 255) end)
-    pcall(function() obj.TextColor3 = Color3.fromRGB(255, 255, 255) end)
-    pcall(function() obj.PlaceholderColor3 = Color3.fromRGB(255, 255, 255) end)
-    pcall(function() obj.ImageColor3 = Color3.fromRGB(255, 255, 255) end)
-    if obj:IsA("UIStroke") then
-        obj.Color = Color3.fromRGB(255, 255, 255)
-        obj.Transparency = 0
-    end
-    if obj:IsA("UIGradient") then
-        obj.Enabled = false
-    end
-end
-
-local function applyBlackAndWhiteTheme(root)
-    styleGuiObject(root)
-    for _, obj in ipairs(root:GetDescendants()) do
-        styleGuiObject(obj)
-    end
-end
-
-applyBlackAndWhiteTheme(ui)
-
-local Topbar = TopBar
-local HideButton = hidebtn
-
-local Sections = {
-    Home = {
-        TabBtn = HomeTab,
-        Container = homeframe
-    },
-
-    Game = {
-        TabBtn = GameTab,
-        Container = gameFrame
-    },
-
-    GamesList = {
-        TabBtn = GameslistTab,
-        Container = gamelistFrame
-    },
-
-    Settings = {
-        TabBtn = SettingsTab,
-        Container = settingsFrame
-    },
-
-    Credits = {
-        TabBtn = CreditsTab,
-        Container = creditsFrame
-    }
+local sectionFrames = {
+    Home = createSection("HomeSection"),
+    Game = createSection("GameSection"),
+    Gameslist = createSection("GameslistSection"),
+    Settings = createSection("SettingsSection"),
+    Credits = createSection("CreditsSection")
 }
 
-local CurSection
+for _, frame in pairs(sectionFrames) do
+    frame.Parent = ContentFrame
+end
 
-local function setActiveSection(sect)
-    if CurSection then
-        CurSection.TabBtn.BackgroundTransparency = 1
-        CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
+local navButtons = {
+    Home = createNavButton("Home", 12),
+    Game = createNavButton("Game", 60),
+    Gameslist = createNavButton("Gameslist", 108),
+    Settings = createNavButton("Settings", 156),
+    Credits = createNavButton("Credits", 204)
+}
+
+for _, button in pairs(navButtons) do
+    button.Parent = NavFrame
+end
+
+local activeSection = nil
+local activeButton = nil
+
+local function resetButton(button)
+    button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+end
+
+local function selectSection(name)
+    if activeSection then
+        activeSection.Visible = false
     end
-
-    sect.TabBtn.BackgroundTransparency = 0
-    sect.Container.Visible = true
-    sect.Container.Position = UDim2.new(0.5, 0, 0, 0)
-    CurSection = sect
+    if activeButton then
+        resetButton(activeButton)
+    end
+    activeSection = sectionFrames[name]
+    activeButton = navButtons[name]
+    if activeSection then
+        activeSection.Visible = true
+    end
+    if activeButton then
+        activeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        activeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
 end
 
-for _, sect in pairs(Sections) do
-    sect.TabBtn.MouseEnter:Connect(function()
-        for _, stroke in pairs(sect.TabBtn:GetChildren()) do
-            if stroke.Name == "InnerShadow" then
-                stroke.Transparency = 0.95
-            end
-        end
-    end)
-
-    sect.TabBtn.MouseLeave:Connect(function()
-        for _, stroke in pairs(sect.TabBtn:GetChildren()) do
-            if stroke.Name == "InnerShadow" then
-                stroke.Transparency = 1
-            end
-        end
-    end)
-
-    sect.TabBtn.MouseButton1Click:Connect(function()
-        if CurSection == sect then return end
-        setActiveSection(sect)
+for name, button in pairs(navButtons) do
+    button.MouseButton1Click:Connect(function()
+        selectSection(name)
     end)
 end
 
-setActiveSection(Sections.Home)
-
-HideButton.MouseButton1Click:Connect(function()
+CloseButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
-    ToggleButton.Visible = true
+    toggleOpen.Visible = true
 end)
 
-ToggleButton.MouseButton1Click:Connect(function()
+toggleOpen.MouseButton1Click:Connect(function()
     MainFrame.Visible = true
-    ToggleButton.Visible = false
+    toggleOpen.Visible = false
 end)
 
--- Toggle menu with Insert key
-userinputservice.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then
+        return
+    end
     if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Insert then
-        if MainFrame.Visible then
-            MainFrame.Visible = false
-            ToggleButton.Visible = true
-        else
-            MainFrame.Visible = true
-            ToggleButton.Visible = false
-        end
+        MainFrame.Visible = not MainFrame.Visible
+        toggleOpen.Visible = not MainFrame.Visible
     end
 end)
 
-local dragging = false
-local dragInput, mousePos, framePos
-
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        mousePos = input.Position
-        framePos = MainFrame.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+local function safeJson(name)
+    local source = fetchRemoteOrLocal(name)
+    if not source then
+        return nil
     end
-end)
-
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+    local ok, result = pcall(function()
+        return HttpService:JSONDecode(source)
+    end)
+    if ok then
+        return result
     end
-end)
-
-userinputservice.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - mousePos
-        MainFrame.Position = UDim2.new(
-            framePos.X.Scale,
-            framePos.X.Offset + delta.X,
-            framePos.Y.Scale,
-            framePos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-if Sections.Home.Container:FindFirstChild("bugsLabel") then
-    Sections.Home.Container.bugsLabel.Text = Sections.Home.Container.bugsLabel.Text:gsub("redacted", "discord.gg/C2ySUrv99U")
-end
-if Sections.Home.Container:FindFirstChild("discan") then
-    Sections.Home.Container.discan.Text = Sections.Home.Container.discan.Text:gsub("redacted", "discord.gg/C2ySUrv99U")
-end
-if Sections.Home.Container:FindFirstChild("ythead") then
-    Sections.Home.Container.ythead.Text = Sections.Home.Container.ythead.Text:gsub("redacted", "astro")
-end
-if Sections.Home.Container:FindFirstChild("execLabel") then
-    Sections.Home.Container.execLabel.Text = "Executor: astro"
+    return nil
 end
 
-
-local ok, gamePath = pcall(function()
-    return game:HttpGet(getgitpath("games") .. tostring(game.PlaceId) .. ".lua")
-end)
-local gameList = httpservice:JSONDecode(game:HttpGet(getgitpath("src").. "gameslist.json"))
-local creditsList = httpservice:JSONDecode(game:HttpGet(getgitpath("src").. "credits.json"))
-local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
-if not ok or #gamePath == 0 or gamePath == "404: Not Found" then
-    local handledLocally = false
-
-    if getgenv().FileScripts then
-        if isfile("test/"..tostring(game.PlaceId)..".lua") then
-            local localSource = readfile("test/"..tostring(game.PlaceId)..".lua")
-            local gameModule, err = loadstring(localSource)
-            if type(gameModule) == "function" then
-                gameModule(Sections.Game.Container)
-                handledLocally = true
-            else
-                warn("Local game module failed to compile: " .. tostring(err))
-            end
-        end
+local function safeLoadGameModule(placeId)
+    local path = getGitPath("games") .. tostring(placeId) .. ".lua"
+    local source = fetchRemote(path)
+    if not source then
+        return nil, "no remote game module"
     end
+    local fn, compileError = loadstring(source)
+    if not fn then
+        return nil, compileError
+    end
+    return fn
+end
 
-    if not handledLocally then
-        elements:Unsupported(Sections.Game.Container, function()
-            if CurSection then
-                CurSection.TabBtn.BackgroundTransparency = 1
-                CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
-            end
+-- Home section
+elements:Label("Welcome to Solaris", sectionFrames.Home)
+elements:Label("Use the sidebar to select a section.", sectionFrames.Home)
+elements:Label("This menu is rebuilt using Solaris-style UI.", sectionFrames.Home)
 
-            Sections.GamesList.TabBtn.BackgroundTransparency = 0
-            Sections.GamesList.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
-            Sections.GamesList.Container.Visible = true
-
-            CurSection = Sections.GamesList
-        end)
+-- Game section
+local gameModule, gameError = safeLoadGameModule(game.PlaceId)
+if type(gameModule) == "function" then
+    local ok, result = pcall(function()
+        gameModule(sectionFrames.Game)
+    end)
+    if not ok then
+        elements:Label("Game module executed with an error.", sectionFrames.Game)
+        elements:Label(tostring(result), sectionFrames.Game)
     end
 else
-    local gameModule, err
-    if type(gamePath) == "string" then
-        gameModule, err = loadstring(gamePath)
-    else
-        err = "gamePath is not a valid string"
-    end
+    elements:Unsupported(sectionFrames.Game, function()
+        selectSection("Gameslist")
+    end)
+    elements:Label("Game-specific UI is unavailable.", sectionFrames.Game)
+    elements:Label("Error: " .. tostring(gameError), sectionFrames.Game)
+end
 
-    if type(gameModule) == "function" then
-        gameModule(Sections.Game.Container)
-    else
-        warn("Failed to load game module for place " .. tostring(game.PlaceId) .. ": " .. tostring(err))
-        elements:Unsupported(Sections.Game.Container, function()
-            if CurSection then
-                CurSection.TabBtn.BackgroundTransparency = 1
-                CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
-            end
-
-            Sections.GamesList.TabBtn.BackgroundTransparency = 0
-            Sections.GamesList.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
-            Sections.GamesList.Container.Visible = true
-
-            CurSection = Sections.GamesList
+-- Gameslist section
+local gamesList = safeJson("gameslist.json") or {}
+if #gamesList == 0 then
+    elements:Label("No games found.", sectionFrames.Gameslist)
+else
+    for _, gameEntry in ipairs(gamesList) do
+        elements:Button(gameEntry.status .. " " .. tostring(gameEntry.game), sectionFrames.Gameslist, function()
+            ExperienceService:LaunchExperience({placeId = gameEntry.id})
         end)
     end
 end
 
-for _, g in ipairs(gameList) do
-    elements:Button(g.status .. " " .. g["game"], Sections.GamesList.Container, function()
-        exservice:LaunchExperience({placeId = g.id})
-    end)
-end
+-- Settings section
+elements:Label("Settings", sectionFrames.Settings)
+elements:Toggle("Disable 3D Rendering", sectionFrames.Settings, function(value)
+    game:GetService("RunService"):Set3dRenderingEnabled(not value)
+end)
+elements:Toggle("Auto Rejoin (when kicked)", sectionFrames.Settings, function(value)
+    getgenv().autorjjjj = value
+end)
 
-for sect, c in pairs(creditsList) do
-    elements:CredHead(Sections.Credits.Container, sect)
-
-    for _, person in ipairs(c) do
-        elements:CredPerson(Sections.Credits.Container, person)
+-- Credits section
+local creditsList = safeJson("credits.json") or {}
+if next(creditsList) == nil then
+    elements:Label("No credits available.", sectionFrames.Credits)
+else
+    for sectionName, people in pairs(creditsList) do
+        elements:CredHead(sectionFrames.Credits, sectionName)
+        for _, person in ipairs(people) do
+            elements:CredPerson(sectionFrames.Credits, person)
+        end
     end
 end
 
-elements:Toggle("Disable 3D Rendering", Sections.Settings.Container, function(v)
-    game:GetService("RunService"):Set3dRenderingEnabled(not v)
-end)
-
-elements:Toggle("Auto Rejoin (when kicked)", Sections.Settings.Container, function(v)
-    getgenv().autorjjjj = v
-end)
+selectSection("Home")
+MainFrame.Visible = true
+toggleOpen.Visible = false
