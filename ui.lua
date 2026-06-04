@@ -68,17 +68,17 @@ local function makeTab(name, y)
     local b = Instance.new("TextButton")
     b.Name = name
     b.Size = UDim2.new(1, -8, 0, 32)
-    b.Position = UDim2.new(0,4,0,y)
-    b.Text = name:gsub("Tab","")
+    b.Position = UDim2.new(0, 4, 0, y)
+    b.Text = name:gsub("Tab", "")
     b.Parent = TabList
     return b
 end
 
-local HomeTab = makeTab("HomeTab", 8/32)
-local GameTab = makeTab("GameTab", 48/32)
-local GameslistTab = makeTab("GameslistTab", 88/32)
-local SettingsTab = makeTab("SettingsTab", 128/32)
-local CreditsTab = makeTab("CreditsTab", 168/32)
+local HomeTab = makeTab("HomeTab", 8)
+local GameTab = makeTab("GameTab", 48)
+local GameslistTab = makeTab("GameslistTab", 88)
+local SettingsTab = makeTab("SettingsTab", 128)
+local CreditsTab = makeTab("CreditsTab", 168)
 
 -- Section containers (right side)
 local SectionContainers = Instance.new("Frame")
@@ -302,8 +302,30 @@ if not ok or #gamePath == 0 or gamePath == "404: Not Found" then
         end)
     end
 else
-    local gameModule = loadstring(gamePath)()
-    gameModule(Sections.Game.Container)
+    local gameModule, err
+    if type(gamePath) == "string" then
+        gameModule, err = loadstring(gamePath)
+    else
+        err = "gamePath is not a valid string"
+    end
+
+    if type(gameModule) == "function" then
+        gameModule(Sections.Game.Container)
+    else
+        warn("Failed to load game module for place " .. tostring(game.PlaceId) .. ": " .. tostring(err))
+        elements:Unsupported(Sections.Game.Container, function()
+            if CurSection then
+                CurSection.TabBtn.BackgroundTransparency = 1
+                CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
+            end
+
+            Sections.GamesList.TabBtn.BackgroundTransparency = 0
+            Sections.GamesList.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2)
+            Sections.GamesList.Container.Visible = true
+
+            CurSection = Sections.GamesList
+        end)
+    end
 end
 
 for _, g in ipairs(gameList) do
