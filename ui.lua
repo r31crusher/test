@@ -373,17 +373,55 @@ local homeCard = createCardContent("Welcome", "Press Insert to toggle menu", sec
 elements:Label("Navigate using the sidebar", homeCard)
 
 -- Game Section
+local gameScroll = Instance.new("ScrollingFrame")
+gameScroll.Name = "GameScroll"
+gameScroll.Size = UDim2.new(1, 0, 1, 0)
+gameScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+gameScroll.BackgroundTransparency = 1
+gameScroll.ScrollBarThickness = 4
+gameScroll.ScrollBarImageColor3 = Color3.fromRGB(110, 85, 210)
+gameScroll.BorderSizePixel = 0
+gameScroll.Parent = sectionFrames.Game
+
+local gameScrollLayout = Instance.new("UIListLayout")
+gameScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+gameScrollLayout.Padding = UDim.new(0, 8)
+gameScrollLayout.Parent = gameScroll
+
+local gameScrollPad = Instance.new("UIPadding")
+gameScrollPad.PaddingTop = UDim.new(0, 4)
+gameScrollPad.PaddingLeft = UDim.new(0, 4)
+gameScrollPad.PaddingRight = UDim.new(0, 4)
+gameScrollPad.Parent = gameScroll
+
+gameScrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    gameScroll.CanvasSize = UDim2.new(0, 0, 0, gameScrollLayout.AbsoluteContentSize.Y + 16)
+end)
+
+local function gameLabel(msg, color)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -8, 0, 28)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = msg
+    lbl.TextColor3 = color or Color3.fromRGB(210, 200, 255)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextWrapped = true
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = gameScroll
+end
+
 local gameModule, gameModuleErr = safeLoadGameModule(game.PlaceId)
 if type(gameModule) == "function" then
     local ok, result = pcall(function()
-        gameModule(sectionFrames.Game, elements)
+        gameModule(gameScroll, elements)
     end)
     if not ok then
-        createCardContent("Game Error", tostring(result), sectionFrames.Game)
+        gameLabel("Error: " .. tostring(result), Color3.fromRGB(255, 100, 100))
     end
 else
-    local reason = gameModuleErr and ("Compile error: " .. tostring(gameModuleErr)) or "No module for this game."
-    createCardContent("No Game Module", reason, sectionFrames.Game)
+    local reason = gameModuleErr and tostring(gameModuleErr) or "No module for game " .. tostring(game.PlaceId)
+    gameLabel(reason, Color3.fromRGB(170, 160, 210))
 end
 
 -- Gameslist Section
