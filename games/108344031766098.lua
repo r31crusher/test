@@ -24,6 +24,15 @@ return function(section)
         return char and char:FindFirstChild("HumanoidRootPart")
     end
 
+    -- Block all Robux purchase prompts while this game script is loaded
+    local _mpsHook = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "PromptProductPurchase" or method == "PromptGamePassPurchase" then
+            return
+        end
+        return _mpsHook(self, ...)
+    end))
+
     -- ── Auto Farm ─────────────────────────────────────────────────────────────
     -- Carry limit is 1: approach the Emerald Galaxy spawn area to stream it in,
     -- pick up one SpawnedItem, return to safe zone (CollectionZone) to drop, repeat.
@@ -116,19 +125,33 @@ return function(section)
     end)
 
     -- ── Auto Collect ─────────────────────────────────────────────────────────
-    -- Fires touch on every CollectTouch part in the player's plot to collect income.
     getgenv()._brain_collect = false
     elements:Toggle("Auto Collect", section, function(v)
         getgenv()._brain_collect = v
         if v then
             task.spawn(function()
-                while getgenv()._brain_collect do
+                -- Cache CollectTouch parts once; refresh if plot reloads
+                local cachedParts = {}
+                local function refreshParts()
+                    cachedParts = {}
                     local plot = getPlot()
-                    local hrp  = getHRP()
-                    if plot and hrp then
-                        for _, part in ipairs(plot:GetDescendants()) do
+                    if not plot then return end
+                    for _, part in ipairs(plot:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name == "CollectTouch" then
+                            table.insert(cachedParts, part)
+                        end
+                    end
+                end
+
+                refreshParts()
+
+                while getgenv()._brain_collect do
+                    local hrp = getHRP()
+                    if hrp then
+                        if #cachedParts == 0 then refreshParts() end
+                        for _, part in ipairs(cachedParts) do
                             if not getgenv()._brain_collect then break end
-                            if part:IsA("BasePart") and part.Name == "CollectTouch" then
+                            if part and part.Parent then
                                 pcall(firetouchinterest, part, hrp, 0)
                                 task.wait(0.05)
                                 pcall(firetouchinterest, part, hrp, 1)
@@ -136,7 +159,7 @@ return function(section)
                             end
                         end
                     end
-                    task.wait(1)
+                    task.wait(0.5)
                 end
             end)
         end
