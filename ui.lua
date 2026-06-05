@@ -708,7 +708,7 @@ local _aimSpeed = 8
 local _setAimFOV   = makeSlider("Aim FOV",        combatSection, 50,  600, 200, function(v) _aimFOV   = v end)
 local _setAimSmooth = makeSlider("Aim Smoothness", combatSection,  1,   20,   8, function(v) _aimSpeed = v end)
 
-getgenv()._astroAimTeamCheck = true
+getgenv()._astroAimTeamCheck = false
 local _setTeamCheck = elements:Toggle("Team Check", combatSection, function(v)
     getgenv()._astroAimTeamCheck = v
 end)
@@ -718,12 +718,29 @@ makeDropdown("Aim Mode", combatSection, {"Legacy", "Silent"}, "Legacy", function
     _aimMode = v
 end)
 
+getgenv()._astroAimVisCheck = false
+local _setAimVisCheck = elements:Toggle("Vis Check", combatSection, function(v)
+    getgenv()._astroAimVisCheck = v
+end)
+
 getgenv()._aimEnabled  = false
 getgenv()._astroAiming = false
 local _setAimbot = makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
     getgenv()._aimEnabled = on
     if not on then getgenv()._astroAiming = false end
 end)
+
+-- Shared raycast params reused each frame to avoid GC pressure
+local _rayParams = RaycastParams.new()
+_rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function _isVisible(targetPart)
+    local origin = workspace.CurrentCamera.CFrame.Position
+    local filter = {targetPart.Parent}
+    if plr.Character then table.insert(filter, plr.Character) end
+    _rayParams.FilterDescendantsInstances = filter
+    return workspace:Raycast(origin, targetPart.Position - origin, _rayParams) == nil
+end
 
 local function getAimTarget()
     local cam      = workspace.CurrentCamera
@@ -733,13 +750,14 @@ local function getAimTarget()
     for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
         if p == lp then continue end
         if getgenv()._astroAimTeamCheck and lp.Team and p.Team == lp.Team then continue end
-        local char = p.Character
+        local char = p.Character or workspace:FindFirstChild(p.Name)
         if not char then continue end
         local head = char:FindFirstChild("Head")
         local hum  = char:FindFirstChildOfClass("Humanoid")
         if not head or not hum or hum.Health <= 0 then continue end
         local sp, onScreen = cam:WorldToViewportPoint(head.Position)
         if not onScreen then continue end
+        if getgenv()._astroAimVisCheck and not _isVisible(head) then continue end
         local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
         if d < bestDist then bestDist = d; best = head end
     end
@@ -848,6 +866,37 @@ local _setDistEsp = elements:Toggle("Distance",   espSection, function(v) _esp.d
 local _setWeapEsp = elements:Toggle("Weapon",     espSection, function(v) _esp.weapon   = v end)
 local _setHpEsp   = elements:Toggle("Health Bar", espSection, function(v) _esp.health   = v end)
 
+local _espTeamCheck = false
+local _setEspTeamCheck = elements:Toggle("Team Check", espSection, function(v)
+    _espTeamCheck = v
+end)
+
+local _espColorMap = {
+    Red    = Color3.fromRGB(255, 50,  50),
+    Orange = Color3.fromRGB(255, 145,  0),
+    Yellow = Color3.fromRGB(255, 235, 40),
+    Green  = Color3.fromRGB(50,  255, 80),
+    Cyan   = Color3.fromRGB(40,  215, 255),
+    Blue   = Color3.fromRGB(60,  110, 255),
+    Purple = Color3.fromRGB(180, 60,  255),
+    White  = Color3.fromRGB(255, 255, 255),
+}
+local _espColorNames = {"Red","Orange","Yellow","Green","Cyan","Blue","Purple","White"}
+
+local _espVisColor     = _espColorMap.Red     -- color when player is visible
+local _espNoVisColor   = _espColorMap.Orange  -- color when player is behind a wall
+local _espVisColorName   = "Red"
+local _espNoVisColorName = "Orange"
+local _espVisCheck = false
+
+local _setEspVisCheck = elements:Toggle("Vis Check", espSection, function(v) _espVisCheck = v end)
+makeDropdown("Visible Color", espSection, _espColorNames, "Red",    function(v)
+    _espVisColorName = v ; _espVisColor = _espColorMap[v]
+end)
+makeDropdown("Hidden Color",  espSection, _espColorNames, "Orange", function(v)
+    _espNoVisColorName = v ; _espNoVisColor = _espColorMap[v]
+end)
+
 -- ── Config system ──────────────────────────────────────────────────────────────
 local CFG_FILE  = "astro/universal/config.json"
 local META_FILE = "astro/universal/meta.json"
@@ -903,6 +952,7 @@ local function saveConfig()
         aimFOV        = _aimFOV,
         aimSpeed      = _aimSpeed,
         aimTeamCheck  = getgenv()._astroAimTeamCheck,
+        aimVisCheck   = getgenv()._astroAimVisCheck,
         aimMode       = _aimMode,
         espBox        = _esp.box,
         espSkeleton   = _esp.skeleton,
@@ -910,6 +960,10 @@ local function saveConfig()
         espDistance   = _esp.distance,
         espWeapon     = _esp.weapon,
         espHealth     = _esp.health,
+        espTeamCheck      = _espTeamCheck,
+        espVisCheck       = _espVisCheck,
+        espVisColorName   = _espVisColorName,
+        espNoVisColorName = _espNoVisColorName,
         bindFly       = _serializeBind(_binds.fly),
         bindNoclip    = _serializeBind(_binds.noclip),
         bindAim       = _serializeBind(_binds.aim),
@@ -933,8 +987,9 @@ local function loadConfig()
     if data.fullbright    ~= nil then _setFullbright(data.fullbright)   end
     if data.antiAfk       ~= nil then _setAntiAfk(data.antiAfk)        end
     if data.aimEnabled    ~= nil then _setAimbot(data.aimEnabled)       end
-    if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)  end
-    if data.aimMode             then _aimMode = data.aimMode            end
+    if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)    end
+    if data.aimVisCheck   ~= nil then _setAimVisCheck(data.aimVisCheck)  end
+    if data.aimMode             then _aimMode = data.aimMode             end
 
     if data.espBox      ~= nil then _setBoxEsp(data.espBox)       end
     if data.espSkeleton ~= nil then _setSkelEsp(data.espSkeleton) end
@@ -942,6 +997,16 @@ local function loadConfig()
     if data.espDistance ~= nil then _setDistEsp(data.espDistance) end
     if data.espWeapon   ~= nil then _setWeapEsp(data.espWeapon)   end
     if data.espHealth   ~= nil then _setHpEsp(data.espHealth)     end
+    if data.espTeamCheck ~= nil then _setEspTeamCheck(data.espTeamCheck) end
+    if data.espVisCheck  ~= nil then _setEspVisCheck(data.espVisCheck)  end
+    if data.espVisColorName   then
+        _espVisColorName = data.espVisColorName
+        _espVisColor = _espColorMap[data.espVisColorName] or _espVisColor
+    end
+    if data.espNoVisColorName then
+        _espNoVisColorName = data.espNoVisColorName
+        _espNoVisColor = _espColorMap[data.espNoVisColorName] or _espNoVisColor
+    end
 
     _applyBind(_binds.fly,    data.bindFly)
     _applyBind(_binds.noclip, data.bindNoclip)
@@ -962,6 +1027,14 @@ local function silentLoadConfig()
     if data.aimFOV    then _aimFOV    = data.aimFOV    end
     if data.aimSpeed  then _aimSpeed  = data.aimSpeed  end
     if data.aimMode   then _aimMode   = data.aimMode   end
+    if data.espVisColorName   then
+        _espVisColorName = data.espVisColorName
+        _espVisColor = _espColorMap[data.espVisColorName] or _espVisColor
+    end
+    if data.espNoVisColorName then
+        _espNoVisColorName = data.espNoVisColorName
+        _espNoVisColor = _espColorMap[data.espNoVisColorName] or _espNoVisColor
+    end
 
     _applyBind(_binds.fly,    data.bindFly)
     _applyBind(_binds.noclip, data.bindNoclip)
@@ -1062,14 +1135,18 @@ local function cleanESP(uid)
 end
 
 local function updateESP(p)
-    local char = p.Character
+    local char = p.Character or workspace:FindFirstChild(p.Name)
     local d = getESPData(p.UserId)
     if not char then hideAll(d); return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then hideAll(d); return end
+    if _espTeamCheck and plr.Team and p.Team and p.Team == plr.Team then hideAll(d); return end
 
     local cam = workspace.CurrentCamera
+    local vis = not _espVisCheck or _isVisible(hrp)
+    local espColor = vis and _espVisColor or _espNoVisColor
+
     local probeNames = {"Head","HumanoidRootPart","LeftFoot","RightFoot","LeftHand","RightHand",
                         "LeftLowerLeg","RightLowerLeg","LeftLowerArm","RightLowerArm",
                         "Left Leg","Right Leg","Left Arm","Right Arm","Torso"}
@@ -1097,6 +1174,7 @@ local function updateESP(p)
     if _esp.box then
         d.box.Position = Vector2.new(minX, minY)
         d.box.Size     = Vector2.new(maxX-minX, maxY-minY)
+        d.box.Color    = espColor
         d.box.Visible  = true
     else
         d.box.Visible = false
@@ -1166,8 +1244,9 @@ local function updateESP(p)
                 if inFront0 and inFront1 then
                     local s0 = cam:WorldToViewportPoint(p0.Position)
                     local s1 = cam:WorldToViewportPoint(p1.Position)
-                    ln.From = Vector2.new(s0.X, s0.Y)
-                    ln.To   = Vector2.new(s1.X, s1.Y)
+                    ln.From  = Vector2.new(s0.X, s0.Y)
+                    ln.To    = Vector2.new(s1.X, s1.Y)
+                    ln.Color = espColor
                     ln.Visible = true
                 else
                     ln.Visible = false
