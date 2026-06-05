@@ -208,6 +208,14 @@ return function(section)
         end
     end)
 
+    -- ── Teleport to Safe Zone ────────────────────────────────────────────────
+    elements:Button("Teleport to Safe Zone", section, function()
+        local hrp = getHRP()
+        if hrp then
+            hrp.CFrame = CFrame.new(16.45, 58.63, -10.71)
+        end
+    end)
+
     -- ── Unload hook ───────────────────────────────────────────────────────────
     -- When ui.lua calls gui:Destroy(), the section ancestor is removed.
     -- This kills all running loops so nothing keeps running after unload.
