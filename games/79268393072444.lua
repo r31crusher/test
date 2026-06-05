@@ -6,12 +6,7 @@ return function(section)
     local player = game:GetService("Players").LocalPlayer
     local RS     = game:GetService("ReplicatedStorage")
 
-    local clickFruitRemote = RS.Core.RemoteSignal.ClickFruitService.Clicked
-    local cashDropNew      = RS.Core.RemoteSignal.CashDropService.New
-    local cashDropRedeem   = RS.Core.RemoteRequest.CashDropService.Redeem
-
     -- Find the tycoon owned by the local player.
-    -- Tries both a StringValue named "Owner" and the "Owner" instance attribute.
     local function getMyTycoon()
         for i = 1, 10 do
             local t = workspace:FindFirstChild("Tycoon" .. i)
@@ -24,8 +19,7 @@ return function(section)
         return nil
     end
 
-    -- Walk every descendant of `parent` and invoke RemoteFunctions whose name
-    -- matches `remoteName`.  Skips remotes already attempted this cycle.
+    -- Invoke every RemoteFunction named `remoteName` under `parent`.
     local function invokeAll(parent, remoteName, delay)
         for _, desc in ipairs(parent:GetDescendants()) do
             if desc:IsA("RemoteFunction") and desc.Name == remoteName then
@@ -35,8 +29,7 @@ return function(section)
         end
     end
 
-    -- Same but only collects remotes inside folders named "Multiplier" or "Hills"
-    -- (income-boosting upgrades, skipping pure cosmetic Decor items).
+    -- Only invoke Purchase remotes inside Multiplier / Hills / Other folders.
     local function invokeIncomeOnly(parent, delay)
         for _, desc in ipairs(parent:GetDescendants()) do
             if desc:IsA("Folder") then
@@ -55,8 +48,6 @@ return function(section)
     end
 
     -- ── Auto Buy Multipliers ──────────────────────────────────────────────────
-    -- Only purchases income-multiplying upgrades (Multiplier / Hills categories).
-    -- Skips expensive cosmetic Decor/Structure items so cash goes further.
     getgenv()._lemon_buyMult = false
     elements:Toggle("Auto Buy Multipliers", section, function(v)
         getgenv()._lemon_buyMult = v
@@ -68,7 +59,6 @@ return function(section)
                         local purchases = tycoon:FindFirstChild("Purchases")
                         if purchases then
                             invokeIncomeOnly(purchases, 0.05)
-                            -- Also upgrade each building
                             invokeAll(purchases, "Upgrade", 0.05)
                         end
                     end
@@ -79,7 +69,6 @@ return function(section)
     end)
 
     -- ── Auto Buy Everything ───────────────────────────────────────────────────
-    -- Purchases all buttons in the tycoon including Decor and Structure.
     getgenv()._lemon_buyAll = false
     elements:Toggle("Auto Buy Everything", section, function(v)
         getgenv()._lemon_buyAll = v
@@ -101,14 +90,18 @@ return function(section)
     end)
 
     -- ── Auto Click Fruits ─────────────────────────────────────────────────────
-    -- Fires ClickFruitService to earn passive income from fruit clicks.
     getgenv()._lemon_autoClick = false
     elements:Toggle("Auto Click Fruits", section, function(v)
         getgenv()._lemon_autoClick = v
         if v then
             task.spawn(function()
+                local remote = RS:FindFirstChild("Core")
+                    and RS.Core:FindFirstChild("RemoteSignal")
+                    and RS.Core.RemoteSignal:FindFirstChild("ClickFruitService")
+                    and RS.Core.RemoteSignal.ClickFruitService:FindFirstChild("Clicked")
+                if not remote then return end
                 while getgenv()._lemon_autoClick do
-                    pcall(function() clickFruitRemote:FireServer() end)
+                    pcall(function() remote:FireServer() end)
                     task.wait(0.05)
                 end
             end)
@@ -116,17 +109,24 @@ return function(section)
     end)
 
     -- ── Auto Cash Drops ───────────────────────────────────────────────────────
-    -- Listens for the server's CashDrop.New event and immediately redeems
-    -- each drop by invoking CashDropService.Redeem with the received data.
     getgenv()._lemon_cashDrops = false
     local _dropConn
     elements:Toggle("Auto Cash Drops", section, function(v)
         getgenv()._lemon_cashDrops = v
         if v then
-            _dropConn = cashDropNew.OnClientEvent:Connect(function(...)
+            local newRemote = RS:FindFirstChild("Core")
+                and RS.Core:FindFirstChild("RemoteSignal")
+                and RS.Core.RemoteSignal:FindFirstChild("CashDropService")
+                and RS.Core.RemoteSignal.CashDropService:FindFirstChild("New")
+            local redeemRemote = RS:FindFirstChild("Core")
+                and RS.Core:FindFirstChild("RemoteRequest")
+                and RS.Core.RemoteRequest:FindFirstChild("CashDropService")
+                and RS.Core.RemoteRequest.CashDropService:FindFirstChild("Redeem")
+            if not newRemote or not redeemRemote then return end
+            _dropConn = newRemote.OnClientEvent:Connect(function(...)
                 local args = {...}
                 task.wait(0.1)
-                pcall(function() cashDropRedeem:InvokeServer(table.unpack(args)) end)
+                pcall(function() redeemRemote:InvokeServer(table.unpack(args)) end)
             end)
         else
             if _dropConn then _dropConn:Disconnect(); _dropConn = nil end
