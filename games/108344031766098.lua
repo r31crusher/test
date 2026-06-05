@@ -32,38 +32,38 @@ return function(section)
         getgenv()._brain_farm = v
         if v then
             task.spawn(function()
-                local itemSpawns = workspace:WaitForChild("ItemSpawns", 10)
-                local zones      = workspace:WaitForChild("CollectionZones", 10)
-                if not itemSpawns or not zones then return end
+                local itemSpawns = workspace:WaitForChild("ItemSpawns", 15)
+                local zones      = workspace:WaitForChild("CollectionZones", 15)
+                if not itemSpawns or not zones then
+                    warn("[Astro] ItemSpawns or CollectionZones not found")
+                    return
+                end
 
-                local zone = zones:FindFirstChildOfClass("BasePart")
-                if not zone then return end
+                -- Block until the CollectionZone part streams in
+                local zone = zones:WaitForChild("CollectionZone", 15)
+                if not zone then
+                    warn("[Astro] CollectionZone part not found")
+                    return
+                end
 
-                -- Get the approach position from the first numbered spawn area part.
-                -- Teleporting here first forces the area to stream in.
-                local function getApproachPos()
-                    for _, child in ipairs(itemSpawns:GetChildren()) do
-                        if child:IsA("BasePart") then
-                            return child.Position
-                        end
-                    end
-                    return nil
+                -- Block until the first numbered spawn area part streams in
+                local spawnAreaPart = itemSpawns:WaitForChild("1", 15)
+                if not spawnAreaPart then
+                    warn("[Astro] ItemSpawns spawn area not found")
+                    return
                 end
 
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
-                    -- Step 1: teleport near the spawn area to load it
-                    local approachPos = getApproachPos()
-                    if approachPos then
-                        hrp.CFrame = CFrame.new(approachPos + Vector3.new(0, 5, 20))
-                        task.wait(1.5) -- wait for StreamingEnabled to load the area
-                    end
+                    -- Step 1: teleport just outside the spawn area to trigger streaming
+                    hrp.CFrame = CFrame.new(spawnAreaPart.Position + Vector3.new(0, 5, 20))
+                    task.wait(1.5)
 
                     if not getgenv()._brain_farm then break end
 
-                    -- Step 2: find and pick up the first available SpawnedItem
+                    -- Step 2: teleport into the area and grab the first SpawnedItem
                     hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
@@ -89,7 +89,7 @@ return function(section)
                         continue
                     end
 
-                    -- Step 3: return to safe zone and drop
+                    -- Step 3: return to safe zone (CollectionZone) and drop
                     hrp = getHRP()
                     if hrp then
                         hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 3, 0))
