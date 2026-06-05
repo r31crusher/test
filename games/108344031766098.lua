@@ -38,59 +38,51 @@ return function(section)
                     return
                 end
 
-                -- Hardcoded positions from in-game coordinate dump
-                local SAFE_ZONE_POS    = Vector3.new(-163.88, 37.33, 4564.50)
-                local EMERALD_APPROACH = Vector3.new(-163.88, 37.33, 4564.50)
+                -- Part "11" is the Emerald Galaxy (Z≈4841, ground Y≈5)
+                local emeraldPart = itemSpawns:WaitForChild("11", 15)
+                if not emeraldPart then
+                    warn("[Astro] Emerald Galaxy (Part 11) not found")
+                    return
+                end
+
+                -- Elevated out-of-map safe spot right next to Emerald Galaxy
+                local SAFE_ZONE_POS = Vector3.new(-163.88, 37.33, 4564.50)
 
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
-                    -- Find a SpawnedItem near the Emerald Galaxy (within 600 studs of approach).
-                    -- This filters out cheap items from earlier zones.
-                    local prompt, itemPart, areaPart
-                    for _, desc in ipairs(itemSpawns:GetDescendants()) do
-                        if desc:IsA("ProximityPrompt") then
-                            local part = desc.Parent
-                            if part and part:IsA("MeshPart") then
-                                local item = part.Parent
-                                if item and item.Name == "SpawnedItem" then
-                                    local dist = (part.Position - EMERALD_APPROACH).Magnitude
-                                    if dist <= 600 then
-                                        local area = item.Parent
-                                        if area and area:IsA("BasePart") then
-                                            areaPart = area
-                                        end
-                                        prompt   = desc
-                                        itemPart = part
-                                        break
-                                    end
+                    -- Find first SpawnedItem in Part 11 (Emerald Galaxy only)
+                    local prompt, itemPart
+                    for _, item in ipairs(emeraldPart:GetChildren()) do
+                        if item.Name == "SpawnedItem" then
+                            local part = item:FindFirstChildOfClass("MeshPart")
+                            if part then
+                                local p = part:FindFirstChildOfClass("ProximityPrompt")
+                                if p then
+                                    prompt   = p
+                                    itemPart = part
+                                    break
                                 end
                             end
                         end
                     end
 
                     if not prompt then
-                        -- Nothing loaded yet — approach Emerald Galaxy to stream items in
-                        hrp.CFrame = CFrame.new(EMERALD_APPROACH)
+                        -- No items loaded yet, teleport to Emerald to stream them in
+                        hrp.CFrame = CFrame.new(SAFE_ZONE_POS)
                         task.wait(2)
                         continue
                     end
 
-                    -- Step 1: approach Emerald Galaxy to stream it, then teleport onto the item
-                    hrp.CFrame = CFrame.new(EMERALD_APPROACH)
-                    task.wait(1)
-
-                    hrp = getHRP()
-                    if not hrp or not getgenv()._brain_farm then continue end
-
-                    prompt.HoldDuration = 0
-                    hrp.CFrame = CFrame.new(itemPart.Position + Vector3.new(0, 2, 0))
+                    -- Step 1: teleport to item and pick it up
+                    hrp.CFrame = CFrame.new(itemPart.Position + Vector3.new(0, 3, 0))
                     task.wait(0.3)
+                    prompt.HoldDuration = 0
                     pcall(fireproximityprompt, prompt)
                     task.wait(0.5)
 
-                    -- Step 2: always return to safe zone after every pickup attempt
+                    -- Step 2: return to safe zone inside Emerald Galaxy
                     hrp = getHRP()
                     if hrp then
                         hrp.CFrame = CFrame.new(SAFE_ZONE_POS)
@@ -102,20 +94,13 @@ return function(section)
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
-    -- Teleports to SellNPC and sells the full inventory every few seconds.
+    -- Fires RequestSell without teleporting so it doesn't interfere with Auto Farm.
     getgenv()._brain_sell = false
     elements:Toggle("Auto Sell", section, function(v)
         getgenv()._brain_sell = v
         if v then
             task.spawn(function()
                 while getgenv()._brain_sell do
-                    local hrp = getHRP()
-                    local npc = workspace:FindFirstChild("SellNPC")
-                    local proxPart = npc and npc:FindFirstChild("ProxPart")
-                    if hrp and proxPart then
-                        hrp.CFrame = CFrame.new(proxPart.Position + Vector3.new(0, 3, 0))
-                        task.wait(0.1)
-                    end
                     pcall(function() evSell:FireServer("Inventory") end)
                     task.wait(3)
                 end
