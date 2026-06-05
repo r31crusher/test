@@ -56,20 +56,31 @@ return function(section)
         if ok and result then myPlot = result end
     end)
 
-    -- Returns all Dirt parts in the player's farm (emptyOnly = no PlantName)
-    local function getDirtParts(emptyOnly)
-        if not myPlot then return {} end
-        local farmPlot = myPlot:FindFirstChild("FarmPlot")
-        if not farmPlot then return {} end
-        local dirts = {}
+    -- Scans one FarmPlot container and appends Dirt parts to `out`.
+    local function scanFarmPlot(farmPlot, emptyOnly, out)
+        if not farmPlot then return end
         for _, plotModel in farmPlot:GetChildren() do
             if plotModel:IsA("Model") and plotModel.Name:match("^Plot%d+$") then
                 local dirt = plotModel:FindFirstChild("Dirt")
                 if dirt then
                     if not emptyOnly or not dirt:GetAttribute("PlantName") then
-                        table.insert(dirts, dirt)
+                        table.insert(out, dirt)
                     end
                 end
+            end
+        end
+    end
+
+    -- Returns all Dirt parts across every floor (emptyOnly = no PlantName set).
+    -- Floor1: FarmPlot is a direct child of myPlot.
+    -- Floor2+: myPlot.FloorN.FarmPlot (confirmed spy: Map.Plots.Plot2.Floor2.FarmPlot.Plot1.Dirt)
+    local function getDirtParts(emptyOnly)
+        if not myPlot then return {} end
+        local dirts = {}
+        scanFarmPlot(myPlot:FindFirstChild("FarmPlot"), emptyOnly, dirts)
+        for _, child in myPlot:GetChildren() do
+            if child.Name:match("^Floor%d+$") then
+                scanFarmPlot(child:FindFirstChild("FarmPlot"), emptyOnly, dirts)
             end
         end
         return dirts
