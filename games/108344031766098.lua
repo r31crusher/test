@@ -114,13 +114,11 @@ return function(section)
                         continue
                     end
 
-                    -- Step 2: return to safe zone and claim
+                    -- Step 2: teleport back to safe zone
                     hrp = getHRP()
-                    if hrp and hasItem() then
-                        hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 2, 0))
-                        task.wait(0.3)
-                        pcall(firetouchinterest, zone, hrp, 0)
-                        task.wait(0.3)
+                    if hrp then
+                        hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 3, 0))
+                        task.wait(0.5)
                     end
                 end
             end)
