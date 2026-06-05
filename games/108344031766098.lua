@@ -33,18 +33,14 @@ return function(section)
         if v then
             task.spawn(function()
                 local itemSpawns = workspace:WaitForChild("ItemSpawns", 15)
-                local zones      = workspace:WaitForChild("CollectionZones", 15)
-                if not itemSpawns or not zones then
-                    warn("[Astro] ItemSpawns or CollectionZones not found")
+                if not itemSpawns then
+                    warn("[Astro] ItemSpawns not found")
                     return
                 end
 
-                -- Block until the CollectionZone part streams in
-                local zone = zones:WaitForChild("CollectionZone", 15)
-                if not zone then
-                    warn("[Astro] CollectionZone part not found")
-                    return
-                end
+                -- Hardcoded positions from in-game coordinate dump
+                local SAFE_ZONE_POS    = Vector3.new(0, 262, 1067)
+                local EMERALD_APPROACH = Vector3.new(0, 262, 4538)
 
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
@@ -73,20 +69,15 @@ return function(section)
                     end
 
                     if not prompt then
-                        -- Nothing loaded yet — approach the center of ItemSpawns to stream items in
-                        local anyArea = itemSpawns:FindFirstChildOfClass("BasePart")
-                        if anyArea then
-                            hrp.CFrame = CFrame.new(anyArea.Position + Vector3.new(0, 5, 15))
-                        end
+                        -- Nothing loaded yet — approach Emerald Galaxy to stream items in
+                        hrp.CFrame = CFrame.new(EMERALD_APPROACH)
                         task.wait(2)
                         continue
                     end
 
-                    -- Step 1: approach the spawn area to stream it, then teleport onto the item
-                    if areaPart then
-                        hrp.CFrame = CFrame.new(areaPart.Position + Vector3.new(0, 5, 15))
-                        task.wait(1)
-                    end
+                    -- Step 1: approach Emerald Galaxy to stream it, then teleport onto the item
+                    hrp.CFrame = CFrame.new(EMERALD_APPROACH)
+                    task.wait(1)
 
                     hrp = getHRP()
                     if not hrp or not getgenv()._brain_farm then continue end
@@ -100,7 +91,7 @@ return function(section)
                     -- Step 2: always return to safe zone after every pickup attempt
                     hrp = getHRP()
                     if hrp then
-                        hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 3, 0))
+                        hrp.CFrame = CFrame.new(SAFE_ZONE_POS)
                         task.wait(0.5)
                     end
                 end
