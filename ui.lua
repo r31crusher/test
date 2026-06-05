@@ -229,6 +229,7 @@ for _, name in ipairs(tabNames) do
 end
 
 local elements = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
+getgenv()._astroElements = elements
 
 local function makeDropdown(label, parent, options, default, cb)
     local itemH = 28

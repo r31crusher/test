@@ -1,7 +1,7 @@
 -- Lemon Empire Tycoon
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
 
     local player = game:GetService("Players").LocalPlayer
     local RS     = game:GetService("ReplicatedStorage")
