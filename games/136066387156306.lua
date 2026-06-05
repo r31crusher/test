@@ -11,9 +11,7 @@ return function(section)
     local evSell     = rs.Remotes:WaitForChild("SellEvent")
     local evRebirth  = rs.RemoteGUI:WaitForChild("URebirth")
     local fnStorm    = rs.Events:WaitForChild("StormBreakerChargeFunction")
-    local evMutation = rs:WaitForChild("ApplyMutation")
     local evBonus    = rs:WaitForChild("BonusClaimRemote")
-    local fnQTERolls = rs:WaitForChild("GetQTERolls")
 
     local loops = {}
     local function cancelLoop(name)
@@ -34,11 +32,9 @@ return function(section)
         end)
     end)
 
-    -- ── Auto Charge + Mutations ───────────────────────────────────────────────
-    -- Charge flow: StartCharge → fetch server's rolled QTE mutations → apply each
-    -- one → send max charge (3) → EndWarp.
-    -- Using GetQTERolls first means we only send mutation names the server already
-    -- rolled for this session, avoiding the detection the standalone loop caused.
+    -- ── Auto Charge ───────────────────────────────────────────────────────────
+    -- Charge flow: StartCharge → send max power (3) → EndWarp.
+    -- ChargeZoneTrigger proximity check is client-side only; server trusts the value.
     elements:Toggle("Auto Charge", section, function(state)
         cancelLoop("charge")
         if not state then return end
@@ -46,15 +42,6 @@ return function(section)
             while task.wait(4) do
                 pcall(evDash.FireServer, evDash, "StartCharge")
                 task.wait(0.2)
-
-                local ok, rolls = pcall(fnQTERolls.InvokeServer, fnQTERolls, "Normal")
-                if ok and type(rolls) == "table" then
-                    for _, mutationName in ipairs(rolls) do
-                        pcall(evMutation.FireServer, evMutation, mutationName)
-                        task.wait(0.15)
-                    end
-                end
-
                 pcall(evDash.FireServer, evDash, 3)
                 task.wait(0.2)
                 pcall(evDash.FireServer, evDash, "EndWarp")
@@ -63,11 +50,22 @@ return function(section)
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
+    -- Server checks proximity against workspace.Map.Shops.Sell.Hitbox.
+    -- Teleport into the hitbox before firing so the check passes.
+    local sellHitbox = workspace:WaitForChild("Map"):WaitForChild("Shops")
+        :WaitForChild("Sell"):WaitForChild("Hitbox")
+
     elements:Toggle("Auto Sell", section, function(state)
         cancelLoop("sell")
         if not state then return end
         loops.sell = task.spawn(function()
             while task.wait(3) do
+                local char = player.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp and sellHitbox then
+                    hrp.CFrame = CFrame.new(sellHitbox.Position + Vector3.new(0, 3, 0))
+                    task.wait(0.2)
+                end
                 pcall(evSell.FireServer, evSell)
             end
         end)
