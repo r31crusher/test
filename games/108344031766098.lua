@@ -24,14 +24,23 @@ return function(section)
         return char and char:FindFirstChild("HumanoidRootPart")
     end
 
-    -- Block all Robux purchase prompts while this game script is loaded
-    local _mpsHook = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        if method == "PromptProductPurchase" or method == "PromptGamePassPurchase" then
-            return
-        end
-        return _mpsHook(self, ...)
-    end))
+    -- Hide the game's Robux popup frame whenever it tries to become visible
+    task.spawn(function()
+        local gui = player:WaitForChild("PlayerGui", 10)
+        if not gui then return end
+        local frames = gui:WaitForChild("GUI", 10)
+        if not frames then return end
+        frames = frames:WaitForChild("Frames", 10)
+        if not frames then return end
+        local popup = frames:WaitForChild("PopupShop", 10)
+        if not popup then return end
+        popup.Visible = false
+        popup:GetPropertyChangedSignal("Visible"):Connect(function()
+            if popup.Visible then
+                popup.Visible = false
+            end
+        end)
+    end)
 
     -- ── Auto Farm ─────────────────────────────────────────────────────────────
     -- Carry limit is 1: approach the Emerald Galaxy spawn area to stream it in,
