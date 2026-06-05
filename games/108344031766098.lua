@@ -115,6 +115,31 @@ return function(section)
         end
     end)
 
+    -- ── Auto Collect ─────────────────────────────────────────────────────────
+    -- Fires touch on every CollectTouch part in the player's plot to collect income.
+    getgenv()._brain_collect = false
+    elements:Toggle("Auto Collect", section, function(v)
+        getgenv()._brain_collect = v
+        if v then
+            task.spawn(function()
+                while getgenv()._brain_collect do
+                    local plot = getPlot()
+                    local hrp  = getHRP()
+                    if plot and hrp then
+                        for _, part in ipairs(plot:GetDescendants()) do
+                            if not getgenv()._brain_collect then break end
+                            if part:IsA("BasePart") and part.Name == "CollectTouch" then
+                                pcall(firetouchinterest, part, hrp, 0)
+                                task.wait(0.05)
+                            end
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end)
+
     -- ── Auto Upgrade Slots ────────────────────────────────────────────────────
     getgenv()._brain_slotUp = false
     elements:Toggle("Auto Upgrade Slots", section, function(v)
@@ -222,6 +247,7 @@ return function(section)
     section.AncestorRemoving:Connect(function()
         getgenv()._brain_farm    = false
         getgenv()._brain_sell    = false
+        getgenv()._brain_collect = false
         getgenv()._brain_slotUp  = false
         getgenv()._brain_baseUp  = false
         getgenv()._brain_rebirth = false
