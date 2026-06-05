@@ -33,13 +33,22 @@ return function(section)
     end)
 
     -- ── Auto Charge ───────────────────────────────────────────────────────────
-    -- Charge flow: StartCharge → send max power (3) → EndWarp.
-    -- ChargeZoneTrigger proximity check is client-side only; server trusts the value.
+    -- Server validates player is inside ChargeZoneTrigger before accepting StartCharge.
+    -- Teleport into the zone first, then run the charge sequence.
+    local chargeZone = workspace:WaitForChild("Map"):WaitForChild("Plot")
+        :WaitForChild("ChargeZoneGroup"):WaitForChild("ChargeZoneTrigger")
+
     elements:Toggle("Auto Charge", section, function(state)
         cancelLoop("charge")
         if not state then return end
         loops.charge = task.spawn(function()
             while task.wait(4) do
+                local char = player.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp and chargeZone then
+                    hrp.CFrame = CFrame.new(chargeZone.Position + Vector3.new(0, 3, 0))
+                    task.wait(0.3)
+                end
                 pcall(evDash.FireServer, evDash, "StartCharge")
                 task.wait(0.2)
                 pcall(evDash.FireServer, evDash, 3)
@@ -50,11 +59,20 @@ return function(section)
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
+    local sellHitbox = workspace:WaitForChild("Map"):WaitForChild("Shops")
+        :WaitForChild("Sell"):WaitForChild("Hitbox")
+
     elements:Toggle("Auto Sell", section, function(state)
         cancelLoop("sell")
         if not state then return end
         loops.sell = task.spawn(function()
             while task.wait(3) do
+                local char = player.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp and sellHitbox then
+                    hrp.CFrame = CFrame.new(sellHitbox.Position + Vector3.new(0, 3, 0))
+                    task.wait(0.2)
+                end
                 pcall(evSell.FireServer, evSell, "All")
             end
         end)
