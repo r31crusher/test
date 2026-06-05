@@ -39,8 +39,8 @@ return function(section)
                 end
 
                 -- Hardcoded positions from in-game coordinate dump
-                local SAFE_ZONE_POS    = Vector3.new(0, 262, 1067)
-                local EMERALD_APPROACH = Vector3.new(0, 262, 4538)
+                local SAFE_ZONE_POS    = Vector3.new(-111.68, 2.998, 11.64)
+                local EMERALD_APPROACH = Vector3.new(-165.44, 37.33, 4060.09)
 
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
