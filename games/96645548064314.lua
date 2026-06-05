@@ -56,7 +56,22 @@ return function(section)
         return best
     end
 
-    -- Locate ClaimLoginReward under the versioned Knit package
+    -- Locate a Knit RE or RF under the versioned package
+    local function findKnitRF(serviceName, rfName)
+        local idx = rs:FindFirstChild("Packages") and rs.Packages:FindFirstChild("_Index")
+        if not idx then return end
+        for _, pkg in idx:GetChildren() do
+            local knit = pkg:FindFirstChild("knit")
+            if knit then
+                local svc = knit:FindFirstChild("Services") and knit.Services:FindFirstChild(serviceName)
+                if svc then
+                    local rf = svc:FindFirstChild("RF") and svc.RF:FindFirstChild(rfName)
+                    if rf then return rf end
+                end
+            end
+        end
+    end
+
     local function findKnitRE(serviceName, reName)
         local idx = rs:FindFirstChild("Packages") and rs.Packages:FindFirstChild("_Index")
         if not idx then return end
@@ -123,6 +138,57 @@ return function(section)
         end
     end)
 
+    -- Pen income tracking
+    local myPen = nil
+    task.spawn(function()
+        local rf = findKnitRF("PenService", "getPenIndex")
+        if rf then
+            local ok, idx = pcall(rf.InvokeServer, rf)
+            if ok and idx then
+                myPen = workspace.PlayerPens:WaitForChild(tostring(idx), 10)
+            end
+        end
+    end)
+
+    local function getTotalRPS()
+        if not myPen then return 0 end
+        local pets = myPen:FindFirstChild("Pets")
+        if not pets then return 0 end
+        local total = 0
+        for _, pet in pets:GetChildren() do
+            if pet:IsA("Model") then
+                total = total + (pet:GetAttribute("RPS") or 0)
+            end
+        end
+        return total
+    end
+
+    local function fmtNumber(n)
+        if n >= 1e9 then return string.format("%.1fB", n / 1e9)
+        elseif n >= 1e6 then return string.format("%.1fM", n / 1e6)
+        elseif n >= 1e3 then return string.format("%.1fK", n / 1e3)
+        else return string.format("%.0f", n) end
+    end
+
+    local rpsLabel = Instance.new("TextLabel")
+    rpsLabel.Name       = "LabelElement"
+    rpsLabel.Size       = UDim2.new(1, 0, 0, 24)
+    rpsLabel.BackgroundTransparency = 1
+    rpsLabel.Font       = Enum.Font.Gotham
+    rpsLabel.TextSize   = 13
+    rpsLabel.TextColor3 = Color3.fromRGB(200, 190, 255)
+    rpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    rpsLabel.Text       = "Pen Income:  $--/s"
+    rpsLabel.Parent     = section
+
+    loops.rpsUpdate = task.spawn(function()
+        while task.wait(2) do
+            if rpsLabel and rpsLabel.Parent then
+                rpsLabel.Text = "Pen Income:  $" .. fmtNumber(getTotalRPS()) .. "/s"
+            end
+        end
+    end)
+
     -- Auto Lasso
     elements:Toggle("Auto Lasso", section, function(state)
         cancelLoop("lasso")
@@ -184,6 +250,9 @@ return function(section)
     section.AncestorRemoving:Connect(function()
         for name in loops do
             cancelLoop(name)
+        end
+        if rpsLabel and rpsLabel.Parent then
+            rpsLabel:Destroy()
         end
     end)
 end
