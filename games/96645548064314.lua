@@ -46,7 +46,13 @@ return function(section)
         return false
     end
 
-    -- Returns the nearest uncaptured Boss (or higher) pet across all folders.
+    local playerPens = workspace:WaitForChild("PlayerPens")
+
+    local function isWildPet(pet)
+        return not pet:IsDescendantOf(playerPens)
+    end
+
+    -- Returns the nearest uncaptured Boss+ wild pet across all folders.
     local function findBossPet()
         local char = player.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
@@ -57,7 +63,7 @@ return function(section)
             local pets   = folder and folder:FindFirstChild("Pets")
             if pets then
                 for _, pet in pets:GetChildren() do
-                    if pet:IsA("Model") and not pet:GetAttribute("Captured") then
+                    if pet:IsA("Model") and not pet:GetAttribute("Captured") and isWildPet(pet) then
                         local rank = RARITY_RANK[pet:GetAttribute("Rarity") or "Common"] or 1
                         if rank >= RARITY_RANK.Boss then
                             local dist = (hrp.Position - pet:GetPivot().Position).Magnitude
@@ -72,7 +78,7 @@ return function(section)
         return best
     end
 
-    -- Returns the best uncaptured pet across all folders.
+    -- Returns the best uncaptured wild pet across all folders.
     -- Priority: highest rarity → highest strength → closest.
     local function findBestPet()
         local char = player.Character
@@ -84,7 +90,7 @@ return function(section)
             local pets   = folder and folder:FindFirstChild("Pets")
             if pets then
                 for _, pet in pets:GetChildren() do
-                    if pet:IsA("Model") and not pet:GetAttribute("Captured") then
+                    if pet:IsA("Model") and not pet:GetAttribute("Captured") and isWildPet(pet) then
                         local rank = RARITY_RANK[pet:GetAttribute("Rarity") or "Common"] or 1
                         local str  = pet:GetAttribute("Strength") or 0
                         local dist = (hrp.Position - pet:GetPivot().Position).Magnitude
