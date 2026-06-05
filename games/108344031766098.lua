@@ -46,8 +46,8 @@ return function(section)
                     local hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
-                    -- Find the first available SpawnedItem anywhere in ItemSpawns.
-                    -- Use GetDescendants so items load regardless of which numbered area.
+                    -- Find a SpawnedItem near the Emerald Galaxy (within 600 studs of approach).
+                    -- This filters out cheap items from earlier zones.
                     local prompt, itemPart, areaPart
                     for _, desc in ipairs(itemSpawns:GetDescendants()) do
                         if desc:IsA("ProximityPrompt") then
@@ -55,14 +55,16 @@ return function(section)
                             if part and part:IsA("MeshPart") then
                                 local item = part.Parent
                                 if item and item.Name == "SpawnedItem" then
-                                    -- Also grab the spawn area part so we can approach it first
-                                    local area = item.Parent
-                                    if area and area:IsA("BasePart") then
-                                        areaPart = area
+                                    local dist = (part.Position - EMERALD_APPROACH).Magnitude
+                                    if dist <= 600 then
+                                        local area = item.Parent
+                                        if area and area:IsA("BasePart") then
+                                            areaPart = area
+                                        end
+                                        prompt   = desc
+                                        itemPart = part
+                                        break
                                     end
-                                    prompt   = desc
-                                    itemPart = part
-                                    break
                                 end
                             end
                         end
