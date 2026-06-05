@@ -38,15 +38,23 @@ return function(section)
                     return
                 end
 
-                -- Part "11" is the Emerald Galaxy (Z≈4841, ground Y≈5)
-                local emeraldPart = itemSpawns:WaitForChild("11", 15)
-                if not emeraldPart then
-                    warn("[Astro] Emerald Galaxy (Part 11) not found")
-                    return
+                local WAYPOINT      = Vector3.new(-171.97, 35.87, 2286.70)
+                local SAFE_ZONE_POS = Vector3.new(-163.88, 37.33, 4564.50)
+
+                -- Teleport through waypoint then safe zone to stream Part 11 in
+                local hrp = getHRP()
+                if hrp then
+                    hrp.CFrame = CFrame.new(WAYPOINT)
+                    task.wait(1.5)
+                    hrp.CFrame = CFrame.new(SAFE_ZONE_POS)
+                    task.wait(2)
                 end
 
-                -- Elevated out-of-map safe spot right next to Emerald Galaxy
-                local SAFE_ZONE_POS = Vector3.new(-163.88, 37.33, 4564.50)
+                local emeraldPart = itemSpawns:WaitForChild("11", 15)
+                if not emeraldPart then
+                    warn("[Astro] Emerald Galaxy (Part 11) still not loaded after approach")
+                    return
+                end
 
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
@@ -69,8 +77,7 @@ return function(section)
                     end
 
                     if not prompt then
-                        -- No items loaded yet, teleport to Emerald to stream them in
-                        hrp.CFrame = CFrame.new(SAFE_ZONE_POS)
+                        -- No items spawned yet, wait at safe zone
                         task.wait(2)
                         continue
                     end
@@ -82,7 +89,7 @@ return function(section)
                     pcall(fireproximityprompt, prompt)
                     task.wait(0.5)
 
-                    -- Step 2: return to safe zone inside Emerald Galaxy
+                    -- Step 2: return to safe zone
                     hrp = getHRP()
                     if hrp then
                         hrp.CFrame = CFrame.new(SAFE_ZONE_POS)
