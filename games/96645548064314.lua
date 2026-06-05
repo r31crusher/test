@@ -1,4 +1,4 @@
--- Pet game (PlaceId 96645548064314)
+-- Catch And Tame (PlaceId 96645548064314)
 
 return function(section)
     local elements = getgenv()._astroElements

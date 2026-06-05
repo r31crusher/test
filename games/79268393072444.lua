@@ -1,4 +1,4 @@
--- Lemon Empire Tycoon
+-- Sell Lemons (PlaceId 79268393072444)
 
 return function(section)
     local elements = getgenv()._astroElements
