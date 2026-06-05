@@ -149,12 +149,14 @@ return function(section)
                     end)
 
                     if ok and result == true then
-                        task.wait(0.15)
-                        for _, v in {7.69, 25.77, 50, 75, 100, 100} do
+                        -- StartProgressReporter fires every ~1s; OnClick fires when progress hits 100.
+                        -- Server validates realistic timing, so space out updates accordingly.
+                        task.wait(0.4)
+                        for _, v in {20, 45, 70, 90, 100, 100} do
                             updateProgress:FireServer(v)
-                            task.wait(0.05)
+                            task.wait(0.8)
                         end
-                        task.wait(2)
+                        task.wait(1)
                     end
                 end
             end)
