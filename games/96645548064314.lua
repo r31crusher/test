@@ -46,6 +46,32 @@ return function(section)
         return false
     end
 
+    -- Returns the nearest uncaptured Boss (or higher) pet across all folders.
+    local function findBossPet()
+        local char = player.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return nil end
+        local best, bestDist = nil, math.huge
+        for _, folderName in PET_FOLDERS do
+            local folder = workspace:FindFirstChild(folderName)
+            local pets   = folder and folder:FindFirstChild("Pets")
+            if pets then
+                for _, pet in pets:GetChildren() do
+                    if pet:IsA("Model") and not pet:GetAttribute("Captured") then
+                        local rank = RARITY_RANK[pet:GetAttribute("Rarity") or "Common"] or 1
+                        if rank >= RARITY_RANK.Boss then
+                            local dist = (hrp.Position - pet:GetPivot().Position).Magnitude
+                            if dist < bestDist then
+                                best, bestDist = pet, dist
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return best
+    end
+
     -- Returns the best uncaptured pet across all folders.
     -- Priority: highest rarity → highest strength → closest.
     local function findBestPet()
@@ -193,65 +219,78 @@ return function(section)
         end
     end)
 
-    -- Auto Lasso
-    -- Cycles through islands (BeeIsland → SafariIsland → CaveIsland → VolcanoIsland →
-    -- DragonIsland → ForgottenDepths) when no pets are streamed in locally.
-    elements:Toggle("Auto Lasso", section, function(state)
-        cancelLoop("lasso")
-        if state then
-            local islandIdx = #ISLANDS  -- start at the highest-tier island
-            loops.lasso = task.spawn(function()
-                teleportToIsland(ISLANDS[islandIdx])
-                task.wait(3)
-                while task.wait(0.5) do
-                    local char = player.Character
-                    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                    if not hrp then continue end
+    -- Shared lasso routine used by both Auto Lasso and Boss Hunt.
+    -- finder: function() → pet model | nil
+    -- loopKey: key in loops table
+    -- startIsland: index into ISLANDS to teleport to on enable
+    local function startLassoLoop(loopKey, finder, startIsland)
+        cancelLoop(loopKey)
+        local islandIdx = startIsland
+        loops[loopKey] = task.spawn(function()
+            teleportToIsland(ISLANDS[islandIdx])
+            task.wait(3)
+            while task.wait(0.5) do
+                local char = player.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then continue end
 
-                    local pet = findBestPet()
+                local pet = finder()
 
-                    -- No pets streamed in — hop to the next island and wait for them to load
-                    if not pet then
-                        islandIdx = (islandIdx % #ISLANDS) + 1
-                        teleportToIsland(ISLANDS[islandIdx])
-                        task.wait(3)
-                        continue
-                    end
-
-                    if not pet.Parent then continue end
-
-                    -- Teleport within lasso range if too far
-                    if (hrp.Position - pet:GetPivot().Position).Magnitude > 25 then
-                        hrp.CFrame = pet:GetPivot() * CFrame.new(0, 3, 6)
-                        task.wait(0.25)
-                    end
-
-                    if not pet.Parent then continue end
-
-                    -- ThrowLasso must fire before minigameRequest
-                    local petPos = pet:GetPivot().Position
-                    local rawDir = petPos - hrp.Position
-                    local dir    = Vector3.new(rawDir.X, 0, rawDir.Z).Unit
-                    throwLasso:FireServer(0.9, dir)
-                    task.wait(0.1)
-
-                    if not pet.Parent then continue end
-
-                    local ok, result = pcall(function()
-                        return minigameRequest:InvokeServer(pet, pet:GetPivot())
-                    end)
-
-                    if ok and result == true then
-                        -- Space out UpdateProgress to match the ~1s heartbeat the server expects
-                        task.wait(0.4)
-                        for _, v in {20, 45, 70, 90, 100, 100} do
-                            updateProgress:FireServer(v)
-                            task.wait(0.8)
-                        end
-                        task.wait(1)
-                    end
+                if not pet then
+                    islandIdx = (islandIdx % #ISLANDS) + 1
+                    teleportToIsland(ISLANDS[islandIdx])
+                    task.wait(3)
+                    continue
                 end
-            end)
+
+                if not pet.Parent then continue end
+
+                if (hrp.Position - pet:GetPivot().Position).Magnitude > 25 then
+                    hrp.CFrame = pet:GetPivot() * CFrame.new(0, 3, 6)
+                    task.wait(0.25)
+                end
+
+                if not pet.Parent then continue end
+
+                local petPos = pet:GetPivot().Position
+                local rawDir = petPos - hrp.Position
+                local dir    = Vector3.new(rawDir.X, 0, rawDir.Z).Unit
+                throwLasso:FireServer(0.9, dir)
+                task.wait(0.1)
+
+                if not pet.Parent then continue end
+
+                local ok, result = pcall(function()
+                    return minigameRequest:InvokeServer(pet, pet:GetPivot())
+                end)
+
+                if ok and result == true then
+                    task.wait(0.4)
+                    for _, v in {20, 45, 70, 90, 100, 100} do
+                        updateProgress:FireServer(v)
+                        task.wait(0.8)
+                    end
+                    task.wait(1)
+                end
+            end
+        end)
+    end
+
+    -- Auto Lasso — targets best available pet, starts at ForgottenDepths
+    elements:Toggle("Auto Lasso", section, function(state)
+        if state then
+            startLassoLoop("lasso", findBestPet, #ISLANDS)
+        else
+            cancelLoop("lasso")
+        end
+    end)
+
+    -- Boss Hunt — targets Boss+ rarity only, cycles all islands looking for them
+    elements:Toggle("Boss Hunt", section, function(state)
+        if state then
+            startLassoLoop("bossHunt", findBossPet, #ISLANDS)
+        else
+            cancelLoop("bossHunt")
         end
     end)
 
