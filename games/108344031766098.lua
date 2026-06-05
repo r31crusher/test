@@ -25,7 +25,8 @@ return function(section)
     end
 
     -- ── Auto Farm ─────────────────────────────────────────────────────────────
-    -- Carry limit is 1: pick up one SpawnedItem → teleport to safe zone → drop → repeat.
+    -- Carry limit is 1: pick up one SpawnedItem from ItemSpawns (emerald zone)
+    -- → teleport to CollectionZone (safe zone) → drop → repeat.
     getgenv()._brain_farm = false
     elements:Toggle("Auto Farm", section, function(v)
         getgenv()._brain_farm = v
@@ -42,36 +43,38 @@ return function(section)
                     local hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
-                    -- Find the first available SpawnedItem
+                    -- Find first available SpawnedItem via GetDescendants (safe against any nesting)
                     local picked = false
-                    for _, spawnArea in ipairs(itemSpawns:GetChildren()) do
+                    for _, desc in ipairs(itemSpawns:GetDescendants()) do
                         if not getgenv()._brain_farm then break end
-                        for _, item in ipairs(spawnArea:GetChildren()) do
-                            if not getgenv()._brain_farm then break end
-                            if item.Name == "SpawnedItem" then
-                                local part = item:FindFirstChildOfClass("MeshPart")
-                                    or item:FindFirstChildOfClass("BasePart")
-                                local prompt = part and part:FindFirstChildOfClass("ProximityPrompt")
-                                if part and prompt then
-                                    hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
-                                    task.wait(0.1)
-                                    pcall(fireproximityprompt, prompt)
-                                    task.wait(0.1)
-                                    picked = true
-                                    break
-                                end
+                        if desc:IsA("ProximityPrompt") and desc.Parent and desc.Parent:IsA("MeshPart") then
+                            local item = desc.Parent.Parent
+                            if item and item.Name == "SpawnedItem" then
+                                -- Zero out hold duration so it fires instantly
+                                desc.HoldDuration = 0
+                                hrp.CFrame = CFrame.new(desc.Parent.Position + Vector3.new(0, 2, 0))
+                                task.wait(0.2)
+                                pcall(fireproximityprompt, desc)
+                                task.wait(0.2)
+                                picked = true
+                                break
                             end
                         end
-                        if picked then break end
                     end
 
-                    -- Return to safe zone and drop
+                    if not picked then
+                        -- No items currently spawned, wait a moment and retry
+                        task.wait(1)
+                        continue
+                    end
+
+                    -- Return to safe zone (CollectionZone) and drop
                     hrp = getHRP()
                     if hrp then
                         hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 3, 0))
-                        task.wait(0.15)
+                        task.wait(0.2)
                         pcall(function() evDrop:FireServer() end)
-                        task.wait(0.1)
+                        task.wait(0.2)
                     end
                 end
             end)
