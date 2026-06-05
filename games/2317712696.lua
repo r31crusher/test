@@ -127,6 +127,30 @@ return function(section)
         addConn("espRem", playersFolder.ChildRemoved:Connect(removeEsp))
     end)
 
+    -- ── Infinite Ammo ────────────────────────────────────────────────────────
+    -- item.Ammo and ChamberData.bullets are both client-side only.
+    -- Server only receives InitProjectiles events and never validates ammo counts.
+    -- For revolvers (HasChamber), FireGun() checks the slot state — reset to "unused"
+    -- so it never dry-fires regardless of how many shots have been taken.
+    elements:Toggle("Infinite Ammo", section, function(state)
+        cancelLoop("ammo")
+        if not state then return end
+        loops.ammo = task.spawn(function()
+            while task.wait() do
+                local item = Global.PlayerCharacter and Global.PlayerCharacter:GetEquippedItem()
+                if item and item.IsGunItem then
+                    item.Ammo = item.MaxAmmo
+                    if item.HasChamber and item.State and item.State.ChamberData then
+                        local cd = item.State.ChamberData
+                        for i = 1, cd.count do
+                            cd.bullets[i] = "unused"
+                        end
+                    end
+                end
+            end
+        end)
+    end)
+
     -- ── Speed Hack ────────────────────────────────────────────────────────────
     -- PlayerCharacter module sets WalkSpeed each frame from Params.Character.MoveSpeed.
     -- We win the race by setting it in Heartbeat after it runs (~4x per render step).
