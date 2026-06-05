@@ -13,6 +13,7 @@ return function(section)
     local sellEggRF        = remotes:WaitForChild("sellEgg")
     local minigameRequest  = remotes:WaitForChild("minigameRequest")
     local updateProgress   = remotes:WaitForChild("UpdateProgress")
+    local throwLasso       = remotes:WaitForChild("ThrowLasso")
 
     local PET_FOLDERS = {
         "RoamingPets", "SkyIslandPets", "WaterIslandPets", "BeeIslandPets",
@@ -131,6 +132,15 @@ return function(section)
                         hrp.CFrame = pet:GetPivot() * CFrame.new(0, 3, 6)
                         task.wait(0.25)
                     end
+
+                    if not pet.Parent then continue end
+
+                    -- Fire ThrowLasso first (server gates minigameRequest on this)
+                    local petPos = pet:GetPivot().Position
+                    local rawDir = petPos - hrp.Position
+                    local dir    = Vector3.new(rawDir.X, 0, rawDir.Z).Unit
+                    throwLasso:FireServer(0.9, dir)
+                    task.wait(0.1)
 
                     if not pet.Parent then continue end
 
