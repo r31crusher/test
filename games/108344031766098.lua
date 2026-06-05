@@ -131,6 +131,8 @@ return function(section)
                             if part:IsA("BasePart") and part.Name == "CollectTouch" then
                                 pcall(firetouchinterest, part, hrp, 0)
                                 task.wait(0.05)
+                                pcall(firetouchinterest, part, hrp, 1)
+                                task.wait(0.05)
                             end
                         end
                     end
