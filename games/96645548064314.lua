@@ -15,6 +15,12 @@ return function(section)
     local updateProgress   = remotes:WaitForChild("UpdateProgress")
     local throwLasso       = remotes:WaitForChild("ThrowLasso")
 
+    local RARITY_RANK = {
+        Common=1, Rare=2, Epic=3, Legendary=4,
+        Mythical=5, Boss=6, Divine=7, Exclusive=8, Secret=9,
+    }
+
+    -- All roaming pet folders the lasso can target
     local PET_FOLDERS = {
         "RoamingPets", "SkyIslandPets", "WaterIslandPets", "BeeIslandPets",
         "GalaxyIslandPets", "NewEventIslandPets", "SafariIslandPets",
@@ -22,13 +28,26 @@ return function(section)
         "LavaIslandPets", "AbyssIslandPets",
     }
 
-    local RARITY_RANK = {
-        Common=1, Rare=2, Epic=3, Legendary=4,
-        Mythical=5, Boss=6, Divine=7, Exclusive=8, Secret=9,
+    -- workspace.QuickTravel islands in rough rarity order (weakest → strongest)
+    local ISLANDS = {
+        "BeeIsland", "SafariIsland", "CaveIsland",
+        "VolcanoIsland", "DragonIsland", "ForgottenDepths",
     }
 
-    -- Returns the highest-rarity (then highest-strength) available pet across all folders.
-    -- We teleport to it anyway so distance is only a tiebreaker.
+    local function teleportToIsland(name)
+        local qt     = workspace:FindFirstChild("QuickTravel")
+        local island = qt and qt:FindFirstChild(name)
+        local marker = island and island:FindFirstChild("Marker")
+        local hrp    = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if marker and hrp then
+            hrp.CFrame = marker.CFrame + Vector3.new(0, 8, 0)
+            return true
+        end
+        return false
+    end
+
+    -- Returns the best uncaptured pet across all folders.
+    -- Priority: highest rarity → highest strength → closest.
     local function findBestPet()
         local char = player.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
@@ -54,22 +73,6 @@ return function(section)
             end
         end
         return best
-    end
-
-    -- Locate a Knit RE or RF under the versioned package
-    local function findKnitRF(serviceName, rfName)
-        local idx = rs:FindFirstChild("Packages") and rs.Packages:FindFirstChild("_Index")
-        if not idx then return end
-        for _, pkg in idx:GetChildren() do
-            local knit = pkg:FindFirstChild("knit")
-            if knit then
-                local svc = knit:FindFirstChild("Services") and knit.Services:FindFirstChild(serviceName)
-                if svc then
-                    local rf = svc:FindFirstChild("RF") and svc.RF:FindFirstChild(rfName)
-                    if rf then return rf end
-                end
-            end
-        end
     end
 
     local function findKnitRE(serviceName, reName)
@@ -110,7 +113,7 @@ return function(section)
 
     local SELL_FILTERS = { typeFilter="All", mutationFilter="All", rarityFilter="All" }
 
-    -- Auto Sell Pets (server skips Exclusive/Secret; task.spawn avoids blocking on the 4s server confirm)
+    -- Auto Sell Pets (server skips Exclusive/Secret; task.spawn avoids the 4s server confirm block)
     elements:Toggle("Auto Sell Pets", section, function(state)
         cancelLoop("sellPets")
         if state then
@@ -138,21 +141,22 @@ return function(section)
         end
     end)
 
-    -- Pen income tracking
-    local myPen = nil
-    task.spawn(function()
-        local rf = findKnitRF("PenService", "getPenIndex")
-        if rf then
-            local ok, idx = pcall(rf.InvokeServer, rf)
-            if ok and idx then
-                myPen = workspace.PlayerPens:WaitForChild(tostring(idx), 10)
+    -- Pen income display
+    -- Pens carry an Owner attribute matching the player's name — no Knit call needed.
+    local function getMyPen()
+        local pens = workspace:FindFirstChild("PlayerPens")
+        if not pens then return nil end
+        for _, pen in pens:GetChildren() do
+            if pen:GetAttribute("Owner") == player.Name then
+                return pen
             end
         end
-    end)
+        return nil
+    end
 
     local function getTotalRPS()
-        if not myPen then return 0 end
-        local pets = myPen:FindFirstChild("Pets")
+        local pen  = getMyPen()
+        local pets = pen and pen:FindFirstChild("Pets")
         if not pets then return 0 end
         local total = 0
         for _, pet in pets:GetChildren() do
@@ -171,15 +175,15 @@ return function(section)
     end
 
     local rpsLabel = Instance.new("TextLabel")
-    rpsLabel.Name       = "LabelElement"
-    rpsLabel.Size       = UDim2.new(1, 0, 0, 24)
+    rpsLabel.Name               = "LabelElement"
+    rpsLabel.Size               = UDim2.new(1, 0, 0, 24)
     rpsLabel.BackgroundTransparency = 1
-    rpsLabel.Font       = Enum.Font.Gotham
-    rpsLabel.TextSize   = 13
-    rpsLabel.TextColor3 = Color3.fromRGB(200, 190, 255)
-    rpsLabel.TextXAlignment = Enum.TextXAlignment.Left
-    rpsLabel.Text       = "Pen Income:  $--/s"
-    rpsLabel.Parent     = section
+    rpsLabel.Font               = Enum.Font.Gotham
+    rpsLabel.TextSize           = 13
+    rpsLabel.TextColor3         = Color3.fromRGB(200, 190, 255)
+    rpsLabel.TextXAlignment     = Enum.TextXAlignment.Left
+    rpsLabel.Text               = "Pen Income:  $--/s"
+    rpsLabel.Parent             = section
 
     loops.rpsUpdate = task.spawn(function()
         while task.wait(2) do
@@ -190,17 +194,31 @@ return function(section)
     end)
 
     -- Auto Lasso
+    -- Cycles through islands (BeeIsland → SafariIsland → CaveIsland → VolcanoIsland →
+    -- DragonIsland → ForgottenDepths) when no pets are streamed in locally.
     elements:Toggle("Auto Lasso", section, function(state)
         cancelLoop("lasso")
         if state then
+            local islandIdx = #ISLANDS  -- start at the highest-tier island
             loops.lasso = task.spawn(function()
+                teleportToIsland(ISLANDS[islandIdx])
+                task.wait(3)
                 while task.wait(0.5) do
                     local char = player.Character
                     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                     if not hrp then continue end
 
                     local pet = findBestPet()
-                    if not pet or not pet.Parent then continue end
+
+                    -- No pets streamed in — hop to the next island and wait for them to load
+                    if not pet then
+                        islandIdx = (islandIdx % #ISLANDS) + 1
+                        teleportToIsland(ISLANDS[islandIdx])
+                        task.wait(3)
+                        continue
+                    end
+
+                    if not pet.Parent then continue end
 
                     -- Teleport within lasso range if too far
                     if (hrp.Position - pet:GetPivot().Position).Magnitude > 25 then
@@ -210,7 +228,7 @@ return function(section)
 
                     if not pet.Parent then continue end
 
-                    -- Fire ThrowLasso first (server gates minigameRequest on this)
+                    -- ThrowLasso must fire before minigameRequest
                     local petPos = pet:GetPivot().Position
                     local rawDir = petPos - hrp.Position
                     local dir    = Vector3.new(rawDir.X, 0, rawDir.Z).Unit
@@ -224,8 +242,7 @@ return function(section)
                     end)
 
                     if ok and result == true then
-                        -- StartProgressReporter fires every ~1s; OnClick fires when progress hits 100.
-                        -- Server validates realistic timing, so space out updates accordingly.
+                        -- Space out UpdateProgress to match the ~1s heartbeat the server expects
                         task.wait(0.4)
                         for _, v in {20, 45, 70, 90, 100, 100} do
                             updateProgress:FireServer(v)
