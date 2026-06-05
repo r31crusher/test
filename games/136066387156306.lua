@@ -6,13 +6,14 @@ return function(section)
     local rs     = game:GetService("ReplicatedStorage")
     local player = game:GetService("Players").LocalPlayer
 
-    local evDash      = rs:WaitForChild("DashEvent")
-    local evTrain     = rs.Events:WaitForChild("TrainTreadmillEvent")
-    local evSell      = rs.Remotes:WaitForChild("SellEvent")
-    local evRebirth   = rs.RemoteGUI:WaitForChild("URebirth")
-    local fnStorm     = rs.Events:WaitForChild("StormBreakerChargeFunction")
-    local evMutation  = rs:WaitForChild("ApplyMutation")
-    local evBonus     = rs:WaitForChild("BonusClaimRemote")
+    local evDash     = rs:WaitForChild("DashEvent")
+    local evTrain    = rs.Events:WaitForChild("TrainTreadmillEvent")
+    local evSell     = rs.Remotes:WaitForChild("SellEvent")
+    local evRebirth  = rs.RemoteGUI:WaitForChild("URebirth")
+    local fnStorm    = rs.Events:WaitForChild("StormBreakerChargeFunction")
+    local evMutation = rs:WaitForChild("ApplyMutation")
+    local evBonus    = rs:WaitForChild("BonusClaimRemote")
+    local fnQTERolls = rs:WaitForChild("GetQTERolls")
 
     local loops = {}
     local function cancelLoop(name)
@@ -33,9 +34,11 @@ return function(section)
         end)
     end)
 
-    -- ── Auto Charge ───────────────────────────────────────────────────────────
-    -- Charge flow: StartCharge → send power value (0–3, we send max 3) → EndWarp.
-    -- ChargeZoneTrigger proximity check is client-side only; server trusts the value.
+    -- ── Auto Charge + Mutations ───────────────────────────────────────────────
+    -- Charge flow: StartCharge → fetch server's rolled QTE mutations → apply each
+    -- one → send max charge (3) → EndWarp.
+    -- Using GetQTERolls first means we only send mutation names the server already
+    -- rolled for this session, avoiding the detection the standalone loop caused.
     elements:Toggle("Auto Charge", section, function(state)
         cancelLoop("charge")
         if not state then return end
@@ -43,31 +46,20 @@ return function(section)
             while task.wait(4) do
                 pcall(evDash.FireServer, evDash, "StartCharge")
                 task.wait(0.2)
+
+                local ok, rolls = pcall(fnQTERolls.InvokeServer, fnQTERolls, "Normal")
+                if ok and type(rolls) == "table" then
+                    for _, mutationName in ipairs(rolls) do
+                        pcall(evMutation.FireServer, evMutation, mutationName)
+                        task.wait(0.15)
+                    end
+                end
+
                 pcall(evDash.FireServer, evDash, 3)
                 task.wait(0.2)
                 pcall(evDash.FireServer, evDash, "EndWarp")
             end
         end)
-    end)
-
-    -- ── Auto Apply Mutation ───────────────────────────────────────────────────
-    -- During charge QTEs, client fires ApplyMutation:FireServer(mutationName).
-    -- The mutation name is a plain string — we can send "Horizon" (10x multiplier)
-    -- directly without any QTE ever appearing, applying it to brainrots each warp.
-    -- Mutation multipliers: Gold=1.5x Diamond=2x Rainbow=3x Candy=4x Lava=5x
-    --                       Blizzard=6x Lightning=7x Hacker=8x Horizon=10x
-    elements:Toggle("Auto Horizon Mutation", section, function(state)
-        cancelLoop("mutation")
-        if not state then return end
-        loops.mutation = task.spawn(function()
-            while task.wait(1) do
-                pcall(evMutation.FireServer, evMutation, "Horizon")
-            end
-        end)
-    end)
-
-    elements:Button("Claim Bonus", section, function()
-        pcall(evBonus.FireServer, evBonus)
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
@@ -129,6 +121,10 @@ return function(section)
                 pcall(fnStorm.InvokeServer, fnStorm, "Pay", stormAmount)
             end
         end)
+    end)
+
+    elements:Button("Claim Bonus", section, function()
+        pcall(evBonus.FireServer, evBonus)
     end)
 
     -- ── Unload ────────────────────────────────────────────────────────────────
