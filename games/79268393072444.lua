@@ -91,9 +91,30 @@ return function(section)
     end)
 
     -- ── Auto Wake Income (all buildings) ─────────────────────────────────────
-    -- Spy confirmed: clicking a building fires TycoonX.Remotes.WakeIncomeStream
-    -- with the building name stripped of spaces, e.g. "LemonDepot".
-    -- We iterate every building in Purchases and wake them all on a tight loop.
+    -- Server does a proximity check, so we teleport to each building's click
+    -- button before calling WakeIncomeStream.
+    -- Button models live at: Purchases/<Building>/Buttons/<Building>/<BasePart>
+    local function getBuildingClickPart(building)
+        -- Primary target: the clickable button model inside Buttons folder
+        local buttons = building:FindFirstChild("Buttons")
+        if buttons then
+            local btn = buttons:FindFirstChild(building.Name)
+            if btn then
+                local part = btn:FindFirstChildOfClass("BasePart") or btn.PrimaryPart
+                if part then return part end
+            end
+            -- Any BasePart inside any button
+            for _, d in ipairs(buttons:GetDescendants()) do
+                if d:IsA("BasePart") then return d end
+            end
+        end
+        -- Fallback: any BasePart anywhere inside the building folder
+        for _, d in ipairs(building:GetDescendants()) do
+            if d:IsA("BasePart") then return d end
+        end
+        return nil
+    end
+
     getgenv()._lemon_autoClick = false
     elements:Toggle("Auto Wake Income", section, function(v)
         getgenv()._lemon_autoClick = v
@@ -101,20 +122,27 @@ return function(section)
             task.spawn(function()
                 while getgenv()._lemon_autoClick do
                     local tycoon = getMyTycoon()
-                    if tycoon then
-                        local remotes   = tycoon:FindFirstChild("Remotes")
+                    local char   = player.Character
+                    local hrp    = char and char:FindFirstChild("HumanoidRootPart")
+                    if tycoon and hrp then
+                        local remotes    = tycoon:FindFirstChild("Remotes")
                         local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
                         local purchases  = tycoon:FindFirstChild("Purchases")
                         if wakeRemote and purchases then
                             for _, building in ipairs(purchases:GetChildren()) do
                                 if not getgenv()._lemon_autoClick then break end
-                                local key = building.Name:gsub("%s+", "")
+                                local key  = building.Name:gsub("%s+", "")
+                                local part = getBuildingClickPart(building)
+                                if part then
+                                    hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 5, 0))
+                                    task.wait(0.15)
+                                end
                                 pcall(function() wakeRemote:InvokeServer(key) end)
-                                task.wait(0.05)
+                                task.wait(0.1)
                             end
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.5)
                 end
             end)
         end
