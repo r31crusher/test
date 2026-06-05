@@ -22,21 +22,32 @@ return function(section)
         "LavaIslandPets", "AbyssIslandPets",
     }
 
-    local function findNearestPet()
+    local RARITY_RANK = {
+        Common=1, Rare=2, Epic=3, Legendary=4,
+        Mythical=5, Boss=6, Divine=7, Exclusive=8, Secret=9,
+    }
+
+    -- Returns the highest-rarity (then highest-strength) available pet across all folders.
+    -- We teleport to it anyway so distance is only a tiebreaker.
+    local function findBestPet()
         local char = player.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
         if not hrp then return nil end
-        local best, bestDist = nil, math.huge
-        for _, name in PET_FOLDERS do
-            local folder = workspace:FindFirstChild(name)
+        local best, bestRank, bestStr, bestDist = nil, -1, -1, math.huge
+        for _, folderName in PET_FOLDERS do
+            local folder = workspace:FindFirstChild(folderName)
             local pets   = folder and folder:FindFirstChild("Pets")
             if pets then
                 for _, pet in pets:GetChildren() do
                     if pet:IsA("Model") and not pet:GetAttribute("Captured") then
-                        local d = (hrp.Position - pet:GetPivot().Position).Magnitude
-                        if d < bestDist then
-                            bestDist = d
-                            best     = pet
+                        local rank = RARITY_RANK[pet:GetAttribute("Rarity") or "Common"] or 1
+                        local str  = pet:GetAttribute("Strength") or 0
+                        local dist = (hrp.Position - pet:GetPivot().Position).Magnitude
+                        if rank > bestRank
+                            or (rank == bestRank and str > bestStr)
+                            or (rank == bestRank and str == bestStr and dist < bestDist)
+                        then
+                            best, bestRank, bestStr, bestDist = pet, rank, str, dist
                         end
                     end
                 end
@@ -82,17 +93,17 @@ return function(section)
         end
     end)
 
-    -- Auto Sell Pets (server skips Exclusive/Secret/unfavorited only)
+    local SELL_FILTERS = { typeFilter="All", mutationFilter="All", rarityFilter="All" }
+
+    -- Auto Sell Pets (server skips Exclusive/Secret; task.spawn avoids blocking on the 4s server confirm)
     elements:Toggle("Auto Sell Pets", section, function(state)
         cancelLoop("sellPets")
         if state then
             loops.sellPets = task.spawn(function()
-                while task.wait(8) do
-                    sellPetRF:InvokeServer(nil, true, {
-                        typeFilter     = "All",
-                        mutationFilter = "All",
-                        rarityFilter   = "All",
-                    })
+                while task.wait(6) do
+                    task.spawn(function()
+                        pcall(sellPetRF.InvokeServer, sellPetRF, nil, true, SELL_FILTERS)
+                    end)
                 end
             end)
         end
@@ -103,12 +114,10 @@ return function(section)
         cancelLoop("sellEggs")
         if state then
             loops.sellEggs = task.spawn(function()
-                while task.wait(8) do
-                    sellEggRF:InvokeServer(nil, true, {
-                        typeFilter     = "All",
-                        mutationFilter = "All",
-                        rarityFilter   = "All",
-                    })
+                while task.wait(6) do
+                    task.spawn(function()
+                        pcall(sellEggRF.InvokeServer, sellEggRF, nil, true, SELL_FILTERS)
+                    end)
                 end
             end)
         end
@@ -124,7 +133,7 @@ return function(section)
                     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                     if not hrp then continue end
 
-                    local pet = findNearestPet()
+                    local pet = findBestPet()
                     if not pet or not pet.Parent then continue end
 
                     -- Teleport within lasso range if too far
