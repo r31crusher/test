@@ -11,6 +11,9 @@ return function(section)
     local rCompostInsert    = rCompostFolder:WaitForChild("InsertSeed")
     local rCompostLever     = rCompostFolder:WaitForChild("PullLever")
 
+    local rPlantRush  = remotes:WaitForChild("PlantRush")
+    local rDropClaim  = rPlantRush:WaitForChild("DropClaim")
+
     local rPlantSeed        = remotes:WaitForChild("PlantSeed")
     local rRemovePlant      = remotes:WaitForChild("RemovePlant")
     local rSellCrates       = remotes:WaitForChild("SellCrates")
@@ -147,12 +150,24 @@ return function(section)
     minRarityLabel.TextSize       = 13
     minRarityLabel.TextColor3     = Color3.fromRGB(200, 190, 255)
     minRarityLabel.TextXAlignment = Enum.TextXAlignment.Left
-    minRarityLabel.Text           = "Min Rarity:  Legendary"
+    minRarityLabel.Text           = "Plant min:  Legendary"
     minRarityLabel.Parent         = section
 
-    elements:Slider("Rarity Threshold", section, 1, 6, 5, function(v)
+    elements:Slider("Plant Min Rarity", section, 1, 10, 5, function(v)
         minRank = v
-        minRarityLabel.Text = "Min Rarity:  " .. (RANK_LABEL[v] or tostring(v))
+        minRarityLabel.Text = "Plant min:  " .. (RANK_LABEL[v] or tostring(v))
+    end)
+
+    -- Auto Claim Drops — claims Plant Rush drops as they are announced by the server
+    local _dropConn
+    elements:Toggle("Auto Claim Drops", section, function(state)
+        if _dropConn then _dropConn:Disconnect(); _dropConn = nil end
+        if not state then return end
+        _dropConn = rDropClaim.OnClientEvent:Connect(function(dropId)
+            if dropId then
+                pcall(rDropClaim.FireServer, rDropClaim, dropId)
+            end
+        end)
     end)
 
     elements:Toggle("Auto Roll Seeds", section, function(state)
@@ -210,10 +225,9 @@ return function(section)
 
     local function getDataSnapshot()
         local ok, DR = pcall(require, rs:WaitForChild("Packages"):WaitForChild("DataReplicator"))
-        if ok and DR then
-            local rep = pcall(DR.GetReplicator) and DR.GetReplicator()
-            if rep then return rep:GetSnapshot() end
-        end
+        if not ok or not DR then return nil end
+        local ok2, rep = pcall(DR.GetReplicator, DR)
+        if ok2 and rep then return rep:GetSnapshot() end
         return nil
     end
 
@@ -242,7 +256,25 @@ return function(section)
         end
     end)
 
-    -- Auto Composter — pulls ready composters and feeds them the cheapest seeds first
+    -- Compost rarity selector — compost seeds AT OR BELOW this rarity (default: Uncommon)
+    local compostMaxRank = 2
+    local compostRarityLabel = Instance.new("TextLabel")
+    compostRarityLabel.Name               = "LabelElement"
+    compostRarityLabel.Size               = UDim2.new(1, 0, 0, 24)
+    compostRarityLabel.BackgroundTransparency = 1
+    compostRarityLabel.Font               = Enum.Font.Gotham
+    compostRarityLabel.TextSize           = 13
+    compostRarityLabel.TextColor3         = Color3.fromRGB(200, 190, 255)
+    compostRarityLabel.TextXAlignment     = Enum.TextXAlignment.Left
+    compostRarityLabel.Text               = "Compost up to:  Uncommon"
+    compostRarityLabel.Parent             = section
+
+    elements:Slider("Compost Max Rarity", section, 1, 10, 2, function(v)
+        compostMaxRank = v
+        compostRarityLabel.Text = "Compost up to:  " .. (RANK_LABEL[v] or tostring(v))
+    end)
+
+    -- Auto Composter — pulls ready composters and feeds them seeds up to the chosen rarity
     elements:Toggle("Auto Composter", section, function(state)
         cancelLoop("compost")
         if not state then return end
@@ -256,15 +288,17 @@ return function(section)
                         task.wait(0.5)
                     end
 
-                    -- Feed cheapest seeds from inventory into this composter
+                    -- Feed seeds that are at or below compostMaxRank, cheapest first
                     local snapshot = getDataSnapshot()
                     if snapshot and snapshot.SeedsInventory then
-                        -- Build sorted list: cheapest (lowest Price) first
                         local seeds = {}
                         for key, entry in pairs(snapshot.SeedsInventory) do
                             local data = Plants[entry.Name]
                             if data and (entry.Count or 0) > 0 then
-                                table.insert(seeds, {key=key, entry=entry, price=data.Price or 0})
+                                local rank = RARITY_RANK[data.Rarity] or 0
+                                if rank <= compostMaxRank then
+                                    table.insert(seeds, {key=key, price=data.Price or 0})
+                                end
                             end
                         end
                         table.sort(seeds, function(a, b) return a.price < b.price end)
@@ -334,8 +368,12 @@ return function(section)
         for name in loops do cancelLoop(name) end
         rollConn:Disconnect()
         rollSignal:Destroy()
+        if _dropConn then _dropConn:Disconnect(); _dropConn = nil end
         if minRarityLabel and minRarityLabel.Parent then
             minRarityLabel:Destroy()
+        end
+        if compostRarityLabel and compostRarityLabel.Parent then
+            compostRarityLabel:Destroy()
         end
     end)
 end
