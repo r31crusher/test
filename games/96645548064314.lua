@@ -150,7 +150,10 @@ return function(section)
 
                     if ok and result == true then
                         task.wait(0.15)
-                        updateProgress:FireServer(100)
+                        for _, v in {7.69, 25.77, 50, 75, 100, 100} do
+                            updateProgress:FireServer(v)
+                            task.wait(0.05)
+                        end
                         task.wait(2)
                     end
                 end
