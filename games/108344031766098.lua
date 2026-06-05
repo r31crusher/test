@@ -46,42 +46,67 @@ return function(section)
                     return
                 end
 
-                -- Block until the first numbered spawn area part streams in
-                local spawnAreaPart = itemSpawns:WaitForChild("1", 15)
-                if not spawnAreaPart then
-                    warn("[Astro] ItemSpawns spawn area not found")
-                    return
+                -- Collect all spawn area parts (one per zone tier, including Emerald Galaxy)
+                local function getSpawnAreas()
+                    local areas = {}
+                    for _, child in ipairs(itemSpawns:GetChildren()) do
+                        if child:IsA("BasePart") then
+                            table.insert(areas, child)
+                        end
+                    end
+                    return areas
+                end
+
+                -- Check if the character is currently holding an item
+                local function hasItem()
+                    local char = player.Character
+                    return char and char:FindFirstChild("HeadStackItem") ~= nil
                 end
 
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
-                    -- Step 1: teleport just outside the spawn area to trigger streaming
-                    hrp.CFrame = CFrame.new(spawnAreaPart.Position + Vector3.new(0, 5, 20))
-                    task.wait(1.5)
+                    local spawnAreas = getSpawnAreas()
+                    if #spawnAreas == 0 then
+                        warn("[Astro] No spawn areas loaded yet, waiting...")
+                        task.wait(2)
+                        continue
+                    end
 
-                    if not getgenv()._brain_farm then break end
-
-                    -- Step 2: teleport into the area and grab the first SpawnedItem
-                    hrp = getHRP()
-                    if not hrp then task.wait(1) continue end
-
+                    -- Step 1: approach each spawn area to stream it in, then grab an item
                     local picked = false
-                    for _, desc in ipairs(itemSpawns:GetDescendants()) do
+                    for _, area in ipairs(spawnAreas) do
                         if not getgenv()._brain_farm then break end
-                        if desc:IsA("ProximityPrompt") and desc.Parent and desc.Parent:IsA("MeshPart") then
-                            local item = desc.Parent.Parent
-                            if item and item.Name == "SpawnedItem" then
-                                desc.HoldDuration = 0
-                                hrp.CFrame = CFrame.new(desc.Parent.Position + Vector3.new(0, 2, 0))
-                                task.wait(0.2)
-                                pcall(fireproximityprompt, desc)
-                                task.wait(0.3)
-                                picked = true
-                                break
+                        hrp = getHRP()
+                        if not hrp then break end
+
+                        -- Teleport near the area to load it
+                        hrp.CFrame = CFrame.new(area.Position + Vector3.new(0, 5, 15))
+                        task.wait(1)
+
+                        -- Now look for SpawnedItems inside this area
+                        for _, item in ipairs(area:GetChildren()) do
+                            if not getgenv()._brain_farm then break end
+                            if item.Name == "SpawnedItem" then
+                                local part = item:FindFirstChildOfClass("MeshPart")
+                                    or item:FindFirstChildOfClass("BasePart")
+                                if part then
+                                    local prompt = part:FindFirstChildOfClass("ProximityPrompt")
+                                    if not prompt then continue end
+                                    prompt.HoldDuration = 0
+                                    hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 2, 0))
+                                    task.wait(0.2)
+                                    pcall(fireproximityprompt, prompt)
+                                    task.wait(0.5)
+                                    if hasItem() then
+                                        picked = true
+                                        break
+                                    end
+                                end
                             end
                         end
+                        if picked then break end
                     end
 
                     if not picked then
@@ -89,13 +114,13 @@ return function(section)
                         continue
                     end
 
-                    -- Step 3: return to safe zone (CollectionZone) and drop
+                    -- Step 2: return to safe zone and claim
                     hrp = getHRP()
-                    if hrp then
-                        hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 3, 0))
+                    if hrp and hasItem() then
+                        hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 2, 0))
                         task.wait(0.3)
-                        pcall(function() evDrop:FireServer() end)
-                        task.wait(0.2)
+                        pcall(firetouchinterest, zone, hrp, 0)
+                        task.wait(0.3)
                     end
                 end
             end)
