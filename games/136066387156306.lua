@@ -50,23 +50,12 @@ return function(section)
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
-    -- Server checks proximity against workspace.Map.Shops.Sell.Hitbox.
-    -- Teleport into the hitbox before firing so the check passes.
-    local sellHitbox = workspace:WaitForChild("Map"):WaitForChild("Shops")
-        :WaitForChild("Sell"):WaitForChild("Hitbox")
-
     elements:Toggle("Auto Sell", section, function(state)
         cancelLoop("sell")
         if not state then return end
         loops.sell = task.spawn(function()
             while task.wait(3) do
-                local char = player.Character
-                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp and sellHitbox then
-                    hrp.CFrame = CFrame.new(sellHitbox.Position + Vector3.new(0, 3, 0))
-                    task.wait(0.2)
-                end
-                pcall(evSell.FireServer, evSell)
+                pcall(evSell.FireServer, evSell, "All")
             end
         end)
     end)
