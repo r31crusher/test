@@ -25,8 +25,8 @@ return function(section)
     end
 
     -- ── Auto Farm ─────────────────────────────────────────────────────────────
-    -- Carry limit is 1: pick up one SpawnedItem from ItemSpawns (emerald zone)
-    -- → teleport to CollectionZone (safe zone) → drop → repeat.
+    -- Carry limit is 1: approach the Emerald Galaxy spawn area to stream it in,
+    -- pick up one SpawnedItem, return to safe zone (CollectionZone) to drop, repeat.
     getgenv()._brain_farm = false
     elements:Toggle("Auto Farm", section, function(v)
         getgenv()._brain_farm = v
@@ -39,23 +39,45 @@ return function(section)
                 local zone = zones:FindFirstChildOfClass("BasePart")
                 if not zone then return end
 
+                -- Get the approach position from the first numbered spawn area part.
+                -- Teleporting here first forces the area to stream in.
+                local function getApproachPos()
+                    for _, child in ipairs(itemSpawns:GetChildren()) do
+                        if child:IsA("BasePart") then
+                            return child.Position
+                        end
+                    end
+                    return nil
+                end
+
                 while getgenv()._brain_farm do
                     local hrp = getHRP()
                     if not hrp then task.wait(1) continue end
 
-                    -- Find first available SpawnedItem via GetDescendants (safe against any nesting)
+                    -- Step 1: teleport near the spawn area to load it
+                    local approachPos = getApproachPos()
+                    if approachPos then
+                        hrp.CFrame = CFrame.new(approachPos + Vector3.new(0, 5, 20))
+                        task.wait(1.5) -- wait for StreamingEnabled to load the area
+                    end
+
+                    if not getgenv()._brain_farm then break end
+
+                    -- Step 2: find and pick up the first available SpawnedItem
+                    hrp = getHRP()
+                    if not hrp then task.wait(1) continue end
+
                     local picked = false
                     for _, desc in ipairs(itemSpawns:GetDescendants()) do
                         if not getgenv()._brain_farm then break end
                         if desc:IsA("ProximityPrompt") and desc.Parent and desc.Parent:IsA("MeshPart") then
                             local item = desc.Parent.Parent
                             if item and item.Name == "SpawnedItem" then
-                                -- Zero out hold duration so it fires instantly
                                 desc.HoldDuration = 0
                                 hrp.CFrame = CFrame.new(desc.Parent.Position + Vector3.new(0, 2, 0))
                                 task.wait(0.2)
                                 pcall(fireproximityprompt, desc)
-                                task.wait(0.2)
+                                task.wait(0.3)
                                 picked = true
                                 break
                             end
@@ -63,16 +85,15 @@ return function(section)
                     end
 
                     if not picked then
-                        -- No items currently spawned, wait a moment and retry
                         task.wait(1)
                         continue
                     end
 
-                    -- Return to safe zone (CollectionZone) and drop
+                    -- Step 3: return to safe zone and drop
                     hrp = getHRP()
                     if hrp then
                         hrp.CFrame = CFrame.new(zone.Position + Vector3.new(0, 3, 0))
-                        task.wait(0.2)
+                        task.wait(0.3)
                         pcall(function() evDrop:FireServer() end)
                         task.wait(0.2)
                     end
@@ -194,5 +215,17 @@ return function(section)
                 end
             end)
         end
+    end)
+
+    -- ── Unload hook ───────────────────────────────────────────────────────────
+    -- When ui.lua calls gui:Destroy(), the section ancestor is removed.
+    -- This kills all running loops so nothing keeps running after unload.
+    section.AncestorRemoving:Connect(function()
+        getgenv()._brain_farm    = false
+        getgenv()._brain_sell    = false
+        getgenv()._brain_slotUp  = false
+        getgenv()._brain_baseUp  = false
+        getgenv()._brain_rebirth = false
+        getgenv()._brain_daily   = false
     end)
 end
