@@ -6,13 +6,13 @@ return function(section)
     local rs     = game:GetService("ReplicatedStorage")
     local player = game:GetService("Players").LocalPlayer
 
-    local evDash    = rs:WaitForChild("DashEvent")
-    local evTrain   = rs.Events:WaitForChild("TrainTreadmillEvent")
-    local fnGetSpin = rs.Functions:WaitForChild("GetSpinFunc")
-    local fnSpin    = rs.Functions:WaitForChild("RequestSpinFunc")
-    local evSell    = rs.Remotes:WaitForChild("SellEvent")
-    local evRebirth = rs.RemoteGUI:WaitForChild("URebirth")
-    local fnStorm   = rs.Events:WaitForChild("StormBreakerChargeFunction")
+    local evDash      = rs:WaitForChild("DashEvent")
+    local evTrain     = rs.Events:WaitForChild("TrainTreadmillEvent")
+    local evSell      = rs.Remotes:WaitForChild("SellEvent")
+    local evRebirth   = rs.RemoteGUI:WaitForChild("URebirth")
+    local fnStorm     = rs.Events:WaitForChild("StormBreakerChargeFunction")
+    local evMutation  = rs:WaitForChild("ApplyMutation")
+    local evBonus     = rs:WaitForChild("BonusClaimRemote")
 
     local loops = {}
     local function cancelLoop(name)
@@ -50,6 +50,26 @@ return function(section)
         end)
     end)
 
+    -- ── Auto Apply Mutation ───────────────────────────────────────────────────
+    -- During charge QTEs, client fires ApplyMutation:FireServer(mutationName).
+    -- The mutation name is a plain string — we can send "Horizon" (10x multiplier)
+    -- directly without any QTE ever appearing, applying it to brainrots each warp.
+    -- Mutation multipliers: Gold=1.5x Diamond=2x Rainbow=3x Candy=4x Lava=5x
+    --                       Blizzard=6x Lightning=7x Hacker=8x Horizon=10x
+    elements:Toggle("Auto Horizon Mutation", section, function(state)
+        cancelLoop("mutation")
+        if not state then return end
+        loops.mutation = task.spawn(function()
+            while task.wait(1) do
+                pcall(evMutation.FireServer, evMutation, "Horizon")
+            end
+        end)
+    end)
+
+    elements:Button("Claim Bonus", section, function()
+        pcall(evBonus.FireServer, evBonus)
+    end)
+
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
     elements:Toggle("Auto Sell", section, function(state)
         cancelLoop("sell")
@@ -57,24 +77,6 @@ return function(section)
         loops.sell = task.spawn(function()
             while task.wait(3) do
                 pcall(evSell.FireServer, evSell)
-            end
-        end)
-    end)
-
-    -- ── Auto Spin ─────────────────────────────────────────────────────────────
-    elements:Toggle("Auto Spin", section, function(state)
-        cancelLoop("spin")
-        if not state then return end
-        loops.spin = task.spawn(function()
-            while task.wait(5) do
-                local ok, data = pcall(fnGetSpin.InvokeServer, fnGetSpin, "Spin")
-                if ok and data then
-                    local count = (data.SpinCount or 0) + (data.SpinFree or 0)
-                    if count > 0 then
-                        pcall(fnSpin.InvokeServer, fnSpin)
-                        task.wait(5)
-                    end
-                end
             end
         end)
     end)
