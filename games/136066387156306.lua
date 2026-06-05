@@ -59,6 +59,8 @@ return function(section)
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────
+    -- Hitbox uses TouchTransmitter so the server validates via touch events.
+    -- firetouchinterest registers the player as inside the zone before selling.
     local sellHitbox = workspace:WaitForChild("Map"):WaitForChild("Shops")
         :WaitForChild("Sell"):WaitForChild("Hitbox")
 
@@ -70,10 +72,12 @@ return function(section)
                 local char = player.Character
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp and sellHitbox then
-                    hrp.CFrame = CFrame.new(sellHitbox.Position + Vector3.new(0, 3, 0))
+                    pcall(firetouchinterest, sellHitbox, hrp, 0)
                     task.wait(0.2)
+                    pcall(evSell.FireServer, evSell, "All")
+                    task.wait(0.1)
+                    pcall(firetouchinterest, sellHitbox, hrp, 1)
                 end
-                pcall(evSell.FireServer, evSell, "All")
             end
         end)
     end)
