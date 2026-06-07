@@ -475,12 +475,13 @@ uniBarLayout.Padding = UDim.new(0, 6)
 local movSection    = makeSubSection(Sections.Universal.Container)
 local combatSection = makeSubSection(Sections.Universal.Container)
 local espSection    = makeSubSection(Sections.Universal.Container)
+local visualSection = makeSubSection(Sections.Universal.Container)
 
 local uniActiveSection, uniActiveBtn
 
 local function makeSubTabBtn(label, section)
     local btn = Instance.new("TextButton", uniBar)
-    btn.Size = UDim2.new(1/3, -4, 1, 0)
+    btn.Size = UDim2.new(1/4, -4, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
     btn.BorderSizePixel = 0
     btn.AutoButtonColor = false
@@ -507,6 +508,7 @@ end
 local movBtn    = makeSubTabBtn("Movement", movSection)
 local combatBtn = makeSubTabBtn("Combat",   combatSection)
 local espBtn    = makeSubTabBtn("ESP",      espSection)
+local visualBtn = makeSubTabBtn("Visual",   visualSection)
 
 movSection.Visible = true
 movBtn.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
@@ -704,6 +706,7 @@ end)
 local _aimMode = "Legacy"
 makeDropdown("Aim Mode", combatSection, {"Legacy", "Silent"}, "Legacy", function(v)
     _aimMode = v
+    if v == "Silent" then _installSilentHook() end
 end)
 
 getgenv()._astroAimVisCheck = false
@@ -716,6 +719,104 @@ getgenv()._astroAiming = false
 local _setAimbot = makeLocalToggle("Aimbot", combatSection, _binds.aim, function(on)
     getgenv()._aimEnabled = on
     if not on then getgenv()._astroAiming = false end
+end)
+
+-- ── SpinBot ───────────────────────────────────────────────────────────────────
+getgenv()._astroSpinbot = false
+local _setSpinbot = elements:Toggle("Spinbot", combatSection, function(v)
+    getgenv()._astroSpinbot = v
+    if v then
+        RunService:BindToRenderStep("AstroSpinBot", Enum.RenderPriority.Character.Value + 1, function()
+            if not getgenv()._astroSpinbot then
+                RunService:UnbindFromRenderStep("AstroSpinBot")
+                return
+            end
+            local char = plr.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, tick() * 15, 0)
+            end
+        end)
+    else
+        RunService:UnbindFromRenderStep("AstroSpinBot")
+    end
+end)
+
+-- ── Desync ────────────────────────────────────────────────────────────────────
+-- Rapidly sends a bogus position to the server then snaps back so the
+-- server-side hitbox drifts away from your actual client position.
+getgenv()._astroDesync = false
+local _setDesync = elements:Toggle("Desync", combatSection, function(v)
+    getgenv()._astroDesync = v
+    if v then
+        task.spawn(function()
+            while getgenv()._astroDesync do
+                local char = plr.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local real = hrp.CFrame
+                    hrp.CFrame = real * CFrame.new(0, 1e4, 0)
+                    RunService.Heartbeat:Wait()
+                    hrp.CFrame = real
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+-- ── HitBoxes ──────────────────────────────────────────────────────────────────
+getgenv()._astroHitboxes = false
+local _hitboxSize      = 8
+local _hitboxOrigSizes = {}
+
+local function _applyHitbox(p)
+    if p == plr then return end
+    local char = p.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and not _hitboxOrigSizes[p.UserId] then
+        _hitboxOrigSizes[p.UserId] = hrp.Size
+        hrp.Size = Vector3.new(_hitboxSize, _hitboxSize, _hitboxSize)
+    end
+end
+
+local function _clearHitbox(p)
+    if p.Character then
+        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and _hitboxOrigSizes[p.UserId] then
+            hrp.Size = _hitboxOrigSizes[p.UserId]
+        end
+    end
+    _hitboxOrigSizes[p.UserId] = nil
+end
+
+local _setHitboxes = elements:Toggle("Hitboxes", combatSection, function(v)
+    getgenv()._astroHitboxes = v
+    if v then
+        for _, p in game:GetService("Players"):GetPlayers() do _applyHitbox(p) end
+    else
+        for _, p in game:GetService("Players"):GetPlayers() do _clearHitbox(p) end
+        _hitboxOrigSizes = {}
+    end
+end)
+makeSlider("Hitbox Size", combatSection, 2, 20, 8, function(v)
+    _hitboxSize = v
+    if getgenv()._astroHitboxes then
+        _hitboxOrigSizes = {}
+        for _, p in game:GetService("Players"):GetPlayers() do _applyHitbox(p) end
+    end
+end)
+for _, _hbp in game:GetService("Players"):GetPlayers() do
+    _hbp.CharacterAdded:Connect(function()
+        task.wait(0.2)
+        if getgenv()._astroHitboxes then _applyHitbox(_hbp) end
+    end)
+end
+game:GetService("Players").PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(0.2)
+        if getgenv()._astroHitboxes then _applyHitbox(p) end
+    end)
 end)
 
 -- Shared raycast params reused each frame to avoid GC pressure
@@ -752,7 +853,34 @@ local function getAimTarget()
     return best
 end
 
-local _silentOrig = nil
+local _silentOrig     = nil
+local _silentHookOrig = nil
+
+-- Installs a __namecall hook that intercepts workspace:Raycast calls that look
+-- like weapon fire (origin within 15 studs of camera) and redirects their
+-- direction toward the current aim target. Called lazily when Silent mode is
+-- first selected so we don't pay for the hook in Legacy mode.
+local function _installSilentHook()
+    if _silentHookOrig then return end
+    local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
+        if getnamecallmethod() == "Raycast" and self == workspace
+                and getgenv()._astroAiming and _aimMode == "Silent" then
+            local origin, direction, params = ...
+            if origin and direction then
+                local camPos = workspace.CurrentCamera.CFrame.Position
+                if (origin - camPos).Magnitude < 15 then
+                    local tgt = getAimTarget()
+                    if tgt then
+                        return _silentHookOrig(self, origin,
+                            (tgt.Position - origin).Unit * direction.Magnitude, params)
+                    end
+                end
+            end
+        end
+        return _silentHookOrig(self, ...)
+    end)
+    if ok then _silentHookOrig = orig end
+end
 
 RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function()
     if not getgenv()._astroAiming then
@@ -765,10 +893,9 @@ RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function
     if _aimMode == "Legacy" then
         local t = math.clamp(_aimSpeed / 20, 0.05, 1)
         cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, target.Position), t)
-    else
-        _silentOrig = cam.CFrame
-        cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
     end
+    -- Silent: _installSilentHook's __namecall intercept handles ray redirection;
+    -- no camera movement needed so the local view is never disturbed.
 end)
 
 RunService:BindToRenderStep("AstroAimRestore", Enum.RenderPriority.Last.Value + 1, function()
@@ -845,6 +972,30 @@ local _setAntiAfk = elements:Toggle("Anti-AFK", movSection, function(v)
     end
 end)
 
+-- ── Anti-Fall ─────────────────────────────────────────────────────────────────
+-- Saves your last grounded CFrame and teleports you back if you fall 60+ studs
+-- below it (e.g. walking off the map into the void).
+getgenv()._astroAntiFall = false
+local _afLastSafe = nil
+
+local _setAntiFall = elements:Toggle("Anti-Fall", movSection, function(v)
+    getgenv()._astroAntiFall = v
+    if not v then _afLastSafe = nil end
+end)
+RunService.Heartbeat:Connect(function()
+    if not getgenv()._astroAntiFall then return end
+    local char = plr.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+    if hum.FloorMaterial ~= Enum.Material.Air then
+        _afLastSafe = hrp.CFrame
+    end
+    if _afLastSafe and hrp.Position.Y < _afLastSafe.Position.Y - 60 then
+        hrp.CFrame = _afLastSafe
+    end
+end)
+
 local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
 local _espD = {}
 
@@ -884,6 +1035,266 @@ makeDropdown("Visible Color", espSection, _espColorNames, "Red",    function(v)
 end)
 makeDropdown("Hidden Color",  espSection, _espColorNames, "Orange", function(v)
     _espNoVisColorName = v ; _espNoVisColor = _espColorMap[v]
+end)
+
+-- ── Visual section ────────────────────────────────────────────────────────────
+
+-- Hit Sound (shared by both Hit Sound and Damage Indicators toggles)
+local _hitSoundObj = Instance.new("Sound")
+_hitSoundObj.SoundId = "rbxassetid://2766953031"
+_hitSoundObj.Volume  = 0.5
+_hitSoundObj.RollOffMaxDistance = 0
+_hitSoundObj.Parent = game.CoreGui
+getgenv()._astroHitSound = false
+
+-- Floating damage numbers via Drawing API
+local function _showDmgNum(worldPos, amount)
+    local txt   = Drawing.new("Text")
+    txt.Text    = "-" .. math.round(amount)
+    txt.Size    = 18
+    txt.Color   = Color3.fromRGB(255, 60, 60)
+    txt.Outline = true
+    txt.Center  = true
+    local t, dur = 0, 1.0
+    local baseY = worldPos.Y
+    while t < dur do
+        t += RunService.RenderStepped:Wait()
+        local sp, onSc = workspace.CurrentCamera:WorldToViewportPoint(
+            Vector3.new(worldPos.X, baseY + t * 3, worldPos.Z))
+        txt.Visible = onSc and sp.Z > 0
+        if txt.Visible then
+            txt.Position     = Vector2.new(sp.X, sp.Y)
+            txt.Transparency = t / dur
+        end
+    end
+    txt.Remove()
+end
+
+-- Damage / hit-sound watchers — shared by both toggles
+getgenv()._astroDmgInd = false
+local _dmgWatchers = {}
+
+local function _watchDmg(p)
+    if p == plr or _dmgWatchers[p.UserId] then return end
+    local conns = {}
+    _dmgWatchers[p.UserId] = conns
+    local function attachChar(char)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum then return end
+        local prev = hum.Health
+        table.insert(conns, hum.HealthChanged:Connect(function(hp)
+            local dmg = prev - hp
+            if dmg > 0 then
+                if getgenv()._astroDmgInd then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then task.spawn(_showDmgNum, hrp.Position, dmg) end
+                end
+                if getgenv()._astroHitSound then _hitSoundObj:Play() end
+            end
+            prev = hp
+        end))
+    end
+    if p.Character then attachChar(p.Character) end
+    table.insert(conns, p.CharacterAdded:Connect(function(c)
+        task.wait(0.2); attachChar(c)
+    end))
+end
+
+local function _unwatchDmg(p)
+    local conns = _dmgWatchers[p.UserId]
+    if conns then
+        for _, c in conns do pcall(function() c:Disconnect() end) end
+        _dmgWatchers[p.UserId] = nil
+    end
+end
+
+local function _startDmgWatch()
+    for _, p in game:GetService("Players"):GetPlayers() do _watchDmg(p) end
+end
+local function _stopDmgWatchIfNone()
+    if not getgenv()._astroDmgInd and not getgenv()._astroHitSound then
+        for _, p in game:GetService("Players"):GetPlayers() do _unwatchDmg(p) end
+    end
+end
+
+game:GetService("Players").PlayerAdded:Connect(function(p)
+    if getgenv()._astroDmgInd or getgenv()._astroHitSound then _watchDmg(p) end
+end)
+game:GetService("Players").PlayerRemoving:Connect(function(p) _unwatchDmg(p) end)
+
+-- Bullet Tracers — draws a fading line from shot origin to hit point each frame
+getgenv()._astroTracers = false
+
+local function _drawTracer(origin, hitPos)
+    local cam = workspace.CurrentCamera
+    local ln  = Drawing.new("Line")
+    ln.Color     = Color3.fromRGB(255, 210, 50)
+    ln.Thickness = 1.5
+    local t, dur = 0, 0.35
+    while t < dur do
+        t += RunService.RenderStepped:Wait()
+        local oSP       = cam:WorldToViewportPoint(origin)
+        local hSP, onSc = cam:WorldToViewportPoint(hitPos)
+        ln.Visible = onSc and oSP.Z > 0
+        if ln.Visible then
+            ln.From         = Vector2.new(oSP.X, oSP.Y)
+            ln.To           = Vector2.new(hSP.X, hSP.Y)
+            ln.Transparency = t / dur
+        end
+    end
+    ln.Remove()
+end
+
+-- Chains off whatever __namecall hook is already installed (silent aim or original)
+local _tracerHookOrig = nil
+local function _installTracerHook()
+    if _tracerHookOrig then return end
+    local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
+        local result = _tracerHookOrig(self, ...)
+        if getnamecallmethod() == "Raycast" and self == workspace
+                and getgenv()._astroTracers then
+            local origin, direction = ...
+            if origin and direction then
+                local camPos = workspace.CurrentCamera.CFrame.Position
+                if (origin - camPos).Magnitude < 15 then
+                    local hit = result and result.Position or (origin + direction)
+                    task.spawn(_drawTracer, origin, hit)
+                end
+            end
+        end
+        return result
+    end)
+    if ok then _tracerHookOrig = orig end
+end
+
+-- Crosshair — persistent + viewport-size aware
+getgenv()._astroCrosshair = false
+local _chLines  = {}
+local _chRender = nil
+
+local function _buildCrosshair()
+    if #_chLines > 0 then return end
+    local function mkLine()
+        local l = Drawing.new("Line")
+        l.Color = Color3.fromRGB(255, 255, 255); l.Thickness = 1.5; l.Visible = true
+        return l
+    end
+    local dot = Drawing.new("Circle")
+    dot.Radius = 1.5; dot.Color = Color3.fromRGB(255, 255, 255)
+    dot.Filled = true; dot.Visible = true
+    _chLines = {mkLine(), mkLine(), mkLine(), mkLine(), dot}  -- top/bot/left/right/dot
+
+    _chRender = RunService.RenderStepped:Connect(function()
+        if not getgenv()._astroCrosshair then return end
+        local vp = workspace.CurrentCamera.ViewportSize
+        local cx, cy, g, l = vp.X/2, vp.Y/2, 4, 8
+        _chLines[1].From = Vector2.new(cx,     cy-g-l); _chLines[1].To = Vector2.new(cx,     cy-g)
+        _chLines[2].From = Vector2.new(cx,     cy+g  ); _chLines[2].To = Vector2.new(cx,     cy+g+l)
+        _chLines[3].From = Vector2.new(cx-g-l, cy    ); _chLines[3].To = Vector2.new(cx-g,   cy)
+        _chLines[4].From = Vector2.new(cx+g,   cy    ); _chLines[4].To = Vector2.new(cx+g+l, cy)
+        _chLines[5].Position = Vector2.new(cx, cy)
+    end)
+end
+
+local function _destroyCrosshair()
+    if _chRender then _chRender:Disconnect(); _chRender = nil end
+    for _, d in _chLines do pcall(function() d:Remove() end) end
+    _chLines = {}
+end
+
+-- Viewmodel — ViewportFrame in the bottom-right corner showing the held tool
+-- with spring-physics sway tied to camera movement.
+getgenv()._astroViewmodel = false
+local _vmGui, _vmRender, _vmLastCF, _vmPrevTool
+local _vmSpringX = {pos = 0, vel = 0}
+local _vmSpringY = {pos = 0, vel = 0}
+
+local function _vmSpringStep(s, target, dt)
+    local acc = (target - s.pos) * 12 - s.vel * 5
+    s.vel += acc * dt; s.pos += s.vel * dt
+    return s.pos
+end
+
+local function _enableViewmodel()
+    if _vmGui then return end
+    _vmLastCF = workspace.CurrentCamera.CFrame
+
+    _vmGui = Instance.new("ScreenGui")
+    _vmGui.Name = "_astroVM"; _vmGui.ResetOnSpawn = false
+    _vmGui.DisplayOrder = 5; _vmGui.Parent = game.CoreGui
+
+    local vf = Instance.new("ViewportFrame", _vmGui)
+    vf.Size           = UDim2.new(0.42, 0, 0.38, 0)
+    vf.Position       = UDim2.new(1, -8, 1, -8)
+    vf.AnchorPoint    = Vector2.new(1, 1)
+    vf.BackgroundTransparency = 1
+    vf.LightDirection = Vector3.new(-1, -1, -1)
+    vf.LightColor     = Color3.new(1, 1, 1)
+    vf.AmbientColor   = Color3.fromRGB(180, 180, 180)
+
+    local vmCam = Instance.new("Camera", vf)
+    vmCam.FieldOfView = 55
+    vf.CurrentCamera  = vmCam
+
+    _vmRender = RunService.RenderStepped:Connect(function(dt)
+        if not getgenv()._astroViewmodel then return end
+        local cam   = workspace.CurrentCamera
+        local delta = _vmLastCF:ToObjectSpace(cam.CFrame)
+        _vmLastCF   = cam.CFrame
+        local sx = _vmSpringStep(_vmSpringX, math.clamp(delta.Position.X, -1, 1) * 0.05, dt)
+        local sy = _vmSpringStep(_vmSpringY, math.clamp(delta.Position.Y, -1, 1) * 0.05, dt)
+
+        local char   = plr.Character
+        local tool   = char and char:FindFirstChildOfClass("Tool")
+        local handle = tool and tool:FindFirstChild("Handle")
+        vf.Visible   = handle ~= nil
+        if not handle then _vmPrevTool = nil; return end
+
+        if tool ~= _vmPrevTool then
+            _vmPrevTool = tool
+            for _, c in vf:GetChildren() do
+                if c:IsA("BasePart") then c:Destroy() end
+            end
+            local h2 = handle:Clone()
+            h2.Anchored = true; h2.CanCollide = false
+            h2.CastShadow = false; h2.Name = "VMHandle"
+            h2.Parent = vf
+        end
+
+        local vmh = vf:FindFirstChild("VMHandle")
+        if not vmh then return end
+        vmh.CFrame = CFrame.new(0.38 + sx, -0.26 + sy, -0.6)
+            * CFrame.Angles(math.rad(-8) + sy * 0.4, sx * 0.4, 0)
+        vmCam.CFrame = CFrame.new(Vector3.zero)
+    end)
+end
+
+local function _disableViewmodel()
+    if _vmRender then _vmRender:Disconnect(); _vmRender = nil end
+    if _vmGui    then _vmGui:Destroy();       _vmGui    = nil end
+    _vmPrevTool = nil
+end
+
+-- Visual section UI elements
+elements:Toggle("Bullet Tracers",    visualSection, function(v)
+    getgenv()._astroTracers = v
+    if v then _installTracerHook() end
+end)
+elements:Toggle("Damage Indicators", visualSection, function(v)
+    getgenv()._astroDmgInd = v
+    if v then _startDmgWatch() else _stopDmgWatchIfNone() end
+end)
+elements:Toggle("Hit Sound",         visualSection, function(v)
+    getgenv()._astroHitSound = v
+    if v then _startDmgWatch() else _stopDmgWatchIfNone() end
+end)
+elements:Toggle("Crosshair",         visualSection, function(v)
+    getgenv()._astroCrosshair = v
+    if v then _buildCrosshair() else _destroyCrosshair() end
+end)
+elements:Toggle("Viewmodel",         visualSection, function(v)
+    getgenv()._astroViewmodel = v
+    if v then _enableViewmodel() else _disableViewmodel() end
 end)
 
 -- ── Config system ──────────────────────────────────────────────────────────────
@@ -1569,6 +1980,36 @@ getgenv()._astroUnload = function()
             h.WalkSpeed     = 16
             h.PlatformStand = false
         end
+    end
+
+    -- combat extras
+    getgenv()._astroSpinbot  = false
+    getgenv()._astroDesync   = false
+    getgenv()._astroHitboxes = false
+    getgenv()._astroAntiFall = false
+    RunService:UnbindFromRenderStep("AstroSpinBot")
+    for _, p in game:GetService("Players"):GetPlayers() do _clearHitbox(p) end
+    _hitboxOrigSizes = {}
+
+    -- visual extras
+    getgenv()._astroTracers   = false
+    getgenv()._astroDmgInd    = false
+    getgenv()._astroHitSound  = false
+    getgenv()._astroCrosshair = false
+    getgenv()._astroViewmodel = false
+    for _, p in game:GetService("Players"):GetPlayers() do _unwatchDmg(p) end
+    pcall(function() _hitSoundObj:Destroy() end)
+    _destroyCrosshair()
+    _disableViewmodel()
+
+    -- restore __namecall hooks (tracer chains off silent aim, restore inner-first)
+    if _tracerHookOrig then
+        pcall(hookmetamethod, game, "__namecall", _tracerHookOrig)
+        _tracerHookOrig = nil
+    end
+    if _silentHookOrig then
+        pcall(hookmetamethod, game, "__namecall", _silentHookOrig)
+        _silentHookOrig = nil
     end
 
     -- clear all ESP drawings
