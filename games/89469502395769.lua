@@ -108,11 +108,12 @@ return function(section)
     --   2. Fire KickEvent — OnStartKick anchors character
     --   3. Poll hrp.Anchored until false (GameHandler line 667, tsunami spawn)
     --   4. Walk to CollectZone; game's own v130 PreRender fires KickCollect on arrival
-    local function walkTo(target, timeoutSecs)
+    local function walkTo(target, timeoutSecs, speed)
         local char = player.Character
         local hum  = char and char:FindFirstChild("Humanoid")
-        local hrp  = getHRP()
-        if not hum or not hrp then return end
+        if not hum or not getHRP() then return end
+        local prev = hum.WalkSpeed
+        if speed then hum.WalkSpeed = speed end
         hum:MoveTo(target.Position)
         local deadline = tick() + (timeoutSecs or 20)
         local conn
@@ -122,9 +123,10 @@ return function(section)
             conn:Disconnect()
         end)
         while not done and tick() < deadline do
-            task.wait(0.2)
+            task.wait(0.1)
         end
         if not done then conn:Disconnect() end
+        if speed then hum.WalkSpeed = prev end
     end
 
     getgenv()._brk_kick = false
@@ -167,10 +169,11 @@ return function(section)
                         hrp = getHRP()
                     end
 
-                    -- Walk to collect zone — the game's own PreRender loop fires KickCollect
-                    -- automatically once we're in the zone, no need to fire it manually
+                    -- Sprint to collect zone the moment the character is free —
+                    -- the wave is already moving, so we need to outrun it.
+                    -- The game's own PreRender loop fires KickCollect on arrival.
                     if getHRP() and not getHRP().Anchored then
-                        walkTo(collectZone, 15)
+                        walkTo(collectZone, 15, 80)
                     end
 
                     waitForRoundEnd(25)
