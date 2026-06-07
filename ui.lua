@@ -862,10 +862,12 @@ local function _installSilentHook()
     if _silentHookOrig then return end
     local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
         local method = getnamecallmethod()
-        if self == workspace and getgenv()._astroAiming and _aimMode == "Silent"
+        -- Silent mode: redirect whenever aimbot is enabled (no keybind hold needed).
+        -- Legacy mode: keybind hold (_astroAiming) moves the camera instead.
+        local saActive = _aimMode == "Silent" and getgenv()._aimEnabled
+        if self == workspace and saActive
                 and (method == "Raycast" or method == "Spherecast" or method == "Blockcast") then
             local origin, direction = ...
-            -- Blockcast passes a CFrame as first arg; extract position from it
             if method == "Blockcast" and typeof(origin) == "CFrame" then
                 origin = origin.Position
             end
@@ -875,12 +877,7 @@ local function _installSilentHook()
                     local tgt = getAimTarget()
                     if tgt then
                         local args = {...}
-                        if method == "Blockcast" then
-                            -- keep CFrame arg, replace direction only
-                            args[2] = (tgt.Position - origin).Unit * direction.Magnitude
-                        else
-                            args[2] = (tgt.Position - origin).Unit * direction.Magnitude
-                        end
+                        args[2] = (tgt.Position - origin).Unit * direction.Magnitude
                         return _silentHookOrig(self, table.unpack(args))
                     end
                 end
