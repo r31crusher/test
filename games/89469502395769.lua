@@ -4,17 +4,18 @@ return function(section)
     local elements = getgenv()._astroElements
     local player   = game:GetService("Players").LocalPlayer
     local RS       = game:GetService("ReplicatedStorage")
+    local RunService = game:GetService("RunService")
 
     local Network        = RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network")
     local revKickEvent   = Network:WaitForChild("rev_KickEvent")
     local revKickCollect = Network:WaitForChild("rev_KickCollect")
+    local revKickEnded   = Network:WaitForChild("rev_KickEventEnded")
     local revBUpgrade    = Network:WaitForChild("rev_B_Upgrade")
     local revRebirth     = Network:WaitForChild("rev_RebirthRequest")
     local refSellAll     = Network:WaitForChild("ref_B_SellAll")
 
     local rng = Random.new()
 
-    -- Returns a value in [base*(1-jitter), base*(1+jitter)]
     local function j(base, jitter)
         jitter = jitter or 0.25
         return base * (1 + (rng:NextNumber() * 2 - 1) * jitter)
@@ -35,17 +36,29 @@ return function(section)
         end
     end
 
-    -- Teleport inside a part with a small random XZ offset so it looks natural
+    -- Drop player into a zone part with a small random XZ spread
     local function teleportInto(hrp, part)
-        local sz  = part.Size
-        local ox  = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.3, 3)
-        local oz  = (rng:NextNumber() * 2 - 1) * math.min(sz.Z * 0.3, 3)
+        local sz = part.Size
+        local ox = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.3, 3)
+        local oz = (rng:NextNumber() * 2 - 1) * math.min(sz.Z * 0.3, 3)
         hrp.CFrame = part.CFrame * CFrame.new(ox, 3, oz)
     end
 
+    -- Wait for KickEventEnded with a safety timeout (returns true if it fired)
+    local _kickRoundActive = false
+    revKickEnded.OnClientEvent:Connect(function()
+        _kickRoundActive = false
+    end)
+
+    local function waitForRoundEnd(timeout)
+        timeout = timeout or 25
+        local deadline = tick() + timeout
+        while _kickRoundActive and tick() < deadline do
+            task.wait(0.25)
+        end
+    end
+
     -- ── Auto Collect ──────────────────────────────────────────────────────────────
-    -- Uses firetouchinterest to go through the game's Touched handler; the handler
-    -- checks coins > 0 and applies its own 0.4 s debounce before firing B_Collect.
     getgenv()._brk_collect = false
     elements:Toggle("Auto Collect", section, function(v)
         getgenv()._brk_collect = v
@@ -63,8 +76,6 @@ return function(section)
                                     pcall(firetouchinterest, slot, hrp, 0)
                                     task.wait(0.05)
                                     pcall(firetouchinterest, slot, hrp, 1)
-                                    -- Slightly faster than the 0.4 s debounce; feels like
-                                    -- a player walking quickly past each button
                                     task.wait(j(0.45, 0.2))
                                 end
                             end
@@ -91,8 +102,11 @@ return function(section)
     end)
 
     -- ── Auto Kick ─────────────────────────────────────────────────────────────────
-    -- Randomises kick scale (0.75–1.0) and delays to mimic imperfect human timing.
-    -- Teleports into the zone with a small random offset before firing.
+    -- Full round-aware cycle:
+    --   1. Teleport into kick zone, wait for server to register position (~2s)
+    --   2. Fire kick with random scale
+    --   3. Wait for tsunami window (~4s), then move to CollectZone & fire KickCollect
+    --   4. Wait for KickEventEnded before starting the next round (prevents double-fire)
     getgenv()._brk_kick = false
     elements:Toggle("Auto Kick", section, function(v)
         getgenv()._brk_kick = v
@@ -100,35 +114,50 @@ return function(section)
             task.spawn(function()
                 local kickArea    = workspace:WaitForChild("Areas"):WaitForChild("KickReady")
                 local collectZone = workspace:WaitForChild("Zones"):WaitForChild("CollectZone")
+
                 while getgenv()._brk_kick do
+                    -- Skip if still in an active round or debounced
+                    if _kickRoundActive
+                        or player:GetAttribute("RoundDebounce")
+                        or player:GetAttribute("KickDebounced") then
+                        task.wait(1)
+                        continue
+                    end
+
+                    local hrp = getHRP()
+                    if not hrp then task.wait(2) continue end
+
+                    -- Step 1: enter kick zone, let server-side position check settle
+                    teleportInto(hrp, kickArea)
+                    task.wait(j(2, 0.2))
+
+                    -- Double-check debounces after the wait
                     if player:GetAttribute("RoundDebounce") or player:GetAttribute("KickDebounced") then
                         task.wait(1)
                         continue
                     end
-                    local hrp = getHRP()
-                    if not hrp then task.wait(2) continue end
 
-                    -- Move into kick zone then wait a beat before swinging
-                    teleportInto(hrp, kickArea)
-                    task.wait(j(0.8, 0.3))
-
-                    -- Scale varies 0.75–1.0; percent stays at 1 (player left it at MAX)
-                    local scale = 0.75 + rng:NextNumber() * 0.25
+                    -- Step 2: kick with varied power (0.65–1.0)
+                    local scale = 0.65 + rng:NextNumber() * 0.35
+                    _kickRoundActive = true
                     pcall(function() revKickEvent:FireServer(scale, 1) end)
 
-                    -- Wait for the kick sequence + tsunami to resolve
-                    task.wait(j(5.5, 0.15))
+                    -- Step 3: wait for the tsunami to start (~4s into the animation),
+                    -- then be in the CollectZone when it arrives
+                    task.wait(j(4, 0.15))
 
-                    -- Move into collect zone
                     hrp = getHRP()
                     if hrp then
                         teleportInto(hrp, collectZone)
-                        task.wait(j(0.5, 0.3))
+                        task.wait(j(0.6, 0.25))
                         pcall(function() revKickCollect:FireServer() end)
                     end
 
-                    -- Brief pause before next round
-                    task.wait(j(2.5, 0.2))
+                    -- Step 4: wait for the server to close the round
+                    waitForRoundEnd(25)
+
+                    -- Short break before next round
+                    task.wait(j(3, 0.25))
                 end
             end)
         end
@@ -162,8 +191,6 @@ return function(section)
     end)
 
     -- ── Auto Lift ─────────────────────────────────────────────────────────────────
-    -- Keeps the SquatTool equipped. The server runs its own lift loop while it's
-    -- held; the game unequips it during kicks so we re-equip after each round.
     getgenv()._brk_lift = false
     elements:Toggle("Auto Lift", section, function(v)
         getgenv()._brk_lift = v
@@ -193,7 +220,6 @@ return function(section)
     end)
 
     -- ── Auto Rebirth ──────────────────────────────────────────────────────────────
-    -- Server rejects silently if requirements aren't met yet
     getgenv()._brk_rebirth = false
     elements:Toggle("Auto Rebirth", section, function(v)
         getgenv()._brk_rebirth = v
