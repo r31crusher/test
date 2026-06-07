@@ -35,14 +35,7 @@ return function(section)
         end
     end
 
-    local function teleportInto(hrp, part)
-        local sz = part.Size
-        local ox = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.3, 3)
-        local oz = (rng:NextNumber() * 2 - 1) * math.min(sz.Z * 0.3, 3)
-        hrp.CFrame = part.CFrame * CFrame.new(ox, 3, oz)
-    end
-
-    -- ── Thread tracking — all task.spawn calls register here so unload can
+-- ── Thread tracking — all task.spawn calls register here so unload can
     -- cancel them immediately rather than waiting for flags to be checked. ──────
     local _threads = {}
     local function spawn(fn)
@@ -108,11 +101,32 @@ return function(section)
     end)
 
     -- ── Auto Kick ─────────────────────────────────────────────────────────────────
+    -- Uses Humanoid:MoveTo for all navigation — no hard CFrame assignment, so
+    -- the anti-cheat's teleport/speed checks never fire.
     -- Timeline:
-    --   1. Teleport into KickReady zone, wait for server position check to settle
-    --   2. Fire KickEvent — server fires back → OnStartKick anchors character
-    --   3. Poll hrp.Anchored until it goes false (GameHandler line 667, ~4-5s)
-    --   4. Character is now free; teleport to CollectZone and fire KickCollect
+    --   1. Walk to KickReady zone
+    --   2. Fire KickEvent — OnStartKick anchors character
+    --   3. Poll hrp.Anchored until false (GameHandler line 667, tsunami spawn)
+    --   4. Walk to CollectZone; game's own v130 PreRender fires KickCollect on arrival
+    local function walkTo(target, timeoutSecs)
+        local char = player.Character
+        local hum  = char and char:FindFirstChild("Humanoid")
+        local hrp  = getHRP()
+        if not hum or not hrp then return end
+        hum:MoveTo(target.Position)
+        local deadline = tick() + (timeoutSecs or 20)
+        local conn
+        local done = false
+        conn = hum.MoveToFinished:Connect(function()
+            done = true
+            conn:Disconnect()
+        end)
+        while not done and tick() < deadline do
+            task.wait(0.2)
+        end
+        if not done then conn:Disconnect() end
+    end
+
     getgenv()._brk_kick = false
     elements:Toggle("Auto Kick", section, function(v)
         getgenv()._brk_kick = v
@@ -129,43 +143,38 @@ return function(section)
                         continue
                     end
 
-                    local hrp = getHRP()
-                    if not hrp then task.wait(2) continue end
+                    if not getHRP() then task.wait(2) continue end
 
-                    -- Move into kick zone and let the server-side position check settle
-                    teleportInto(hrp, kickArea)
-                    task.wait(j(2, 0.2))
+                    -- Walk into kick zone (legitimate movement, not a CFrame jump)
+                    walkTo(kickArea, 15)
+                    task.wait(j(0.6, 0.2))
 
                     if player:GetAttribute("RoundDebounce") or player:GetAttribute("KickDebounced") then
                         task.wait(1)
                         continue
                     end
 
-                    -- Fire with randomised power; percent=1 is normal (player left it at MAX)
+                    -- Fire with randomised power
                     local scale = 0.65 + rng:NextNumber() * 0.35
                     _kickRoundActive = true
                     pcall(function() revKickEvent:FireServer(scale, 1) end)
 
-                    -- Wait for OnStartKick to unanchor the character (line 667 of GameHandler).
-                    -- The server anchors on receipt, runs the animation (~3.5s of task.waits),
-                    -- then unanchors right before the tsunami spawns. Only move after that.
-                    hrp = getHRP()
+                    -- Wait for OnStartKick to unanchor (GameHandler line 667, ~4-5s after fire)
+                    local hrp = getHRP()
                     local unanchorDeadline = tick() + 12
                     while hrp and hrp.Parent and hrp.Anchored and tick() < unanchorDeadline do
                         task.wait(0.1)
                         hrp = getHRP()
                     end
 
-                    -- Character is now free — run to collect zone and claim the brainrots
-                    hrp = getHRP()
-                    if hrp and not hrp.Anchored then
-                        teleportInto(hrp, collectZone)
-                        task.wait(j(0.5, 0.2))
-                        pcall(function() revKickCollect:FireServer() end)
+                    -- Walk to collect zone — the game's own PreRender loop fires KickCollect
+                    -- automatically once we're in the zone, no need to fire it manually
+                    if getHRP() and not getHRP().Anchored then
+                        walkTo(collectZone, 15)
                     end
 
                     waitForRoundEnd(25)
-                    task.wait(j(2.5, 0.25))
+                    task.wait(j(2, 0.25))
                 end
             end)
         end
