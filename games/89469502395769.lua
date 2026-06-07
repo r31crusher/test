@@ -4,7 +4,6 @@ return function(section)
     local elements = getgenv()._astroElements
     local player   = game:GetService("Players").LocalPlayer
     local RS       = game:GetService("ReplicatedStorage")
-    local RunService = game:GetService("RunService")
 
     local Network        = RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network")
     local revKickEvent   = Network:WaitForChild("rev_KickEvent")
@@ -36,7 +35,6 @@ return function(section)
         end
     end
 
-    -- Drop player into a zone part with a small random XZ spread
     local function teleportInto(hrp, part)
         local sz = part.Size
         local ox = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.3, 3)
@@ -44,15 +42,23 @@ return function(section)
         hrp.CFrame = part.CFrame * CFrame.new(ox, 3, oz)
     end
 
-    -- Wait for KickEventEnded with a safety timeout (returns true if it fired)
+    -- ── Thread tracking — all task.spawn calls register here so unload can
+    -- cancel them immediately rather than waiting for flags to be checked. ──────
+    local _threads = {}
+    local function spawn(fn)
+        local t = task.spawn(fn)
+        table.insert(_threads, t)
+        return t
+    end
+
+    -- ── Round-end tracking ─────────────────────────────────────────────────────
     local _kickRoundActive = false
-    revKickEnded.OnClientEvent:Connect(function()
+    local _kickEndedConn = revKickEnded.OnClientEvent:Connect(function()
         _kickRoundActive = false
     end)
 
     local function waitForRoundEnd(timeout)
-        timeout = timeout or 25
-        local deadline = tick() + timeout
+        local deadline = tick() + (timeout or 25)
         while _kickRoundActive and tick() < deadline do
             task.wait(0.25)
         end
@@ -63,7 +69,7 @@ return function(section)
     elements:Toggle("Auto Collect", section, function(v)
         getgenv()._brk_collect = v
         if v then
-            task.spawn(function()
+            spawn(function()
                 while getgenv()._brk_collect do
                     local hrp  = getHRP()
                     local plot = getMyPlot()
@@ -92,7 +98,7 @@ return function(section)
     elements:Toggle("Auto Sell", section, function(v)
         getgenv()._brk_sell = v
         if v then
-            task.spawn(function()
+            spawn(function()
                 while getgenv()._brk_sell do
                     pcall(function() refSellAll:InvokeServer() end)
                     task.wait(j(4, 0.3))
@@ -102,21 +108,20 @@ return function(section)
     end)
 
     -- ── Auto Kick ─────────────────────────────────────────────────────────────────
-    -- Full round-aware cycle:
-    --   1. Teleport into kick zone, wait for server to register position (~2s)
-    --   2. Fire kick with random scale
-    --   3. Wait for tsunami window (~4s), then move to CollectZone & fire KickCollect
-    --   4. Wait for KickEventEnded before starting the next round (prevents double-fire)
+    -- Timeline:
+    --   1. Teleport into KickReady zone, wait for server position check to settle
+    --   2. Fire KickEvent — server fires back → OnStartKick anchors character
+    --   3. Poll hrp.Anchored until it goes false (GameHandler line 667, ~4-5s)
+    --   4. Character is now free; teleport to CollectZone and fire KickCollect
     getgenv()._brk_kick = false
     elements:Toggle("Auto Kick", section, function(v)
         getgenv()._brk_kick = v
         if v then
-            task.spawn(function()
+            spawn(function()
                 local kickArea    = workspace:WaitForChild("Areas"):WaitForChild("KickReady")
                 local collectZone = workspace:WaitForChild("Zones"):WaitForChild("CollectZone")
 
                 while getgenv()._brk_kick do
-                    -- Skip if still in an active round or debounced
                     if _kickRoundActive
                         or player:GetAttribute("RoundDebounce")
                         or player:GetAttribute("KickDebounced") then
@@ -127,37 +132,40 @@ return function(section)
                     local hrp = getHRP()
                     if not hrp then task.wait(2) continue end
 
-                    -- Step 1: enter kick zone, let server-side position check settle
+                    -- Move into kick zone and let the server-side position check settle
                     teleportInto(hrp, kickArea)
                     task.wait(j(2, 0.2))
 
-                    -- Double-check debounces after the wait
                     if player:GetAttribute("RoundDebounce") or player:GetAttribute("KickDebounced") then
                         task.wait(1)
                         continue
                     end
 
-                    -- Step 2: kick with varied power (0.65–1.0)
+                    -- Fire with randomised power; percent=1 is normal (player left it at MAX)
                     local scale = 0.65 + rng:NextNumber() * 0.35
                     _kickRoundActive = true
                     pcall(function() revKickEvent:FireServer(scale, 1) end)
 
-                    -- Step 3: wait for the tsunami to start (~4s into the animation),
-                    -- then be in the CollectZone when it arrives
-                    task.wait(j(4, 0.15))
-
+                    -- Wait for OnStartKick to unanchor the character (line 667 of GameHandler).
+                    -- The server anchors on receipt, runs the animation (~3.5s of task.waits),
+                    -- then unanchors right before the tsunami spawns. Only move after that.
                     hrp = getHRP()
-                    if hrp then
+                    local unanchorDeadline = tick() + 12
+                    while hrp and hrp.Parent and hrp.Anchored and tick() < unanchorDeadline do
+                        task.wait(0.1)
+                        hrp = getHRP()
+                    end
+
+                    -- Character is now free — run to collect zone and claim the brainrots
+                    hrp = getHRP()
+                    if hrp and not hrp.Anchored then
                         teleportInto(hrp, collectZone)
-                        task.wait(j(0.6, 0.25))
+                        task.wait(j(0.5, 0.2))
                         pcall(function() revKickCollect:FireServer() end)
                     end
 
-                    -- Step 4: wait for the server to close the round
                     waitForRoundEnd(25)
-
-                    -- Short break before next round
-                    task.wait(j(3, 0.25))
+                    task.wait(j(2.5, 0.25))
                 end
             end)
         end
@@ -168,7 +176,7 @@ return function(section)
     elements:Toggle("Auto Upgrade", section, function(v)
         getgenv()._brk_upgrade = v
         if v then
-            task.spawn(function()
+            spawn(function()
                 while getgenv()._brk_upgrade do
                     local plot = getMyPlot()
                     if plot then
@@ -195,7 +203,7 @@ return function(section)
     elements:Toggle("Auto Lift", section, function(v)
         getgenv()._brk_lift = v
         if v then
-            task.spawn(function()
+            spawn(function()
                 while getgenv()._brk_lift do
                     local char = player.Character
                     local hum  = char and char:FindFirstChild("Humanoid")
@@ -224,7 +232,7 @@ return function(section)
     elements:Toggle("Auto Rebirth", section, function(v)
         getgenv()._brk_rebirth = v
         if v then
-            task.spawn(function()
+            spawn(function()
                 while getgenv()._brk_rebirth do
                     pcall(function() revRebirth:FireServer() end)
                     task.wait(j(12, 0.2))
@@ -235,11 +243,27 @@ return function(section)
 
     -- ── Unload ────────────────────────────────────────────────────────────────────
     section.AncestorRemoving:Connect(function()
+        -- Stop all flags so loops exit on their next check
         getgenv()._brk_collect = false
         getgenv()._brk_sell    = false
         getgenv()._brk_kick    = false
         getgenv()._brk_upgrade = false
         getgenv()._brk_lift    = false
         getgenv()._brk_rebirth = false
+
+        -- Cancel every tracked thread immediately (catches threads blocked in
+        -- waitForRoundEnd or long task.wait calls that haven't checked the flag)
+        for _, t in ipairs(_threads) do
+            pcall(task.cancel, t)
+        end
+        table.clear(_threads)
+
+        -- Disconnect the persistent remote connection
+        _kickEndedConn:Disconnect()
+
+        -- Unequip squat tool so lifting stops right away
+        local char = player.Character
+        local hum  = char and char:FindFirstChild("Humanoid")
+        if hum then pcall(function() hum:UnequipTools() end) end
     end)
 end
