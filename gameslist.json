@@ -1,8 +1,12 @@
 [
+  { "game": "Bedwars",                    "id": "6872265039"      },
+  { "game": "SkyWars",                    "id": "8951451142"      },
+  { "game": "Murder Mystery 2",           "id": "142823291"       },
   { "game": "Build A Ring Farm",          "id": "107646426076756" },
   { "game": "+1 Backflip for Brainrots",  "id": "108344031766098" },
   { "game": "Catch And Tame",             "id": "96645548064314"  },
   { "game": "Sell Lemons",                "id": "79268393072444"  },
+  { "game": "Wild West",                  "id": "2317712696"      },
   { "game": "Survive Flood for Brainrots","id": "100070667273689" },
   { "game": "Pole Obby for Brainrots",    "id": "105215477731035" },
   { "game": "Reel a Brainrot",            "id": "106772177198260" },
@@ -17,6 +21,5 @@
   { "game": "Cross the Road for Brainrot","id": "89072926726733"  },
   { "game": "Scream for Brainrot",        "id": "94780005879799"  },
   { "game": "Parkour Run for Brainrots",  "id": "97508801613157"  },
-  { "game": "Be Flash for Brainrots",    "id": "136066387156306" },
-  { "game": "Wild West",                 "id": "2317712696"      }
+  { "game": "Be Flash for Brainrots",     "id": "136066387156306" }
 ]
