@@ -156,8 +156,8 @@ return function(section)
                         continue
                     end
 
-                    -- Fire with randomised power
-                    local scale = 0.65 + rng:NextNumber() * 0.35
+                    -- Perfect kick every time (scale=1 is max timing accuracy)
+                    local scale = 1
                     _kickRoundActive = true
                     pcall(function() revKickEvent:FireServer(scale, 1) end)
 
