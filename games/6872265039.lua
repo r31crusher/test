@@ -16,26 +16,73 @@ return function(section)
     local bd      = {}
     local _loaded = false
 
+    -- Scan RS descendants for a module by name (max depth 5)
+    local function _findModule(name, timeout)
+        local found = RS:FindFirstChild(name, true)
+        if found then return found end
+        local t = 0
+        repeat
+            task.wait(0.2); t += 0.2
+            found = RS:FindFirstChild(name, true)
+        until found or t >= (timeout or 10)
+        return found
+    end
+
     task.spawn(function()
-        local ok, Knit = pcall(require,
-            RS:WaitForChild("Modules", 30)
-              :WaitForChild("Knit", 30)
-              :WaitForChild("Client", 30))
-        if not ok then return end
+        -- Try hardcoded path first, then fall back to a recursive scan
+        local Knit
+        local knitPaths = {
+            {"Modules", "Knit", "Client"},
+            {"Knit", "Client"},
+            {"Client", "Knit"},
+        }
+        for _, path in knitPaths do
+            local ok2, m = pcall(function()
+                local cur = RS
+                for _, p in path do cur = cur:WaitForChild(p, 3) end
+                return require(cur)
+            end)
+            if ok2 and m then Knit = m; break end
+        end
+        if not Knit then return end
 
         local waited = 0
         while not debug.getupvalue(Knit.Start, 1) and waited < 30 do
             task.wait(0.1); waited += 0.1
         end
 
+        -- Locate Blink client module (try multiple paths)
+        local BlinkMod
+        for _, path in {{"Blink", "Client"}, {"Modules", "Blink", "Client"}, {"Client", "Blink"}} do
+            local ok2, m = pcall(function()
+                local cur = RS
+                for _, p in path do cur = cur:WaitForChild(p, 2) end
+                return require(cur)
+            end)
+            if ok2 and m then BlinkMod = m; break end
+        end
+        -- Last resort: scan by name
+        if not BlinkMod then
+            local node = _findModule("Blink", 5)
+            if node then pcall(function() BlinkMod = require(node) end) end
+        end
+        if not BlinkMod then return end
+
+        local EntityMod, BowMod, CombatMod
+        pcall(function() EntityMod = require(_findModule("Entity", 5)) end)
+        pcall(function()
+            BowMod = require(RS:WaitForChild("Client"):WaitForChild("Components")
+                               :WaitForChild("All"):WaitForChild("Tools")
+                               :WaitForChild("BowClient"))
+        end)
+        pcall(function() CombatMod = require(_findModule("Melee", 5)) end)
+
         bd = setmetatable({
             Knit         = Knit,
-            Blink        = require(RS:WaitForChild("Blink"):WaitForChild("Client")),
-            Entity       = require(RS:WaitForChild("Modules"):WaitForChild("Entity")),
-            BowClient    = require(RS:WaitForChild("Client"):WaitForChild("Components")
-                                     :WaitForChild("All"):WaitForChild("Tools")
-                                     :WaitForChild("BowClient")),
-            CombatConsts = require(RS:WaitForChild("Constants"):WaitForChild("Melee")),
+            Blink        = BlinkMod,
+            Entity       = EntityMod,
+            BowClient    = BowMod,
+            CombatConsts = CombatMod,
         }, {
             __index = function(self, k)
                 local ok2, v = pcall(function()
@@ -115,8 +162,14 @@ return function(section)
                 return
             end
         end
-        local eh = tgt.Character:FindFirstChild("HumanoidRootPart")
-        if eh then firetouchinterest(eh, tool, 0); task.wait(); firetouchinterest(eh, tool, 1) end
+        -- Fallback: firetouchinterest with the tool's Handle (must be a BasePart)
+        local eh     = tgt.Character:FindFirstChild("HumanoidRootPart")
+        local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("BasePart")
+        if eh and handle then
+            firetouchinterest(eh, handle, 0)
+            task.wait(0.05)
+            firetouchinterest(eh, handle, 1)
+        end
     end)
 
     -- ── Reach ─────────────────────────────────────────────────────────────────
