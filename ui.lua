@@ -420,30 +420,9 @@ elements:Toggle("Auto Rejoin on kick", Sections.Settings.Container, function(v)
     getgenv().autorjjjj = v
 end)
 
+-- Stub: real cleanup defined at end of file once all locals are in scope
 elements:Button("Unload", Sections.Settings.Container, function()
-    getgenv()._astroFlying    = false
-    getgenv()._astroNoclip    = false
-    getgenv()._astroAiming    = false
-    getgenv()._aimEnabled     = false
-    getgenv()._astroInfJump   = false
-    getgenv()._astroAntiAfk   = false
-    getgenv()._astroFullbright = false
-    getgenv().autorjjjj       = false
-    RunService:UnbindFromRenderStep("AstroFly")
-    RunService:UnbindFromRenderStep("AstroAim")
-    RunService:Set3dRenderingEnabled(true)
-    if _flyBV then _flyBV:Destroy() end
-    if _flyBG then _flyBG:Destroy() end
-    if _fbOrig then
-        local L = game:GetService("Lighting")
-        L.Brightness = _fbOrig[1]; L.Ambient = _fbOrig[2]
-        L.OutdoorAmbient = _fbOrig[3]; L.FogEnd = _fbOrig[4]
-    end
-    if plr.Character then
-        local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.WalkSpeed = 16; h.PlatformStand = false end
-    end
-    gui:Destroy()
+    if getgenv()._astroUnload then getgenv()._astroUnload() end
 end)
 
 local _binds = {
@@ -1321,7 +1300,7 @@ do
 
         -- Name + info
         local nameLabel = Instance.new("TextLabel", row)
-        nameLabel.Size = UDim2.new(1, -160, 0, 18)
+        nameLabel.Size = UDim2.new(1, -194, 0, 18)
         nameLabel.Position = UDim2.new(0, 10, 0, 6)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Font = Enum.Font.GothamBold
@@ -1331,7 +1310,7 @@ do
         nameLabel.Text = p.DisplayName .. (p.DisplayName ~= p.Name and ("  @" .. p.Name) or "")
 
         local infoLabel = Instance.new("TextLabel", row)
-        infoLabel.Size = UDim2.new(1, -160, 0, 14)
+        infoLabel.Size = UDim2.new(1, -194, 0, 14)
         infoLabel.Position = UDim2.new(0, 10, 0, 26)
         infoLabel.BackgroundTransparency = 1
         infoLabel.Font = Enum.Font.Gotham
@@ -1342,21 +1321,24 @@ do
         local ageStr = age < 30 and "New (<30d)" or age < 365 and (math.floor(age/30) .. "mo") or (math.floor(age/365) .. "yr")
         infoLabel.Text = "ID: " .. p.UserId .. "  ·  Acct: " .. ageStr
 
-        -- Buttons
+        -- Buttons (4 across, 50px each, 6px gap → rightmost at -10)
         local function makeBtn(label, xOffset, color, cb)
             local btn = Instance.new("TextButton", row)
-            btn.Size = UDim2.new(0, 66, 0, 26)
+            btn.Size = UDim2.new(0, 50, 0, 26)
             btn.Position = UDim2.new(1, xOffset, 0.5, -13)
             btn.BackgroundColor3 = color
             btn.BorderSizePixel = 0
             btn.AutoButtonColor = false
             btn.Font = Enum.Font.GothamSemibold
-            btn.TextSize = 11
+            btn.TextSize = 10
             btn.TextColor3 = Color3.fromRGB(210, 200, 255)
             btn.Text = label
             Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
             btn.MouseEnter:Connect(function()
-                btn.BackgroundColor3 = Color3.fromRGB(color.R*255+20, color.G*255, color.B*255+30)
+                btn.BackgroundColor3 = Color3.fromRGB(
+                    math.clamp(color.R * 255 + 20, 0, 255),
+                    math.clamp(color.G * 255,      0, 255),
+                    math.clamp(color.B * 255 + 30, 0, 255))
             end)
             btn.MouseLeave:Connect(function() btn.BackgroundColor3 = color end)
             btn.MouseButton1Click:Connect(cb)
@@ -1364,7 +1346,7 @@ do
         end
 
         -- TP To
-        makeBtn("TP To", -154, Color3.fromRGB(38, 28, 75), function()
+        makeBtn("TP", -178, Color3.fromRGB(38, 28, 75), function()
             local myChar = plr.Character
             local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
@@ -1375,7 +1357,7 @@ do
         end)
 
         -- Spectate
-        makeBtn("Spec", -82, Color3.fromRGB(30, 22, 60), function()
+        makeBtn("Spec", -122, Color3.fromRGB(30, 22, 60), function()
             local cam = workspace.CurrentCamera
             local tgtChar = p.Character
             local hum = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
@@ -1386,8 +1368,41 @@ do
         end)
 
         -- Copy UserId
-        makeBtn("Copy ID", -10, Color3.fromRGB(22, 18, 45), function()
+        makeBtn("Copy ID", -66, Color3.fromRGB(22, 18, 45), function()
             pcall(setclipboard, tostring(p.UserId))
+        end)
+
+        -- Fling: teleport onto target, spin hard, return
+        makeBtn("Fling", -10, Color3.fromRGB(55, 10, 10), function()
+            local myChar = plr.Character
+            if not myChar then return end
+            local myHRP   = myChar:FindFirstChild("HumanoidRootPart")
+            local tgtChar = p.Character
+            local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
+            if not myHRP or not tgtHRP then return end
+
+            local origCF = myHRP.CFrame
+            myHRP.CFrame = tgtHRP.CFrame  -- snap onto target
+
+            local bav = Instance.new("BodyAngularVelocity")
+            bav.AngularVelocity = Vector3.new(0, 4e4, 0)
+            bav.MaxTorque       = Vector3.new(4e4, 4e4, 4e4)
+            bav.P               = 4e4
+            bav.Parent          = myHRP
+
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity  = Vector3.new(0, 60, 0)
+            bv.MaxForce  = Vector3.new(1e4, 1e4, 1e4)
+            bv.P         = 1e4
+            bv.Parent    = myHRP
+
+            task.delay(0.15, function()
+                pcall(function() bav:Destroy() end)
+                pcall(function() bv:Destroy() end)
+                if myHRP and myHRP.Parent then
+                    myHRP.CFrame = origCF
+                end
+            end)
         end)
 
         return row
@@ -1496,4 +1511,56 @@ do
                                           startPos.Y.Scale, startPos.Y.Offset + d.Y)
         end
     end)
+end
+
+-- ── Unload (defined here so all locals are captured correctly) ────────────────
+getgenv()._astroUnload = function()
+    -- flags
+    getgenv()._astroFlying         = false
+    getgenv()._astroNoclip         = false
+    getgenv()._astroAiming         = false
+    getgenv()._aimEnabled          = false
+    getgenv()._astroInfJump        = false
+    getgenv()._astroAntiAfk        = false
+    getgenv()._astroAimTeamCheck   = false
+    getgenv()._astroAimVisCheck    = false
+    getgenv().autorjjjj            = false
+
+    -- stop all render steps
+    RunService:UnbindFromRenderStep("AstroFly")
+    RunService:UnbindFromRenderStep("AstroAim")
+    RunService:UnbindFromRenderStep("AstroAimRestore")
+    RunService:Set3dRenderingEnabled(true)
+
+    -- fly cleanup
+    if _flyBV then _flyBV:Destroy(); _flyBV = nil end
+    if _flyBG then _flyBG:Destroy(); _flyBG = nil end
+
+    -- fullbright restore (uses locals _fullbrightOn and _fbOrig)
+    if _fullbrightOn and _fbOrig then
+        local L = game:GetService("Lighting")
+        L.Brightness     = _fbOrig[1]
+        L.Ambient        = _fbOrig[2]
+        L.OutdoorAmbient = _fbOrig[3]
+        L.FogEnd         = _fbOrig[4]
+    end
+    _fullbrightOn = false
+
+    -- walk speed reset
+    _walkEnabled = false
+    if plr.Character then
+        local h = plr.Character:FindFirstChildOfClass("Humanoid")
+        if h then
+            h.WalkSpeed     = 16
+            h.PlatformStand = false
+        end
+    end
+
+    -- clear all ESP drawings
+    for uid in pairs(_espD) do
+        cleanESP(uid)
+    end
+
+    -- destroy GUI (triggers AncestorRemoving on game script section → cleans MM2 targetGui etc.)
+    gui:Destroy()
 end
