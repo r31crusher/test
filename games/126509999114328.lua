@@ -7,13 +7,16 @@ return function(section)
     local re  = game:GetService("ReplicatedStorage").RemoteEvents
 
     -- Remotes
-    local rfToolDmg  = re:WaitForChild("ToolDamageObject")    -- RF: (model, tool, dmg, hrpCF[, lethal])
-    local rfTorch    = re:WaitForChild("MonsterHitByTorch")   -- RF: (enemyModel)
-    local rfScrap    = re:WaitForChild("RequestScrapItem")    -- RF: (scrapper, item)
-    local evBurn     = re:WaitForChild("RequestBurnItem")     -- RE: (fire, item)
-    local evCook     = re:WaitForChild("RequestCookItem")     -- RE: (fire, item)
-    local evTameN    = re:WaitForChild("RequestTame_Neutral") -- RE: (animal, tool)
-    local evTameH    = re:WaitForChild("RequestTame_Hungry")  -- RE: (animal, tool)
+    local rfToolDmg  = re:WaitForChild("ToolDamageObject")
+    local rfTorch    = re:WaitForChild("MonsterHitByTorch")
+    local rfScrap    = re:WaitForChild("RequestScrapItem")
+    local evBurn     = re:WaitForChild("RequestBurnItem")
+    local evCook     = re:WaitForChild("RequestCookItem")
+    local evDragStart = re:WaitForChild("RequestStartDraggingItem")
+    local evDragStop  = re:WaitForChild("StopDraggingItem")
+    local evTameN    = re:WaitForChild("RequestTame_Neutral")
+    local evTameH    = re:WaitForChild("RequestTame_Hungry")
+    local evRevive   = re:WaitForChild("RequestSelfRevive")
     local evUpgDef   = re:WaitForChild("RequestUpgradeDefense")
 
     -- ── Helpers ──────────────────────────────────────────────────────────────
@@ -25,10 +28,31 @@ return function(section)
         local c = lp.Character
         return c and c:FindFirstChildOfClass("Humanoid")
     end
-    -- Only returns equipped tool — server rejects backpack tools
-    local function getEquippedTool()
-        local c = lp.Character
-        return c and c:FindFirstChildOfClass("Tool")
+
+    -- Spy confirmed: tool lives in player.Inventory (custom folder), not Character/Backpack
+    local function getTool(wantResource)
+        local inv = lp:FindFirstChild("Inventory")
+        if not inv then return nil end
+        for _, item in pairs(inv:GetChildren()) do
+            if wantResource and item:GetAttribute("WeaponResourceDamage") then
+                return item
+            elseif not wantResource and item:GetAttribute("WeaponDamage") then
+                return item
+            end
+        end
+        -- fallback: first item in inventory
+        return inv:GetChildren()[1]
+    end
+
+    -- Spy confirmed: damage arg is a string ID "counter_userId", not a number.
+    -- Must also set Local_<id> on HitRegisters before invoking.
+    local dmgCounter = 1
+    local function makeDmgId(model, damage)
+        local id = tostring(dmgCounter) .. "_" .. math.abs(lp.UserId)
+        dmgCounter = dmgCounter + 1
+        local hr = model:FindFirstChild("HitRegisters")
+        if hr then hr:SetAttribute("Local_" .. id, damage) end
+        return id
     end
 
     local function getCampground()
@@ -48,7 +72,7 @@ return function(section)
         return cg and cg:FindFirstChild("Scrapper")
     end
 
-    -- Returns the CFrame of the fire's InnerTouchZone (items go directly inside it)
+    -- InnerTouchZone CFrame — items go here so fire detects them
     local function getFireCF()
         local f = getFire()
         if not f then return nil end
@@ -58,16 +82,10 @@ return function(section)
         return zone and zone.CFrame
     end
 
-    -- Moves a Model and unanchors all its parts so they fall naturally
+    -- Moves a Model without unanchoring — keeps items visible at destination
+    -- (unanchoring causes items to fall through terrain and vanish)
     local function moveModel(model, cf)
-        pcall(function()
-            model:PivotTo(cf)
-            for _, p in pairs(model:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    p.Anchored = false
-                end
-            end
-        end)
+        pcall(function() model:PivotTo(cf) end)
     end
 
     local function ownedItems()
@@ -99,7 +117,7 @@ return function(section)
     -- ════════════════════════════════════════════════════════════════════════
     elements:Label("━━━━  COMBAT  ━━━━", section)
 
-    -- Kill Aura — passes the enemy MODEL (has HitRegisters + Health on model)
+    -- Kill Aura
     local killLast = 0
     elements:Toggle("Kill Aura", section, function(v)
         active.kill = v
@@ -109,7 +127,7 @@ return function(section)
             if time() - killLast < 0.25 then return end
             killLast = time()
             local hrp  = getHRP()
-            local tool = getEquippedTool()
+            local tool = getTool(false)
             if not hrp or not tool then return end
             local chars = workspace:FindFirstChild("Characters")
             if not chars then return end
@@ -120,8 +138,10 @@ return function(section)
                         or enemy.PrimaryPart
                         or enemy:FindFirstChildWhichIsA("BasePart")
                     if root and (root.Position - hrp.Position).Magnitude <= 20 then
+                        local dmg = tool:GetAttribute("WeaponDamage") or 10
+                        local id  = makeDmgId(enemy, dmg)
                         task.spawn(function()
-                            rfToolDmg:InvokeServer(enemy, tool, 9999, hrp.CFrame)
+                            rfToolDmg:InvokeServer(enemy, tool, id, hrp.CFrame, false)
                         end)
                     end
                 end
@@ -129,7 +149,7 @@ return function(section)
         end))
     end)
 
-    -- Chop Aura — passes the tree MODEL (has HitRegisters + Health on model)
+    -- Chop Aura
     local chopAuraLast = 0
     elements:Toggle("Chop Aura", section, function(v)
         active.chopAura = v
@@ -139,7 +159,7 @@ return function(section)
             if time() - chopAuraLast < 0.5 then return end
             chopAuraLast = time()
             local hrp  = getHRP()
-            local tool = getEquippedTool()
+            local tool = getTool(true)
             if not hrp or not tool then return end
             local foliage = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Foliage")
             if not foliage then return end
@@ -150,8 +170,9 @@ return function(section)
                     if (pivot.Position - hrp.Position).Magnitude <= 30 then
                         local dmg    = tool:GetAttribute("WeaponResourceDamage") or 10
                         local lethal = hp <= dmg
+                        local id     = makeDmgId(tree, dmg)
                         task.spawn(function()
-                            rfToolDmg:InvokeServer(tree, tool, dmg, hrp.CFrame, lethal)
+                            rfToolDmg:InvokeServer(tree, tool, id, hrp.CFrame, lethal)
                         end)
                     end
                 end
@@ -159,14 +180,14 @@ return function(section)
         end))
     end)
 
-    -- Auto Chop Trees — teleports to each tree and passes the tree MODEL
+    -- Auto Chop Trees
     elements:Toggle("Auto Chop Trees", section, function(v)
         active.chopAll = v
         if not v then return end
         task.spawn(function()
             while active.chopAll do
                 local hrp  = getHRP()
-                local tool = getEquippedTool()
+                local tool = getTool(true)
                 if hrp and tool then
                     local foliage = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Foliage")
                     if foliage then
@@ -175,12 +196,13 @@ return function(section)
                             local hp = tree:GetAttribute("Health") or 0
                             if tree:FindFirstChild("HitRegisters") and hp > 0 then
                                 local pivot = tree:GetPivot()
-                                hrp.CFrame = CFrame.new(pivot.Position + Vector3.new(3, 0, 0))
+                                hrp.CFrame  = CFrame.new(pivot.Position + Vector3.new(3, 0, 0))
                                 task.wait(0.1)
                                 local dmg    = tool:GetAttribute("WeaponResourceDamage") or 10
                                 local lethal = hp <= dmg
+                                local id     = makeDmgId(tree, dmg)
                                 task.spawn(function()
-                                    rfToolDmg:InvokeServer(tree, tool, dmg, hrp.CFrame, lethal)
+                                    rfToolDmg:InvokeServer(tree, tool, id, hrp.CFrame, lethal)
                                 end)
                                 task.wait(0.35)
                             end
@@ -220,22 +242,16 @@ return function(section)
         end))
     end)
 
-    -- God Mode — health setter + auto-revive on death (server health is authoritative,
-    -- so the revive remote is the reliable part; health setting helps against client-checked damage)
-    local evRevive = re:WaitForChild("RequestSelfRevive")
+    -- God Mode
     local function bindGodMode()
         if not active.god then return end
         local char = lp.Character
         if not char then return end
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hum then return end
-        -- try to keep health maxed locally (catches client-side damage checks)
         addConn(hum.HealthChanged:Connect(function()
-            if active.god then
-                pcall(function() hum.Health = hum.MaxHealth end)
-            end
+            if active.god then pcall(function() hum.Health = hum.MaxHealth end) end
         end))
-        -- when we actually die, revive instantly
         addConn(hum.Died:Connect(function()
             if active.god then
                 task.wait(0.1)
@@ -247,7 +263,6 @@ return function(section)
         active.god = v
         if not v then return end
         bindGodMode()
-        -- re-bind on respawn
         addConn(lp.CharacterAdded:Connect(function()
             task.wait(1)
             bindGodMode()
@@ -264,7 +279,7 @@ return function(section)
             if time() - tameLast < 1 then return end
             tameLast = time()
             local hrp  = getHRP()
-            local tool = getEquippedTool()
+            local tool = getTool(false)
             if not hrp or not tool then return end
             local chars = workspace:FindFirstChild("Characters")
             if not chars then return end
@@ -291,7 +306,6 @@ return function(section)
     -- ════════════════════════════════════════════════════════════════════════
     elements:Label("━━━━  FARMING  ━━━━", section)
 
-    -- Bring Items to Camp
     elements:Button("Bring Items to Camp", section, function()
         local hrp = getHRP()
         if not hrp then return end
@@ -302,21 +316,21 @@ return function(section)
         end
     end)
 
-    -- TP Wood to Fire — drops items directly into InnerTouchZone then fires remote
     elements:Button("TP Wood to Fire", section, function()
-        local fire = getFire()
+        local fire  = getFire()
         local fireCF = getFireCF()
         if not fire or not fireCF then warn("[Astro] MainFire not found") return end
         for _, item in pairs(ownedItems()) do
             if item:GetAttribute("BurnFuel") then
                 moveModel(item, fireCF)
+                evDragStart:FireServer(item)
                 task.wait(0.05)
                 evBurn:FireServer(fire, item)
+                evDragStop:FireServer(item)
             end
         end
     end)
 
-    -- TP Wood to Crafter — stacks wood items on top of CraftingBench
     elements:Button("TP Wood to Crafter", section, function()
         local crafter = getCrafter()
         if not crafter then warn("[Astro] CraftingBench not found") return end
@@ -330,21 +344,21 @@ return function(section)
         end
     end)
 
-    -- TP Meat to Fire — drops items directly into InnerTouchZone then fires remote
     elements:Button("TP Meat to Fire", section, function()
-        local fire = getFire()
+        local fire  = getFire()
         local fireCF = getFireCF()
         if not fire or not fireCF then warn("[Astro] MainFire not found") return end
         for _, item in pairs(ownedItems()) do
             if item:GetAttribute("Cookable") then
                 moveModel(item, fireCF)
+                evDragStart:FireServer(item)
                 task.wait(0.05)
                 evCook:FireServer(fire, item)
+                evDragStop:FireServer(item)
             end
         end
     end)
 
-    -- Auto Scrap Junk
     elements:Toggle("Auto Scrap Junk", section, function(v)
         active.scrap = v
         if not v then return end
@@ -357,8 +371,7 @@ return function(section)
                         if not active.scrap then break end
                         if item:GetAttribute("Scrappable") or
                            item:HasTag("CanBeGrinded") or
-                           item:HasTag("Gem") or
-                           item:HasTag("GreenGem") then
+                           item:HasTag("Gem") or item:HasTag("GreenGem") then
                             moveModel(item, scrapCF)
                             task.wait(0.1)
                             task.spawn(function()
