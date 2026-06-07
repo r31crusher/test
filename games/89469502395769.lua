@@ -6,12 +6,19 @@ return function(section)
     local RS       = game:GetService("ReplicatedStorage")
 
     local Network        = RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network")
-    local revBCollect    = Network:WaitForChild("rev_B_Collect")
-    local revBUpgrade    = Network:WaitForChild("rev_B_Upgrade")
     local revKickEvent   = Network:WaitForChild("rev_KickEvent")
     local revKickCollect = Network:WaitForChild("rev_KickCollect")
+    local revBUpgrade    = Network:WaitForChild("rev_B_Upgrade")
     local revRebirth     = Network:WaitForChild("rev_RebirthRequest")
     local refSellAll     = Network:WaitForChild("ref_B_SellAll")
+
+    local rng = Random.new()
+
+    -- Returns a value in [base*(1-jitter), base*(1+jitter)]
+    local function j(base, jitter)
+        jitter = jitter or 0.25
+        return base * (1 + (rng:NextNumber() * 2 - 1) * jitter)
+    end
 
     local function getHRP()
         local char = player.Character
@@ -28,36 +35,48 @@ return function(section)
         end
     end
 
+    -- Teleport inside a part with a small random XZ offset so it looks natural
+    local function teleportInto(hrp, part)
+        local sz  = part.Size
+        local ox  = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.3, 3)
+        local oz  = (rng:NextNumber() * 2 - 1) * math.min(sz.Z * 0.3, 3)
+        hrp.CFrame = part.CFrame * CFrame.new(ox, 3, oz)
+    end
+
     -- ── Auto Collect ──────────────────────────────────────────────────────────────
-    -- Fires B_Collect for every brainrot slot button on the player's own plot
+    -- Uses firetouchinterest to go through the game's Touched handler; the handler
+    -- checks coins > 0 and applies its own 0.4 s debounce before firing B_Collect.
     getgenv()._brk_collect = false
     elements:Toggle("Auto Collect", section, function(v)
         getgenv()._brk_collect = v
         if v then
             task.spawn(function()
                 while getgenv()._brk_collect do
+                    local hrp  = getHRP()
                     local plot = getMyPlot()
-                    if plot then
+                    if hrp and plot then
                         local buttons = plot:FindFirstChild("Buttons")
                         if buttons then
                             for _, slot in ipairs(buttons:GetChildren()) do
                                 if not getgenv()._brk_collect then break end
-                                local slotId = tonumber(slot.Name:gsub("Slot", ""))
-                                if slotId then
-                                    pcall(function() revBCollect:FireServer(slotId) end)
+                                if slot:IsA("BasePart") and slot.Name:match("^Slot%d+$") then
+                                    pcall(firetouchinterest, slot, hrp, 0)
                                     task.wait(0.05)
+                                    pcall(firetouchinterest, slot, hrp, 1)
+                                    -- Slightly faster than the 0.4 s debounce; feels like
+                                    -- a player walking quickly past each button
+                                    task.wait(j(0.45, 0.2))
                                 end
                             end
                         end
                     end
-                    task.wait(1)
+                    task.wait(j(1.5, 0.3))
                 end
             end)
         end
     end)
 
     -- ── Auto Sell ─────────────────────────────────────────────────────────────────
-    -- Sells all brainrots from the player's inventory every 3 seconds
     getgenv()._brk_sell = false
     elements:Toggle("Auto Sell", section, function(v)
         getgenv()._brk_sell = v
@@ -65,14 +84,15 @@ return function(section)
             task.spawn(function()
                 while getgenv()._brk_sell do
                     pcall(function() refSellAll:InvokeServer() end)
-                    task.wait(3)
+                    task.wait(j(4, 0.3))
                 end
             end)
         end
     end)
 
     -- ── Auto Kick ─────────────────────────────────────────────────────────────────
-    -- Teleports to the KickReady area, fires at max power, then collects
+    -- Randomises kick scale (0.75–1.0) and delays to mimic imperfect human timing.
+    -- Teleports into the zone with a small random offset before firing.
     getgenv()._brk_kick = false
     elements:Toggle("Auto Kick", section, function(v)
         getgenv()._brk_kick = v
@@ -86,28 +106,35 @@ return function(section)
                         continue
                     end
                     local hrp = getHRP()
+                    if not hrp then task.wait(2) continue end
+
+                    -- Move into kick zone then wait a beat before swinging
+                    teleportInto(hrp, kickArea)
+                    task.wait(j(0.8, 0.3))
+
+                    -- Scale varies 0.75–1.0; percent stays at 1 (player left it at MAX)
+                    local scale = 0.75 + rng:NextNumber() * 0.25
+                    pcall(function() revKickEvent:FireServer(scale, 1) end)
+
+                    -- Wait for the kick sequence + tsunami to resolve
+                    task.wait(j(5.5, 0.15))
+
+                    -- Move into collect zone
+                    hrp = getHRP()
                     if hrp then
-                        hrp.CFrame = kickArea.CFrame * CFrame.new(0, 3, 0)
-                        task.wait(0.3)
-                        pcall(function() revKickEvent:FireServer(1, 1) end)
-                        task.wait(5)
-                        hrp = getHRP()
-                        if hrp then
-                            hrp.CFrame = collectZone.CFrame * CFrame.new(0, 3, 0)
-                            task.wait(0.3)
-                            pcall(function() revKickCollect:FireServer() end)
-                        end
-                        task.wait(2)
-                    else
-                        task.wait(2)
+                        teleportInto(hrp, collectZone)
+                        task.wait(j(0.5, 0.3))
+                        pcall(function() revKickCollect:FireServer() end)
                     end
+
+                    -- Brief pause before next round
+                    task.wait(j(2.5, 0.2))
                 end
             end)
         end
     end)
 
     -- ── Auto Upgrade ─────────────────────────────────────────────────────────────
-    -- Fires B_Upgrade for every brainrot slot on the player's plot
     getgenv()._brk_upgrade = false
     elements:Toggle("Auto Upgrade", section, function(v)
         getgenv()._brk_upgrade = v
@@ -123,20 +150,20 @@ return function(section)
                                 local slotId = tonumber(slot.Name:gsub("Slot", ""))
                                 if slotId then
                                     pcall(function() revBUpgrade:FireServer(slotId) end)
-                                    task.wait(0.05)
+                                    task.wait(j(0.35, 0.3))
                                 end
                             end
                         end
                     end
-                    task.wait(3)
+                    task.wait(j(5, 0.25))
                 end
             end)
         end
     end)
 
     -- ── Auto Lift ─────────────────────────────────────────────────────────────────
-    -- Keeps the SquatTool equipped so the server-side lift loop keeps running.
-    -- Re-equips whenever the game unequips it (kick zone entry, kick start, etc.)
+    -- Keeps the SquatTool equipped. The server runs its own lift loop while it's
+    -- held; the game unequips it during kicks so we re-equip after each round.
     getgenv()._brk_lift = false
     elements:Toggle("Auto Lift", section, function(v)
         getgenv()._brk_lift = v
@@ -146,13 +173,10 @@ return function(section)
                     local char = player.Character
                     local hum  = char and char:FindFirstChild("Humanoid")
                     if hum then
-                        -- Skip if in kick zone or mid-kick (tool auto-unequips there)
-                        local inKickZone = char:GetAttribute("RoundDebounce") or player:GetAttribute("KickDebounced")
-                        if not inKickZone then
-                            -- Check if already equipped
+                        local inKick = player:GetAttribute("RoundDebounce") or player:GetAttribute("KickDebounced")
+                        if not inKick then
                             local equipped = char:FindFirstChildOfClass("Tool")
                             if not (equipped and equipped:HasTag("SquatTool")) then
-                                -- Find it in backpack
                                 for _, t in ipairs(player.Backpack:GetChildren()) do
                                     if t:IsA("Tool") and t:HasTag("SquatTool") then
                                         hum:EquipTool(t)
@@ -162,14 +186,14 @@ return function(section)
                             end
                         end
                     end
-                    task.wait(1)
+                    task.wait(j(1.5, 0.35))
                 end
             end)
         end
     end)
 
     -- ── Auto Rebirth ──────────────────────────────────────────────────────────────
-    -- Fires RebirthRequest every 10 seconds; server rejects if requirements unmet
+    -- Server rejects silently if requirements aren't met yet
     getgenv()._brk_rebirth = false
     elements:Toggle("Auto Rebirth", section, function(v)
         getgenv()._brk_rebirth = v
@@ -177,7 +201,7 @@ return function(section)
             task.spawn(function()
                 while getgenv()._brk_rebirth do
                     pcall(function() revRebirth:FireServer() end)
-                    task.wait(10)
+                    task.wait(j(12, 0.2))
                 end
             end)
         end
