@@ -96,18 +96,26 @@ ShowBtn.TextColor3 = C.tMain
 ShowBtn.Visible = false
 Instance.new("UICorner", ShowBtn).CornerRadius = UDim.new(0, 8)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    ShowBtn.Visible = true
-end)
-ShowBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = true
-    ShowBtn.Visible = false
-end)
+local _savedMouseBehavior = Enum.MouseBehavior.Default
+
+local function setMenuVisible(visible)
+    MainFrame.Visible = visible
+    ShowBtn.Visible   = not visible
+    if visible then
+        _savedMouseBehavior            = UserInputService.MouseBehavior
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        UserInputService.MouseIconEnabled = true
+    else
+        UserInputService.MouseBehavior    = _savedMouseBehavior
+        UserInputService.MouseIconEnabled = true
+    end
+end
+
+CloseBtn.MouseButton1Click:Connect(function() setMenuVisible(false) end)
+ShowBtn.MouseButton1Click:Connect(function()  setMenuVisible(true)  end)
 UserInputService.InputBegan:Connect(function(input, gp)
     if not gp and input.KeyCode == Enum.KeyCode.Insert then
-        MainFrame.Visible = not MainFrame.Visible
-        ShowBtn.Visible = not MainFrame.Visible
+        setMenuVisible(not MainFrame.Visible)
     end
 end)
 
@@ -770,8 +778,9 @@ RunService:BindToRenderStep("AstroAimRestore", Enum.RenderPriority.Last.Value + 
     end
 end)
 
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
+-- No gp guard: when the menu is open MouseBehavior=Default causes Roblox to
+-- mark key presses as game-processed, which would silently swallow these binds.
+UserInputService.InputBegan:Connect(function(input)
     if isBound(input, _binds.fly)    then setFly(not getgenv()._astroFlying)    end
     if isBound(input, _binds.noclip) then setNoclip(not getgenv()._astroNoclip) end
 end)
@@ -1300,7 +1309,7 @@ do
 
         -- Name + info
         local nameLabel = Instance.new("TextLabel", row)
-        nameLabel.Size = UDim2.new(1, -194, 0, 18)
+        nameLabel.Size = UDim2.new(1, -242, 0, 18)
         nameLabel.Position = UDim2.new(0, 10, 0, 6)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Font = Enum.Font.GothamBold
@@ -1310,7 +1319,7 @@ do
         nameLabel.Text = p.DisplayName .. (p.DisplayName ~= p.Name and ("  @" .. p.Name) or "")
 
         local infoLabel = Instance.new("TextLabel", row)
-        infoLabel.Size = UDim2.new(1, -194, 0, 14)
+        infoLabel.Size = UDim2.new(1, -242, 0, 14)
         infoLabel.Position = UDim2.new(0, 10, 0, 26)
         infoLabel.BackgroundTransparency = 1
         infoLabel.Font = Enum.Font.Gotham
@@ -1346,7 +1355,7 @@ do
         end
 
         -- TP To
-        makeBtn("TP", -178, Color3.fromRGB(38, 28, 75), function()
+        makeBtn("TP", -226, Color3.fromRGB(38, 28, 75), function()
             local myChar = plr.Character
             local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
@@ -1357,7 +1366,7 @@ do
         end)
 
         -- Spectate
-        makeBtn("Spec", -122, Color3.fromRGB(30, 22, 60), function()
+        makeBtn("Spec", -170, Color3.fromRGB(30, 22, 60), function()
             local cam = workspace.CurrentCamera
             local tgtChar = p.Character
             local hum = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
@@ -1368,12 +1377,12 @@ do
         end)
 
         -- Copy UserId
-        makeBtn("Copy ID", -66, Color3.fromRGB(22, 18, 45), function()
+        makeBtn("Copy ID", -114, Color3.fromRGB(22, 18, 45), function()
             pcall(setclipboard, tostring(p.UserId))
         end)
 
         -- Fling: weld a massively spinning invisible part to the target's HRP
-        makeBtn("Fling", -10, Color3.fromRGB(55, 10, 10), function()
+        makeBtn("Fling", -58, Color3.fromRGB(55, 10, 10), function()
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
             if not tgtHRP then return end
