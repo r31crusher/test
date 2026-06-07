@@ -11,6 +11,19 @@ return function(section)
     local player   = Players.LocalPlayer
     local camera   = workspace.CurrentCamera
 
+    -- ── Remotes bootstrap (Knit — loads fast, no Flamework dependency) ────────
+    local swKnitRemotes = nil
+
+    task.spawn(function()
+        local ok, result = pcall(function()
+            return require(
+                RS:WaitForChild("TS", 30)
+                  :WaitForChild("remotes", 30)
+            ).default
+        end)
+        if ok and result then swKnitRemotes = result end
+    end)
+
     -- ── Flamework bootstrap ────────────────────────────────────────────────────
     local sw      = {}
     local Remotes = nil
@@ -178,6 +191,32 @@ return function(section)
         return false
     end
 
+    -- Fire the SwordHit Knit remote directly (confirmed from dump analysis)
+    local function fireSwordHit(tgtChar)
+        if not swKnitRemotes then return false end
+        local char = player.Character
+        if not char or not char.PrimaryPart then return false end
+        local tool = char:FindFirstChildOfClass("Tool")
+        if not tool then return false end
+        if not tgtChar or not tgtChar.PrimaryPart then return false end
+        local selfPos = char:GetPivot().Position
+        local tgtPos  = tgtChar:GetPivot().Position
+        local ok2, remote = pcall(function() return swKnitRemotes.Client:Get("SwordHit") end)
+        if not ok2 or not remote then return false end
+        pcall(function()
+            remote:SendToServer({
+                weapon         = tool,
+                entityInstance = tgtChar,
+                validate       = {
+                    targetPosition = { value = tgtPos  },
+                    selfPosition   = { value = selfPos },
+                },
+                chargedAttack  = { chargeRatio = 0 },
+            })
+        end)
+        return true
+    end
+
     -- ── KillAura ──────────────────────────────────────────────────────────────
     getgenv()._swKillaura = false
     local _kaCPS   = 12
@@ -190,18 +229,10 @@ return function(section)
 
     RunSvc.Heartbeat:Connect(function()
         if not getgenv()._swKillaura or tick() < _kaNext then return end
-        local tgt  = getNearestEnemy(_kaRange)
-        local tool = getTool()
+        local tgt = getNearestEnemy(_kaRange)
         if not tgt or not tgt.Character then return end
         _kaNext = tick() + 1 / _kaCPS
-
-        if _loaded and sw.MeleeController then
-            pcall(function() sw.MeleeController:strike(tool) end)
-            if sw._remoteStrikeDesktop then fireRemote(sw._remoteStrikeDesktop, tgt) end
-        else
-            local eh = tgt.Character:FindFirstChild("HumanoidRootPart")
-            if eh and tool then firetouchinterest(eh, tool, 0); task.wait(); firetouchinterest(eh, tool, 1) end
-        end
+        fireSwordHit(tgt.Character)
     end)
 
     -- ── Reach ─────────────────────────────────────────────────────────────────
@@ -235,8 +266,10 @@ return function(section)
         if v then
             task.spawn(function()
                 while getgenv()._swAutoClick do
-                    local tool = getTool()
-                    if tool and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then tool:Activate() end
+                    if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                        local tgt = getNearestEnemy(8)
+                        if tgt and tgt.Character then fireSwordHit(tgt.Character) end
+                    end
                     task.wait(1 / _acCPS)
                 end
             end)
@@ -565,7 +598,6 @@ return function(section)
     -- not caused by player movement. More aggressive than Velocity.
     getgenv()._swAntiKB = false
     local _akbHook
-    local _paSpeed = 180  -- shared with projaimbot
 
     elements:Toggle("AntiKnockback", section, function(v)
         getgenv()._swAntiKB = v
