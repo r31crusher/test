@@ -1372,37 +1372,43 @@ do
             pcall(setclipboard, tostring(p.UserId))
         end)
 
-        -- Fling: teleport onto target, spin hard, return
+        -- Fling: weld a massively spinning invisible part to the target's HRP
         makeBtn("Fling", -10, Color3.fromRGB(55, 10, 10), function()
-            local myChar = plr.Character
-            if not myChar then return end
-            local myHRP   = myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-            if not myHRP or not tgtHRP then return end
+            if not tgtHRP then return end
 
-            local origCF = myHRP.CFrame
-            myHRP.CFrame = tgtHRP.CFrame  -- snap onto target
+            -- Invisible anchor part, placed at target
+            local fp = Instance.new("Part")
+            fp.Size        = Vector3.new(1, 1, 1)
+            fp.CFrame      = tgtHRP.CFrame
+            fp.Anchored    = false
+            fp.CanCollide  = false
+            fp.Transparency = 1
+            fp.Massless    = true
+            fp.Parent      = workspace
 
+            -- Weld it to the target's HRP so physics transfers to them
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = fp
+            weld.Part1 = tgtHRP
+            weld.Parent = fp
+
+            -- Extreme angular velocity — the weld torques the target violently
             local bav = Instance.new("BodyAngularVelocity")
-            bav.AngularVelocity = Vector3.new(0, 4e4, 0)
-            bav.MaxTorque       = Vector3.new(4e4, 4e4, 4e4)
-            bav.P               = 4e4
-            bav.Parent          = myHRP
+            bav.AngularVelocity = Vector3.new(0, 9e9, 0)
+            bav.MaxTorque       = Vector3.new(9e9, 9e9, 9e9)
+            bav.P               = 9e9
+            bav.Parent          = fp
 
+            -- Also kick them upward so they leave the ground
             local bv = Instance.new("BodyVelocity")
-            bv.Velocity  = Vector3.new(0, 60, 0)
-            bv.MaxForce  = Vector3.new(1e4, 1e4, 1e4)
-            bv.P         = 1e4
-            bv.Parent    = myHRP
+            bv.Velocity  = Vector3.new(0, 500, 0)
+            bv.MaxForce  = Vector3.new(0, 9e9, 0)
+            bv.P         = 9e9
+            bv.Parent    = fp
 
-            task.delay(0.15, function()
-                pcall(function() bav:Destroy() end)
-                pcall(function() bv:Destroy() end)
-                if myHRP and myHRP.Parent then
-                    myHRP.CFrame = origCF
-                end
-            end)
+            game:GetService("Debris"):AddItem(fp, 0.2)
         end)
 
         return row
