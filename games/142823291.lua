@@ -30,41 +30,56 @@ return function(section)
         return t
     end
 
-    -- ── Role tracking ─────────────────────────────────────────────────────────
-    -- roles[playerName] = "Murderer" | "Sheriff" | "Innocent"
-    local roles = {}
+    -- ── Role detection ────────────────────────────────────────────────────────
+    -- GiveWeapon only fires to the local player for their own role, so we cannot
+    -- use remote events to learn other players' roles. Instead we read the
+    -- CollectionService tags that the game applies to weapon tools — "Weapon_Knife"
+    -- = murderer, "Weapon_Gun" = sheriff. These tags replicate to all clients, so
+    -- checking any player's character (or backpack) is reliable.
+    local function getRole(p)
+        for _, container in { p.Character, p.Backpack } do
+            if container then
+                for _, obj in container:GetChildren() do
+                    if obj:IsA("Tool") then
+                        if obj:HasTag("Weapon_Knife") then return "Murderer" end
+                        if obj:HasTag("Weapon_Gun")   then return "Sheriff"  end
+                    end
+                end
+            end
+        end
+        return "Innocent"
+    end
 
     local _roleConns = {}
 
-    local function clearRoles()
-        roles = {}
-    end
-
-    -- GiveWeapon fires to the LOCAL player only: "Knife" = murderer, "Gun" = sheriff
-    table.insert(_roleConns, GiveWeapon.OnClientEvent:Connect(function(weaponType)
-        if weaponType == "Knife" then
-            roles[player.Name] = "Murderer"
-        elseif weaponType == "Gun" then
-            roles[player.Name] = "Sheriff"
-        end
-    end))
-
-    -- ShowTeammates fires with a list of player names who are murderers (shown to murderer teammates)
+    -- Still listen to ShowTeammates for modes where multiple murderers exist and
+    -- one may not have their knife visible yet. Store as a supplement.
+    local _knownMurderers = {}
     table.insert(_roleConns, ShowTeammates.OnClientEvent:Connect(function(names)
         for _, name in ipairs(names) do
-            roles[name] = "Murderer"
+            _knownMurderers[name] = true
         end
     end))
+    table.insert(_roleConns, GameplayR:WaitForChild("RoundStart").OnClientEvent:Connect(function()
+        _knownMurderers = {}
+    end))
 
-    -- Round end clears role cache
-    table.insert(_roleConns, GameplayR:WaitForChild("GameOver").OnClientEvent:Connect(clearRoles))
-    table.insert(_roleConns, GameplayR:WaitForChild("RoundStart").OnClientEvent:Connect(clearRoles))
+    -- Wrap getRole so ShowTeammates data acts as a fallback
+    local function getPlayerRole(p)
+        local r = getRole(p)
+        if r ~= "Innocent" then return r end
+        if _knownMurderers[p.Name] then return "Murderer" end
+        return "Innocent"
+    end
 
     -- ── Silent Aim ────────────────────────────────────────────────────────────
     -- Hook WeaponService:GetMouseTargetCFrame so the gun always points at the
     -- nearest enemy player's HumanoidRootPart.
     getgenv()._mm2_silentaim = false
     local origGetTarget = WeaponService.GetMouseTargetCFrame
+
+    -- When true, silent aim only locks onto known murderers (sheriff use-case)
+    getgenv()._mm2_sheriffonly = false
 
     local function nearestEnemy()
         local myChar = player.Character
@@ -74,6 +89,10 @@ return function(section)
         local best, bestDist = nil, math.huge
         for _, p in Players:GetPlayers() do
             if p ~= player and p.Character then
+                -- If sheriff-only flag is set, skip anyone not the murderer
+                if getgenv()._mm2_sheriffonly and getPlayerRole(p) ~= "Murderer" then
+                    continue
+                end
                 local hrp = p.Character:FindFirstChild("HumanoidRootPart")
                 local hum = p.Character:FindFirstChildOfClass("Humanoid")
                 if hrp and hum and hum.Health > 0 then
@@ -99,6 +118,11 @@ return function(section)
 
     elements:Toggle("Silent Aim", section, function(v)
         getgenv()._mm2_silentaim = v
+    end)
+
+    -- Sheriff Only: silent aim targets only known murderers instead of nearest player
+    elements:Toggle("Sheriff Only (aim murderer)", section, function(v)
+        getgenv()._mm2_sheriffonly = v
     end)
 
     -- ── Player ESP ────────────────────────────────────────────────────────────
@@ -174,7 +198,7 @@ return function(section)
                     espBills[p] = nil
                     continue
                 end
-                local role = roles[p.Name] or "Innocent"
+                local role = getPlayerRole(p)
                 local dist = myHRP and math.floor((data.hrp.Position - myHRP.Position).Magnitude) or 0
                 data.lbl.Text = string.format("[%s] %s\n%dm", role, p.Name, dist)
                 data.lbl.TextColor3 = ROLE_COLOR[role] or ROLE_COLOR.Innocent
@@ -197,14 +221,29 @@ return function(section)
         if v then startESP() else stopESP() end
     end)
 
-    -- ── Role Reveal (chat) ────────────────────────────────────────────────────
-    -- Print murderer/sheriff to dev console when detected via ShowTeammates or
-    -- GiveWeapon. Useful when not using ESP.
+    -- ── Role Reveal (console) ─────────────────────────────────────────────────
+    -- Prints murderer names to dev console when ShowTeammates fires.
     getgenv()._mm2_rolereveal = false
     table.insert(_roleConns, ShowTeammates.OnClientEvent:Connect(function(names)
         if not getgenv()._mm2_rolereveal then return end
         for _, name in ipairs(names) do
             print("[MM2] Murderer detected:", name)
+        end
+    end))
+    -- Also scan all players by weapon tag on demand each second
+    table.insert(_roleConns, RunSvc.Heartbeat:Connect(function()
+        if not getgenv()._mm2_rolereveal then return end
+        for _, p in Players:GetPlayers() do
+            if p ~= player then
+                local role = getPlayerRole(p)
+                if role ~= "Innocent" then
+                    -- only print once per role assignment (stored in _knownMurderers for murderers)
+                    if role == "Murderer" and not _knownMurderers[p.Name .. "_printed"] then
+                        _knownMurderers[p.Name .. "_printed"] = true
+                        print("[MM2]", role, "->", p.Name)
+                    end
+                end
+            end
         end
     end))
 
@@ -279,8 +318,9 @@ return function(section)
 
     -- ── Unload ────────────────────────────────────────────────────────────────
     section.AncestorRemoving:Connect(function()
-        getgenv()._mm2_silentaim  = false
-        getgenv()._mm2_esp        = false
+        getgenv()._mm2_silentaim   = false
+        getgenv()._mm2_sheriffonly = false
+        getgenv()._mm2_esp         = false
         getgenv()._mm2_rolereveal = false
         getgenv()._mm2_coins      = false
         getgenv()._mm2_speed      = false
