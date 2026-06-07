@@ -128,17 +128,6 @@ return function(section)
         end
     end
 
-    -- Place the character's HRP inside the CollectZone so the game's own
-    -- v130 PreRender overlap check (GameHandler line 679) detects it and
-    -- fires KickCollect automatically — no remote spam, no WalkSpeed boost.
-    local function moveIntoZone(zone)
-        local hrp = getHRP()
-        if not hrp then return end
-        local sz = zone.Size
-        local ox = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.35, 2)
-        local oz = (rng:NextNumber() * 2 - 1) * math.min(sz.Z * 0.35, 2)
-        hrp.CFrame = zone.CFrame * CFrame.new(ox, 0, oz)
-    end
 
     getgenv()._brk_kick = false
     elements:Toggle("Auto Kick", section, function(v)
@@ -180,12 +169,11 @@ return function(section)
                         hrp = getHRP()
                     end
 
-                    -- Character is free — move it directly into the CollectZone.
-                    -- The game's own v130 PreRender overlap check (GameHandler line 679)
-                    -- uses GetPartsInPart on the character, so once any character part
-                    -- is inside the zone it fires KickCollect itself. No spam needed.
+                    -- Game repositioned character to block landing spot (GameHandler line 662).
+                    -- Wave now travels back toward CollectZone — walk there so the game's
+                    -- own v130 PreRender check fires KickCollect when we arrive.
                     if getHRP() and not getHRP().Anchored then
-                        moveIntoZone(collectZone)
+                        walkTo(collectZone, 15)
                     end
 
                     waitForRoundEnd(25)
