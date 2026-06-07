@@ -178,7 +178,7 @@ local function makeSection(name)
     return sf
 end
 
-local tabNames = {"Home", "Universal", "Game", "Gameslist", "Settings", "Credits"}
+local tabNames = {"Home", "Universal", "Game", "Players", "Gameslist", "Settings", "Credits"}
 local Sections = {}
 local CurSection
 
@@ -1282,6 +1282,135 @@ if ok3 and credSrc then
             elements:CredPerson(Sections.Credits.Container, person)
         end
     end
+end
+
+-- ── Players tab ───────────────────────────────────────────────────────────────
+do
+    local playersSection = Sections.Players.Container
+    local Players        = game:GetService("Players")
+
+    local countLbl = Instance.new("TextLabel", playersSection)
+    countLbl.Size = UDim2.new(1, 0, 0, 20)
+    countLbl.BackgroundTransparency = 1
+    countLbl.Font = Enum.Font.GothamSemibold
+    countLbl.TextSize = 12
+    countLbl.TextColor3 = Color3.fromRGB(130, 118, 175)
+    countLbl.TextXAlignment = Enum.TextXAlignment.Left
+    countLbl.Text = "0 players"
+
+    local rowContainer = Instance.new("Frame", playersSection)
+    rowContainer.Size = UDim2.new(1, 0, 0, 0)
+    rowContainer.BackgroundTransparency = 1
+    local rowLayout = Instance.new("UIListLayout", rowContainer)
+    rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    rowLayout.Padding = UDim.new(0, 4)
+    rowLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        rowContainer.Size = UDim2.new(1, 0, 0, rowLayout.AbsoluteContentSize.Y)
+    end)
+
+    local function makePlayerRow(p)
+        local row = Instance.new("Frame", rowContainer)
+        row.Name = tostring(p.UserId)
+        row.Size = UDim2.new(1, 0, 0, 48)
+        row.BackgroundColor3 = Color3.fromRGB(20, 17, 38)
+        row.BorderSizePixel = 0
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+        local rs = Instance.new("UIStroke", row)
+        rs.Color = Color3.fromRGB(100, 80, 190)
+        rs.Transparency = 0.7
+
+        -- Name + info
+        local nameLabel = Instance.new("TextLabel", row)
+        nameLabel.Size = UDim2.new(1, -160, 0, 18)
+        nameLabel.Position = UDim2.new(0, 10, 0, 6)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextSize = 13
+        nameLabel.TextColor3 = Color3.fromRGB(210, 200, 255)
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        nameLabel.Text = p.DisplayName .. (p.DisplayName ~= p.Name and ("  @" .. p.Name) or "")
+
+        local infoLabel = Instance.new("TextLabel", row)
+        infoLabel.Size = UDim2.new(1, -160, 0, 14)
+        infoLabel.Position = UDim2.new(0, 10, 0, 26)
+        infoLabel.BackgroundTransparency = 1
+        infoLabel.Font = Enum.Font.Gotham
+        infoLabel.TextSize = 11
+        infoLabel.TextColor3 = Color3.fromRGB(130, 118, 175)
+        infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+        local age = p.AccountAge
+        local ageStr = age < 30 and "New (<30d)" or age < 365 and (math.floor(age/30) .. "mo") or (math.floor(age/365) .. "yr")
+        infoLabel.Text = "ID: " .. p.UserId .. "  ·  Acct: " .. ageStr
+
+        -- Buttons
+        local function makeBtn(label, xOffset, color, cb)
+            local btn = Instance.new("TextButton", row)
+            btn.Size = UDim2.new(0, 66, 0, 26)
+            btn.Position = UDim2.new(1, xOffset, 0.5, -13)
+            btn.BackgroundColor3 = color
+            btn.BorderSizePixel = 0
+            btn.AutoButtonColor = false
+            btn.Font = Enum.Font.GothamSemibold
+            btn.TextSize = 11
+            btn.TextColor3 = Color3.fromRGB(210, 200, 255)
+            btn.Text = label
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+            btn.MouseEnter:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(color.R*255+20, color.G*255, color.B*255+30)
+            end)
+            btn.MouseLeave:Connect(function() btn.BackgroundColor3 = color end)
+            btn.MouseButton1Click:Connect(cb)
+            return btn
+        end
+
+        -- TP To
+        makeBtn("TP To", -154, Color3.fromRGB(38, 28, 75), function()
+            local myChar = plr.Character
+            local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local tgtChar = p.Character
+            local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
+            if myHRP and tgtHRP then
+                myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
+            end
+        end)
+
+        -- Spectate
+        makeBtn("Spec", -82, Color3.fromRGB(30, 22, 60), function()
+            local cam = workspace.CurrentCamera
+            local tgtChar = p.Character
+            local hum = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+            if hum then
+                cam.CameraSubject = hum
+                cam.CameraType = Enum.CameraType.Follow
+            end
+        end)
+
+        -- Copy UserId
+        makeBtn("Copy ID", -10, Color3.fromRGB(22, 18, 45), function()
+            pcall(setclipboard, tostring(p.UserId))
+        end)
+
+        return row
+    end
+
+    local function rebuild()
+        for _, child in rowContainer:GetChildren() do
+            if child:IsA("Frame") then child:Destroy() end
+        end
+        local all = Players:GetPlayers()
+        countLbl.Text = #all .. " player" .. (#all == 1 and "" or "s") .. " online"
+        table.sort(all, function(a, b) return a.Name < b.Name end)
+        for _, p in all do
+            makePlayerRow(p)
+        end
+    end
+
+    rebuild()
+    Players.PlayerAdded:Connect(rebuild)
+    Players.PlayerRemoving:Connect(function()
+        task.wait()  -- let the player actually leave before counting
+        rebuild()
+    end)
 end
 
 setTab("Home")

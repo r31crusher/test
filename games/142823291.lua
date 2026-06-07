@@ -7,28 +7,14 @@ return function(section)
     local RunSvc   = game:GetService("RunService")
     local player   = Players.LocalPlayer
 
-    local Remotes      = RS:WaitForChild("Remotes")
-    local GameplayR    = Remotes:WaitForChild("Gameplay")
-    local GiveWeapon   = GameplayR:WaitForChild("GiveWeapon")
-    local ShowTeammates= GameplayR:WaitForChild("ShowTeammates")
-    local CoinsStarted = GameplayR:WaitForChild("CoinsStarted")
-    local GetCoin      = GameplayR:WaitForChild("GetCoin")
+    local Remotes       = RS:WaitForChild("Remotes")
+    local GameplayR     = Remotes:WaitForChild("Gameplay")
+    local GiveWeapon    = GameplayR:WaitForChild("GiveWeapon")
+    local ShowTeammates = GameplayR:WaitForChild("ShowTeammates")
 
     -- WeaponService module (provides GetMouseTargetCFrame used by gun tools)
     local WeaponService = require(RS:WaitForChild("ClientServices"):WaitForChild("WeaponService"))
 
-    local rng = Random.new()
-    local function j(base, jitter)
-        jitter = jitter or 0.2
-        return base * (1 + (rng:NextNumber() * 2 - 1) * jitter)
-    end
-
-    local _threads = {}
-    local function spawn(fn)
-        local t = task.spawn(fn)
-        table.insert(_threads, t)
-        return t
-    end
 
     -- ── Role detection ────────────────────────────────────────────────────────
     -- GiveWeapon only fires to the local player for their own role, so we cannot
@@ -72,33 +58,85 @@ return function(section)
         return "Innocent"
     end
 
-    -- ── Silent Aim ────────────────────────────────────────────────────────────
-    -- Hook WeaponService:GetMouseTargetCFrame so the gun always points at the
-    -- nearest enemy player's HumanoidRootPart.
-    getgenv()._mm2_silentaim = false
-    local origGetTarget = WeaponService.GetMouseTargetCFrame
-
-    -- When true, silent aim only locks onto known murderers (sheriff use-case)
+    -- ── Silent Aim + FOV + Target Indicator + Through Walls ──────────────────
+    getgenv()._mm2_silentaim   = false
     getgenv()._mm2_sheriffonly = false
+    getgenv()._mm2_wallcheck   = false
 
+    local origGetTarget = WeaponService.GetMouseTargetCFrame
+    local camera        = workspace.CurrentCamera
+    local _lockedTarget = nil
+    local _fovRadius    = 150  -- screen-space pixels; updated by FOV slider
+
+    -- ── GUI setup ─────────────────────────────────────────────────────────────
+    local targetGui = Instance.new("ScreenGui")
+    targetGui.Name = "_mm2targetui"
+    targetGui.ResetOnSpawn = false
+    targetGui.IgnoreGuiInset = true
+    targetGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    targetGui.Parent = game.CoreGui
+
+    -- FOV circle — fixed at screen center, shows aim selection radius
+    local fovCircle = Instance.new("Frame")
+    fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+    fovCircle.Position    = UDim2.new(0.5, 0, 0.5, 0)
+    fovCircle.Size        = UDim2.new(0, _fovRadius * 2, 0, _fovRadius * 2)
+    fovCircle.BackgroundTransparency = 1
+    fovCircle.BorderSizePixel = 0
+    fovCircle.Visible = false
+    fovCircle.Parent = targetGui
+    Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
+    local fovStroke = Instance.new("UIStroke", fovCircle)
+    fovStroke.Color       = Color3.fromRGB(255, 255, 255)
+    fovStroke.Thickness   = 1
+    fovStroke.Transparency = 0.4
+
+    -- Target ring — follows the locked enemy, purely visual
+    local targetRing = Instance.new("Frame")
+    targetRing.AnchorPoint = Vector2.new(0.5, 0.5)
+    targetRing.Size        = UDim2.new(0, 36, 0, 36)
+    targetRing.BackgroundTransparency = 1
+    targetRing.BorderSizePixel = 0
+    targetRing.Visible = false
+    targetRing.Parent = targetGui
+    Instance.new("UICorner", targetRing).CornerRadius = UDim.new(1, 0)
+    local targetStroke = Instance.new("UIStroke", targetRing)
+    targetStroke.Color     = Color3.fromRGB(255, 50, 50)
+    targetStroke.Thickness = 2
+
+    local targetLabel = Instance.new("TextLabel", targetRing)
+    targetLabel.Size = UDim2.new(0, 120, 0, 16)
+    targetLabel.AnchorPoint = Vector2.new(0.5, 0)
+    targetLabel.Position = UDim2.new(0.5, 0, 1, 4)
+    targetLabel.BackgroundTransparency = 1
+    targetLabel.Font = Enum.Font.GothamBold
+    targetLabel.TextSize = 11
+    targetLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+    targetLabel.TextStrokeTransparency = 0
+    targetLabel.Text = ""
+
+    -- ── Target selection — screen-space, within FOV circle ───────────────────
+    -- Must be declared before _targetRender so the closure can capture it.
     local function nearestEnemy()
-        local myChar = player.Character
-        if not myChar then return nil end
-        local myHRP = myChar:FindFirstChild("HumanoidRootPart")
-        if not myHRP then return nil end
+        if not getgenv()._mm2_silentaim then return nil end
+        local vp = camera.ViewportSize
+        local cx, cy = vp.X / 2, vp.Y / 2
         local best, bestDist = nil, math.huge
         for _, p in Players:GetPlayers() do
             if p ~= player and p.Character then
-                -- If sheriff-only flag is set, skip anyone not the murderer
                 if getgenv()._mm2_sheriffonly and getPlayerRole(p) ~= "Murderer" then
                     continue
                 end
                 local hrp = p.Character:FindFirstChild("HumanoidRootPart")
                 local hum = p.Character:FindFirstChildOfClass("Humanoid")
                 if hrp and hum and hum.Health > 0 then
-                    local d = (hrp.Position - myHRP.Position).Magnitude
-                    if d < bestDist then
-                        best, bestDist = hrp, d
+                    local sp, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                    if onScreen then
+                        local dx, dy = sp.X - cx, sp.Y - cy
+                        local d = math.sqrt(dx * dx + dy * dy)
+                        if d <= _fovRadius and d < bestDist then
+                            best, bestDist = hrp, d
+                        end
                     end
                 end
             end
@@ -106,23 +144,99 @@ return function(section)
         return best
     end
 
-    WeaponService.GetMouseTargetCFrame = function(self)
-        if getgenv()._mm2_silentaim then
-            local hrp = nearestEnemy()
-            if hrp then
-                return CFrame.new(hrp.Position)
+    -- ── RenderStepped: update FOV circle size + drive target ring ─────────────
+    local _targetRender = RunSvc.RenderStepped:Connect(function()
+        local active = getgenv()._mm2_silentaim
+
+        -- Keep FOV circle size in sync with _fovRadius
+        fovCircle.Size    = UDim2.new(0, _fovRadius * 2, 0, _fovRadius * 2)
+        fovCircle.Visible = active
+
+        if not active then
+            targetRing.Visible = false
+            _lockedTarget = nil
+            return
+        end
+
+        local hrp = nearestEnemy()
+        if not hrp then
+            targetRing.Visible = false
+            _lockedTarget = nil
+            return
+        end
+
+        -- Refresh label/color only when the target changes
+        if hrp ~= _lockedTarget then
+            _lockedTarget = hrp
+            local p = Players:GetPlayerFromCharacter(hrp.Parent)
+            if p then
+                local role = getPlayerRole(p)
+                local c = role == "Murderer" and Color3.fromRGB(255, 50, 50)
+                       or role == "Sheriff"  and Color3.fromRGB(80, 180, 255)
+                       or Color3.fromRGB(200, 200, 200)
+                targetStroke.Color    = c
+                targetLabel.TextColor3 = c
+                targetLabel.Text      = p.Name
             end
+        end
+
+        local sp, onScreen = camera:WorldToViewportPoint(hrp.Position)
+        if onScreen then
+            targetRing.Position = UDim2.new(0, sp.X, 0, sp.Y)
+            targetRing.Visible  = true
+        else
+            targetRing.Visible = false
+        end
+    end)
+
+    -- ── Build character-only raycast params (through-walls) ───────────────────
+    local function buildCharParams()
+        local chars = {}
+        for _, p in Players:GetPlayers() do
+            if p ~= player and p.Character then
+                table.insert(chars, p.Character)
+            end
+        end
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Include
+        params.FilterDescendantsInstances = chars
+        return params
+    end
+
+    -- ── WeaponService hook ────────────────────────────────────────────────────
+    WeaponService.GetMouseTargetCFrame = function(self)
+        if getgenv()._mm2_silentaim and _lockedTarget and _lockedTarget.Parent then
+            return CFrame.new(_lockedTarget.Position)
+        end
+        if getgenv()._mm2_wallcheck then
+            local UIS   = game:GetService("UserInputService")
+            local mouse = UIS:GetMouseLocation()
+            local ray   = camera:ViewportPointToRay(mouse.X, mouse.Y)
+            local result = workspace:Raycast(ray.Origin, ray.Direction * 500, buildCharParams())
+            if result then return CFrame.new(result.Position) end
         end
         return origGetTarget(self)
     end
 
     elements:Toggle("Silent Aim", section, function(v)
         getgenv()._mm2_silentaim = v
+        if not v then
+            targetRing.Visible = false
+            fovCircle.Visible  = false
+            _lockedTarget = nil
+        end
     end)
 
-    -- Sheriff Only: silent aim targets only known murderers instead of nearest player
     elements:Toggle("Sheriff Only (aim murderer)", section, function(v)
         getgenv()._mm2_sheriffonly = v
+    end)
+
+    elements:Toggle("Through Walls", section, function(v)
+        getgenv()._mm2_wallcheck = v
+    end)
+
+    elements:Slider("FOV Radius", section, 30, 400, _fovRadius, function(v)
+        _fovRadius = v
     end)
 
     -- ── Player ESP ────────────────────────────────────────────────────────────
@@ -251,96 +365,28 @@ return function(section)
         getgenv()._mm2_rolereveal = v
     end)
 
-    -- ── Auto Coin Collect ─────────────────────────────────────────────────────
-    -- When CoinsStarted fires the server spawns coin parts in workspace.
-    -- The client fires GetCoin with the coin's CFrame to collect it.
-    getgenv()._mm2_coins = false
-    local _coinConn
 
-    local function collectCoins()
-        -- Coins are typically parented under workspace or a "Coins" folder
-        local function tryCollect(obj)
-            if obj:IsA("BasePart") and obj.Name == "Coin" then
-                pcall(function() GetCoin:FireServer(obj.CFrame) end)
-            end
-        end
-
-        -- Collect any already-spawned coins
-        local coinsFolder = workspace:FindFirstChild("Coins") or workspace
-        for _, obj in ipairs(coinsFolder:GetDescendants()) do
-            if not getgenv()._mm2_coins then break end
-            tryCollect(obj)
-            task.wait(j(0.08, 0.3))
-        end
-
-        -- Watch for new ones
-        _coinConn = workspace.DescendantAdded:Connect(function(obj)
-            if not getgenv()._mm2_coins then
-                if _coinConn then _coinConn:Disconnect() _coinConn = nil end
-                return
-            end
-            task.wait(0.05)
-            tryCollect(obj)
-        end)
-    end
-
-    elements:Toggle("Auto Coin Collect", section, function(v)
-        getgenv()._mm2_coins = v
-        if v then
-            spawn(collectCoins)
-        else
-            if _coinConn then _coinConn:Disconnect() _coinConn = nil end
-        end
-    end)
-
-    -- ── Speed ─────────────────────────────────────────────────────────────────
-    getgenv()._mm2_speed = false
-    local DEFAULT_SPEED = 16
-    local FAST_SPEED    = 32
-
-    local _speedConn
-
-    elements:Toggle("Speed Hack", section, function(v)
-        getgenv()._mm2_speed = v
-        if v then
-            _speedConn = RunSvc.Heartbeat:Connect(function()
-                local char = player.Character
-                local hum  = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then hum.WalkSpeed = FAST_SPEED end
-            end)
-        else
-            if _speedConn then _speedConn:Disconnect() _speedConn = nil end
-            local char = player.Character
-            local hum  = char and char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.WalkSpeed = DEFAULT_SPEED end
-        end
-    end)
 
     -- ── Unload ────────────────────────────────────────────────────────────────
     section.AncestorRemoving:Connect(function()
         getgenv()._mm2_silentaim   = false
         getgenv()._mm2_sheriffonly = false
+        getgenv()._mm2_wallcheck   = false
         getgenv()._mm2_esp         = false
-        getgenv()._mm2_rolereveal = false
-        getgenv()._mm2_coins      = false
-        getgenv()._mm2_speed      = false
+        getgenv()._mm2_rolereveal  = false
 
-        -- Restore original aim function
         WeaponService.GetMouseTargetCFrame = origGetTarget
+
+        _targetRender:Disconnect()
+        targetGui:Destroy()   -- destroys fovCircle + targetRing
+        _lockedTarget = nil
+        _fovRadius    = 150
 
         stopESP()
 
-        if _coinConn then _coinConn:Disconnect() _coinConn = nil end
         if _speedConn then _speedConn:Disconnect() _speedConn = nil end
 
         for _, conn in ipairs(_roleConns) do conn:Disconnect() end
         table.clear(_roleConns)
-
-        for _, t in ipairs(_threads) do pcall(task.cancel, t) end
-        table.clear(_threads)
-
-        local char = player.Character
-        local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = DEFAULT_SPEED end
     end)
 end
