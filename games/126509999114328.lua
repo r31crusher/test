@@ -48,19 +48,26 @@ return function(section)
         return cg and cg:FindFirstChild("Scrapper")
     end
 
-    -- Returns CFrame above the fire's InnerTouchZone (where items need to land)
-    local function getFireAboveCF()
+    -- Returns the CFrame of the fire's InnerTouchZone (items go directly inside it)
+    local function getFireCF()
         local f = getFire()
         if not f then return nil end
         local zone = f:FindFirstChild("InnerTouchZone")
             or f:FindFirstChild("OuterTouchZone")
             or f:FindFirstChildWhichIsA("BasePart")
-        return zone and (zone.CFrame + Vector3.new(0, 3, 0))
+        return zone and zone.CFrame
     end
 
-    -- Moves a Model to a CFrame using PivotTo (works even without PrimaryPart set)
+    -- Moves a Model and unanchors all its parts so they fall naturally
     local function moveModel(model, cf)
-        pcall(function() model:PivotTo(cf) end)
+        pcall(function()
+            model:PivotTo(cf)
+            for _, p in pairs(model:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    p.Anchored = false
+                end
+            end
+        end)
     end
 
     local function ownedItems()
@@ -295,14 +302,14 @@ return function(section)
         end
     end)
 
-    -- TP Wood to Fire — moves each wood item above InnerTouchZone then fires remote
+    -- TP Wood to Fire — drops items directly into InnerTouchZone then fires remote
     elements:Button("TP Wood to Fire", section, function()
         local fire = getFire()
-        local aboveCF = getFireAboveCF()
-        if not fire or not aboveCF then warn("[Astro] MainFire not found") return end
+        local fireCF = getFireCF()
+        if not fire or not fireCF then warn("[Astro] MainFire not found") return end
         for _, item in pairs(ownedItems()) do
             if item:GetAttribute("BurnFuel") then
-                moveModel(item, aboveCF)
+                moveModel(item, fireCF)
                 task.wait(0.05)
                 evBurn:FireServer(fire, item)
             end
@@ -323,14 +330,14 @@ return function(section)
         end
     end)
 
-    -- TP Meat to Fire — moves each cookable item above InnerTouchZone then fires remote
+    -- TP Meat to Fire — drops items directly into InnerTouchZone then fires remote
     elements:Button("TP Meat to Fire", section, function()
         local fire = getFire()
-        local aboveCF = getFireAboveCF()
-        if not fire or not aboveCF then warn("[Astro] MainFire not found") return end
+        local fireCF = getFireCF()
+        if not fire or not fireCF then warn("[Astro] MainFire not found") return end
         for _, item in pairs(ownedItems()) do
             if item:GetAttribute("Cookable") then
-                moveModel(item, aboveCF)
+                moveModel(item, fireCF)
                 task.wait(0.05)
                 evCook:FireServer(fire, item)
             end
