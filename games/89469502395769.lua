@@ -108,24 +108,29 @@ return function(section)
     --   2. Fire KickEvent — OnStartKick anchors character
     --   3. Poll hrp.Anchored until false (GameHandler line 667, tsunami spawn)
     --   4. Walk to CollectZone; game's own v130 PreRender fires KickCollect on arrival
+    -- MoveTo has a built-in 8s timeout; we retry every 7s so the character
+    -- keeps heading toward the target until it arrives or the deadline passes.
     local function walkTo(target, timeoutSecs, speed)
         local char = player.Character
         local hum  = char and char:FindFirstChild("Humanoid")
         if not hum or not getHRP() then return end
         local prev = hum.WalkSpeed
         if speed then hum.WalkSpeed = speed end
-        hum:MoveTo(target.Position)
         local deadline = tick() + (timeoutSecs or 20)
-        local conn
-        local done = false
-        conn = hum.MoveToFinished:Connect(function()
-            done = true
+        while tick() < deadline do
+            hum:MoveTo(target.Position)
+            local done = false
+            local conn = hum.MoveToFinished:Connect(function(reached)
+                done = true
+                if reached then deadline = 0 end  -- arrived — exit outer loop too
+            end)
+            local inner = tick() + 7  -- re-issue before Roblox's 8s timeout
+            while not done and tick() < inner and tick() < deadline do
+                task.wait(0.1)
+            end
             conn:Disconnect()
-        end)
-        while not done and tick() < deadline do
-            task.wait(0.1)
+            if deadline == 0 then break end
         end
-        if not done then conn:Disconnect() end
         if speed then hum.WalkSpeed = prev end
     end
 
@@ -169,11 +174,18 @@ return function(section)
                         hrp = getHRP()
                     end
 
-                    -- Sprint to collect zone the moment the character is free —
-                    -- the wave is already moving, so we need to outrun it.
-                    -- The game's own PreRender loop fires KickCollect on arrival.
+                    -- Character is free — sprint to collect zone and spam KickCollect
+                    -- in parallel (game fires it every PreRender frame when in zone;
+                    -- we do the same so we don't miss the window).
                     if getHRP() and not getHRP().Anchored then
+                        local collectSpam = spawn(function()
+                            while _kickRoundActive do
+                                pcall(function() revKickCollect:FireServer() end)
+                                task.wait(0.05)
+                            end
+                        end)
                         walkTo(collectZone, 15, 80)
+                        -- stop the spam once we've arrived and the round ends naturally
                     end
 
                     waitForRoundEnd(25)
