@@ -7,7 +7,6 @@ return function(section)
 
     local Network        = RS:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Network")
     local revKickEvent   = Network:WaitForChild("rev_KickEvent")
-    local revKickCollect = Network:WaitForChild("rev_KickCollect")
     local revKickEnded   = Network:WaitForChild("rev_KickEventEnded")
     local revBUpgrade    = Network:WaitForChild("rev_B_Upgrade")
     local revRebirth     = Network:WaitForChild("rev_RebirthRequest")
@@ -108,30 +107,37 @@ return function(section)
     --   2. Fire KickEvent — OnStartKick anchors character
     --   3. Poll hrp.Anchored until false (GameHandler line 667, tsunami spawn)
     --   4. Walk to CollectZone; game's own v130 PreRender fires KickCollect on arrival
-    -- MoveTo has a built-in 8s timeout; we retry every 7s so the character
-    -- keeps heading toward the target until it arrives or the deadline passes.
-    local function walkTo(target, timeoutSecs, speed)
+    local function walkTo(target, timeoutSecs)
         local char = player.Character
         local hum  = char and char:FindFirstChild("Humanoid")
         if not hum or not getHRP() then return end
-        local prev = hum.WalkSpeed
-        if speed then hum.WalkSpeed = speed end
         local deadline = tick() + (timeoutSecs or 20)
         while tick() < deadline do
             hum:MoveTo(target.Position)
             local done = false
             local conn = hum.MoveToFinished:Connect(function(reached)
                 done = true
-                if reached then deadline = 0 end  -- arrived — exit outer loop too
+                if reached then deadline = 0 end
             end)
-            local inner = tick() + 7  -- re-issue before Roblox's 8s timeout
+            local inner = tick() + 7
             while not done and tick() < inner and tick() < deadline do
                 task.wait(0.1)
             end
             conn:Disconnect()
             if deadline == 0 then break end
         end
-        if speed then hum.WalkSpeed = prev end
+    end
+
+    -- Place the character's HRP inside the CollectZone so the game's own
+    -- v130 PreRender overlap check (GameHandler line 679) detects it and
+    -- fires KickCollect automatically — no remote spam, no WalkSpeed boost.
+    local function moveIntoZone(zone)
+        local hrp = getHRP()
+        if not hrp then return end
+        local sz = zone.Size
+        local ox = (rng:NextNumber() * 2 - 1) * math.min(sz.X * 0.35, 2)
+        local oz = (rng:NextNumber() * 2 - 1) * math.min(sz.Z * 0.35, 2)
+        hrp.CFrame = zone.CFrame * CFrame.new(ox, 0, oz)
     end
 
     getgenv()._brk_kick = false
@@ -174,18 +180,12 @@ return function(section)
                         hrp = getHRP()
                     end
 
-                    -- Character is free — sprint to collect zone and spam KickCollect
-                    -- in parallel (game fires it every PreRender frame when in zone;
-                    -- we do the same so we don't miss the window).
+                    -- Character is free — move it directly into the CollectZone.
+                    -- The game's own v130 PreRender overlap check (GameHandler line 679)
+                    -- uses GetPartsInPart on the character, so once any character part
+                    -- is inside the zone it fires KickCollect itself. No spam needed.
                     if getHRP() and not getHRP().Anchored then
-                        local collectSpam = spawn(function()
-                            while _kickRoundActive do
-                                pcall(function() revKickCollect:FireServer() end)
-                                task.wait(0.05)
-                            end
-                        end)
-                        walkTo(collectZone, 15, 80)
-                        -- stop the spam once we've arrived and the round ends naturally
+                        moveIntoZone(collectZone)
                     end
 
                     waitForRoundEnd(25)
