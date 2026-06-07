@@ -853,26 +853,35 @@ local function getAimTarget()
     return best
 end
 
-local _silentOrig     = nil
 local _silentHookOrig = nil
 
--- Installs a __namecall hook that intercepts workspace:Raycast calls that look
--- like weapon fire (origin within 15 studs of camera) and redirects their
--- direction toward the current aim target. Called lazily when Silent mode is
--- first selected so we don't pay for the hook in Legacy mode.
+-- Installs a __namecall hook that intercepts workspace:Raycast / Spherecast
+-- calls that look like weapon fire and redirects them toward the aim target.
+-- Called lazily the first time Silent mode is activated.
 local function _installSilentHook()
     if _silentHookOrig then return end
     local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
-        if getnamecallmethod() == "Raycast" and self == workspace
-                and getgenv()._astroAiming and _aimMode == "Silent" then
-            local origin, direction, params = ...
+        local method = getnamecallmethod()
+        if self == workspace and getgenv()._astroAiming and _aimMode == "Silent"
+                and (method == "Raycast" or method == "Spherecast" or method == "Blockcast") then
+            local origin, direction = ...
+            -- Blockcast passes a CFrame as first arg; extract position from it
+            if method == "Blockcast" and typeof(origin) == "CFrame" then
+                origin = origin.Position
+            end
             if origin and direction then
                 local camPos = workspace.CurrentCamera.CFrame.Position
-                if (origin - camPos).Magnitude < 15 then
+                if (origin - camPos).Magnitude < 100 then
                     local tgt = getAimTarget()
                     if tgt then
-                        return _silentHookOrig(self, origin,
-                            (tgt.Position - origin).Unit * direction.Magnitude, params)
+                        local args = {...}
+                        if method == "Blockcast" then
+                            -- keep CFrame arg, replace direction only
+                            args[2] = (tgt.Position - origin).Unit * direction.Magnitude
+                        else
+                            args[2] = (tgt.Position - origin).Unit * direction.Magnitude
+                        end
+                        return _silentHookOrig(self, table.unpack(args))
                     end
                 end
             end
@@ -883,26 +892,15 @@ local function _installSilentHook()
 end
 
 RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function()
-    if not getgenv()._astroAiming then
-        _silentOrig = nil
-        return
-    end
+    if not getgenv()._astroAiming then return end
     local target = getAimTarget()
     if not target then return end
-    local cam = workspace.CurrentCamera
     if _aimMode == "Legacy" then
+        local cam = workspace.CurrentCamera
         local t = math.clamp(_aimSpeed / 20, 0.05, 1)
         cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, target.Position), t)
     end
-    -- Silent: _installSilentHook's __namecall intercept handles ray redirection;
-    -- no camera movement needed so the local view is never disturbed.
-end)
-
-RunService:BindToRenderStep("AstroAimRestore", Enum.RenderPriority.Last.Value + 1, function()
-    if _silentOrig then
-        workspace.CurrentCamera.CFrame = _silentOrig
-        _silentOrig = nil
-    end
+    -- Silent: the __namecall hook handles ray redirection; no camera movement needed.
 end)
 
 -- No gp guard: when the menu is open MouseBehavior=Default causes Roblox to
@@ -1389,7 +1387,7 @@ local function loadConfig()
     if data.aimEnabled    ~= nil then _setAimbot(data.aimEnabled)       end
     if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)    end
     if data.aimVisCheck   ~= nil then _setAimVisCheck(data.aimVisCheck)  end
-    if data.aimMode             then _aimMode = data.aimMode             end
+    if data.aimMode             then _aimMode = data.aimMode; if _aimMode == "Silent" then _installSilentHook() end end
 
     if data.espBox      ~= nil then _setBoxEsp(data.espBox)       end
     if data.espSkeleton ~= nil then _setSkelEsp(data.espSkeleton) end
@@ -1426,7 +1424,7 @@ local function silentLoadConfig()
     if data.flySpeed  then _flySpeed  = data.flySpeed  end
     if data.aimFOV    then _aimFOV    = data.aimFOV    end
     if data.aimSpeed  then _aimSpeed  = data.aimSpeed  end
-    if data.aimMode   then _aimMode   = data.aimMode   end
+    if data.aimMode   then _aimMode = data.aimMode; if _aimMode == "Silent" then _installSilentHook() end end
     if data.espVisColorName   then
         _espVisColorName = data.espVisColorName
         _espVisColor = _espColorMap[data.espVisColorName] or _espVisColor
@@ -1955,7 +1953,6 @@ getgenv()._astroUnload = function()
     -- stop all render steps
     RunService:UnbindFromRenderStep("AstroFly")
     RunService:UnbindFromRenderStep("AstroAim")
-    RunService:UnbindFromRenderStep("AstroAimRestore")
     RunService:Set3dRenderingEnabled(true)
 
     -- fly cleanup
