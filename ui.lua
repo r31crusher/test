@@ -114,6 +114,7 @@ end
 CloseBtn.MouseButton1Click:Connect(function() setMenuVisible(false) end)
 ShowBtn.MouseButton1Click:Connect(function()  setMenuVisible(true)  end)
 UserInputService.InputBegan:Connect(function(input, gp)
+    if UserInputService:GetFocusedTextBox() then return end
     if not gp and input.KeyCode == Enum.KeyCode.Insert then
         setMenuVisible(not MainFrame.Visible)
     end
@@ -903,17 +904,20 @@ end)
 -- No gp guard: when the menu is open MouseBehavior=Default causes Roblox to
 -- mark key presses as game-processed, which would silently swallow these binds.
 UserInputService.InputBegan:Connect(function(input)
+    if UserInputService:GetFocusedTextBox() then return end
     if isBound(input, _binds.fly)    then setFly(not getgenv()._astroFlying)    end
     if isBound(input, _binds.noclip) then setNoclip(not getgenv()._astroNoclip) end
 end)
 -- Aim uses a separate connection with no gp guard so it fires in FPS games
 -- that intercept the bound key (e.g. M2 for ADS, E for interact)
 UserInputService.InputBegan:Connect(function(input)
+    if UserInputService:GetFocusedTextBox() then return end
     if isBound(input, _binds.aim) and getgenv()._aimEnabled then
         getgenv()._astroAiming = true
     end
 end)
 UserInputService.InputEnded:Connect(function(input)
+    if UserInputService:GetFocusedTextBox() then return end
     if isBound(input, _binds.aim) then getgenv()._astroAiming = false end
 end)
 
