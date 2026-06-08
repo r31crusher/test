@@ -1793,6 +1793,7 @@ do
             if not myHRP or not tgtHRP or not tgtHum then return end
 
             local savedCF = myHRP.CFrame
+            local myHum   = myChar:FindFirstChildOfClass("Humanoid")
             local angle   = 0
             local offIdx  = 1
             local offsets = {
@@ -1801,6 +1802,11 @@ do
                 CFrame.new( 2.25,  1.5, -2.25),
                 CFrame.new(-2.25, -1.5,  2.25),
             }
+
+            if myHum then
+                myHum.Health = myHum.MaxHealth
+                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            end
 
             local bv = Instance.new("BodyVelocity")
             bv.Velocity = Vector3.new(16384, -16384, 16384)
@@ -1831,8 +1837,11 @@ do
                     myHRP.CFrame = savedCF
                     myHRP.AssemblyLinearVelocity  = Vector3.zero
                     myHRP.AssemblyAngularVelocity = Vector3.zero
-                    local hum = myChar:FindFirstChildOfClass("Humanoid")
-                    if hum then hum.PlatformStand = false end
+                end
+                if myHum then
+                    myHum.Health = myHum.MaxHealth
+                    myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                    myHum.PlatformStand = false
                 end
             end)
         end)
