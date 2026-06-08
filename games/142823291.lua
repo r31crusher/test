@@ -206,9 +206,7 @@ return function(section)
     -- ── WeaponService hook ────────────────────────────────────────────────────
     WeaponService.GetMouseTargetCFrame = function(self)
         if getgenv()._mm2_silentaim and _lockedTarget and _lockedTarget.Parent then
-            -- Prefer head for accurate shot placement; fall back to HRP if missing
-            local head = _lockedTarget.Parent:FindFirstChild("Head")
-            return CFrame.new(head and head.Position or _lockedTarget.Position)
+            return CFrame.new(_lockedTarget.Position)
         end
         if getgenv()._mm2_wallcheck then
             local UIS   = game:GetService("UserInputService")
