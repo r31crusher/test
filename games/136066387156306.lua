@@ -99,29 +99,8 @@ return function(section)
     -- Offer currency to charge the Storm Breaker.
     -- Amount selector: 100Qi < 100Sx < 100Sp (use highest you can afford).
     local stormAmount = "100Qi"
-
-    local stormLabel = Instance.new("TextLabel")
-    stormLabel.Name               = "LabelElement"
-    stormLabel.Size               = UDim2.new(1, 0, 0, 24)
-    stormLabel.BackgroundTransparency = 1
-    stormLabel.Font               = Enum.Font.Gotham
-    stormLabel.TextSize           = 13
-    stormLabel.TextColor3         = Color3.fromRGB(200, 190, 255)
-    stormLabel.TextXAlignment     = Enum.TextXAlignment.Left
-    stormLabel.Text               = "Storm offer:  100Qi"
-    stormLabel.Parent             = section
-
-    elements:Button("Offer 100Qi", section, function()
-        stormAmount = "100Qi"
-        stormLabel.Text = "Storm offer:  100Qi"
-    end)
-    elements:Button("Offer 100Sx", section, function()
-        stormAmount = "100Sx"
-        stormLabel.Text = "Storm offer:  100Sx"
-    end)
-    elements:Button("Offer 100Sp", section, function()
-        stormAmount = "100Sp"
-        stormLabel.Text = "Storm offer:  100Sp"
+    elements:Dropdown("Storm Offer Amount", section, {"100Qi", "100Sx", "100Sp"}, "100Qi", function(v)
+        stormAmount = v
     end)
 
     elements:Toggle("Auto StormBreaker", section, function(state)
@@ -141,8 +120,5 @@ return function(section)
     -- ── Unload ────────────────────────────────────────────────────────────────
     section.AncestorRemoving:Connect(function()
         for name in loops do cancelLoop(name) end
-        if stormLabel and stormLabel.Parent then
-            stormLabel:Destroy()
-        end
     end)
 end

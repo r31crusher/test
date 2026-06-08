@@ -1,35 +1,32 @@
 -- pole obby for brainrots
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
 
     getgenv().farming = false
     local plr = game:GetService("Players").LocalPlayer
 
+    local _safeZoneEvent = game:GetService("ReplicatedStorage").Packages.Net["RE/SafeZoneEvent"]
     elements:Toggle("Farm Brainrots", section, function(v)
+        getgenv().farming = v
         if v then
-            getgenv().farming = true
-
-            while getgenv().farming do
-                pcall(function()
-                    for i, v in pairs(workspace.Mobs:GetChildren()) do
-                        if v.PrimaryPart then
-                            local Rarity = v.PrimaryPart.OverheadAttach.AnimalOverhead.Rarity.Text
+            task.spawn(function()
+                while getgenv().farming do
+                    pcall(function()
+                        for _, mob in pairs(workspace.Mobs:GetChildren()) do
+                            if not mob.PrimaryPart then continue end
+                            local Rarity = mob.PrimaryPart.OverheadAttach.AnimalOverhead.Rarity.Text
                             if Rarity == "OG" or Rarity == "Admin" then
-                                plr.Character:MoveTo(v.PrimaryPart.Position)
-                                repeat fireproximityprompt(v.PrimaryPart.ProximityPrompt) task.wait() until not v or not v.PrimaryPart or v.PrimaryPart:FindFirstChild("MobCarryWeld")
-                                local Event = game:GetService("ReplicatedStorage").Packages.Net["RE/SafeZoneEvent"]
-                                Event:FireServer()
+                                plr.Character:MoveTo(mob.PrimaryPart.Position)
+                                repeat fireproximityprompt(mob.PrimaryPart.ProximityPrompt) task.wait() until not mob or not mob.PrimaryPart or mob.PrimaryPart:FindFirstChild("MobCarryWeld")
+                                _safeZoneEvent:FireServer()
                                 task.wait(0.1)
                             end
                         end
-                    end
-                end)
-
-                task.wait(0.1)
-            end
-        else
-            getgenv().farming = false
+                    end)
+                    task.wait(0.1)
+                end
+            end)
         end
     end)
 end

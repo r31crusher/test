@@ -1,16 +1,15 @@
 -- Cross road for brainrots
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
 
     local plr = game:GetService("Players").LocalPlayer
 
     getgenv().FarmBrainrots = false
 
     elements:Toggle("Farm Brainrots", section, function(bool)
+        getgenv().FarmBrainrots = bool
         if bool then
-            getgenv().FarmBrainrots = true
-
             local char = plr.Character
             local hrp = char.HumanoidRootPart
 
@@ -35,67 +34,46 @@ return function(section)
                 return false
             end
 
-            while getgenv().FarmBrainrots do
-                tp(Vector3.new(345, 19, 2242))
-                local celestial = workspace.ItemSpawners:WaitForChild("Celestial")
+            task.spawn(function()
+                while getgenv().FarmBrainrots do
+                    tp(Vector3.new(345, 19, 2242))
+                    local celestial = workspace.ItemSpawners:WaitForChild("Celestial")
+                    waitForFolderChildren(celestial, 1, 5)
 
-                waitForFolderChildren(celestial, 1, 5)
-
-                for _, br in pairs(celestial:GetChildren()) do
-                    if br.PrimaryPart then
+                    for _, br in pairs(celestial:GetChildren()) do
+                        if not br.PrimaryPart then continue end
                         tp(br.PrimaryPart.Position)
-
                         task.wait(0.5)
-
                         local prompt = br.PrimaryPart:FindFirstChildOfClass("ProximityPrompt")
-
-                        if prompt then
-                            repeat fireproximityprompt(prompt) task.wait() until not br or br.Parent ~= celestial
-                        else
-                            continue
-                        end
-
+                        if not prompt then continue end
+                        repeat fireproximityprompt(prompt) task.wait() until not br or br.Parent ~= celestial
                         task.wait(0.5)
-
                         tp(Vector3.new(343, 2, -15))
                         task.wait(2)
-
                         tp(Vector3.new(345, 19, 2242))
                         task.wait(1)
                     end
-                end
 
+                    tp(Vector3.new(353, 2, 2092))
+                    local secret = workspace.ItemSpawners:WaitForChild("Secret")
+                    waitForFolderChildren(secret, 1)
 
-                tp(Vector3.new(353, 2, 2092))
-                local secret = workspace.ItemSpawners:WaitForChild("Secret")
-                waitForFolderChildren(secret, 1)
-
-                for _, br in pairs(secret:GetChildren()) do
-                    if br.PrimaryPart then
+                    for _, br in pairs(secret:GetChildren()) do
+                        if not br.PrimaryPart then continue end
                         tp(br.PrimaryPart.Position)
-
                         local prompt = br.PrimaryPart:FindFirstChildOfClass("ProximityPrompt")
-
-                        if prompt then
-                            repeat fireproximityprompt(prompt) task.wait() until not br or br.Parent ~= secret
-                        else
-                            continue
-                        end
-
+                        if not prompt then continue end
+                        repeat fireproximityprompt(prompt) task.wait() until not br or br.Parent ~= secret
                         task.wait(0.5)
-
                         tp(Vector3.new(343, 2, -15))
                         task.wait(2)
-
                         tp(Vector3.new(353, 2, 2092))
                         task.wait(1)
                     end
-                end
 
-                task.wait(0.1)
-            end
-        else
-            getgenv().FarmBrainrots = false
+                    task.wait(0.1)
+                end
+            end)
         end
     end)
 

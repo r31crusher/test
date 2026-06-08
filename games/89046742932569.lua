@@ -1,7 +1,7 @@
 -- sail for brainrots
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
     getgenv().Farming = false
     getgenv().Selling = false
     getgenv().ChosenZone = nil
@@ -39,30 +39,27 @@ return function(section)
     end)
 
     elements:Toggle("Autofarm", section, function(v)
+        getgenv().Farming = v
         if v then
-            getgenv().Farming = true
+            task.spawn(function()
+                while getgenv().Farming do
+                    local char = player.Character
+                    if not char then task.wait(0.1); continue end
 
-            while getgenv().Farming do
-                local char = player.Character
-                if not char then continue end
+                    for _, brainrot in pairs(getgenv().ChosenZone.Objects:GetChildren()) do
+                        if not getgenv().Farming then return end
+                        char:MoveTo(brainrot.PrimaryPart.Position)
+                        repeat
+                            fireproximityprompt(brainrot.ProximityPrompt)
+                            task.wait()
+                        until brainrot == nil or brainrot.Parent ~= getgenv().ChosenZone.Objects
+                        char:MoveTo(workspace.Bases[player.Name].Root.Position)
+                        task.wait(0.5)
+                    end
 
-                for _, brainrot in pairs(getgenv().ChosenZone.Objects:GetChildren()) do
-                    if not getgenv().Farming then return end
-
-                    char:MoveTo(brainrot.PrimaryPart.Position)
-                    repeat
-                        fireproximityprompt(brainrot.ProximityPrompt)
-                        task.wait()
-                    until brainrot == nil or brainrot.Parent ~= getgenv().ChosenZone.Objects
-
-                    char:MoveTo(workspace.Bases[player.Name].Root.Position)
-                    task.wait(0.5)
+                    task.wait(1)
                 end
-
-                task.wait(1)
-            end
-        else
-            getgenv().Farming = false
+            end)
         end
     end)
 
@@ -70,30 +67,25 @@ return function(section)
         getgenv().MaxPrice = tonumber(v)
     end)
 
+    local _sellRemote = game:GetService("ReplicatedStorage").Shared.Classes.RemoteFunction.Remotes.EntityShared_SellEntity
     elements:Toggle("Auto Sell", section, function(v)
+        getgenv().Selling = v
         if v then
-            getgenv().Selling = true
-
-            while getgenv().Selling do
-                local char = player.Character
-                if not char then continue end
-
-                for _, brainrot in pairs(player.Backpack:GetChildren()) do
-                    if brainrot.Name == "Bat" then continue end
-                    spawn(function()
-                        pcall(function()
-                            if parseValue(brainrot.Handle.ObjectInfo.Value.ValueLabel.Text) <= getgenv().MaxPrice then
-                                local Event = game:GetService("ReplicatedStorage").Shared.Classes.RemoteFunction.Remotes.EntityShared_SellEntity
-                                Event:InvokeServer(brainrot.Name)
-                            end
+            task.spawn(function()
+                while getgenv().Selling do
+                    for _, brainrot in pairs(player.Backpack:GetChildren()) do
+                        if brainrot.Name == "Bat" then continue end
+                        task.spawn(function()
+                            pcall(function()
+                                if parseValue(brainrot.Handle.ObjectInfo.Value.ValueLabel.Text) <= getgenv().MaxPrice then
+                                    _sellRemote:InvokeServer(brainrot.Name)
+                                end
+                            end)
                         end)
-                    end)
+                    end
+                    task.wait(3)
                 end
-
-                task.wait(3)
-            end
-        else
-            getgenv().Selling = false
+            end)
         end
     end)
 

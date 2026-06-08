@@ -1,7 +1,7 @@
 -- Survive flood for brainrots
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
 
     local repStorage = game:GetService("ReplicatedStorage")
     local plr = game:GetService("Players").LocalPlayer
@@ -23,18 +23,17 @@ return function(section)
     end
 
     elements:Toggle("Farming", section, function(isOn)
+        getgenv().Farming = isOn
         if isOn then
-            getgenv().Farming = true
-            while getgenv().Farming do
-
-                grabem(brainrotFold.Infinity)
-                grabem(brainrotFold.Godly)
-                grabem(brainrotFold.Secret)
-                grabem(brainrotFold.Celestial)
-                task.wait(1)
-            end
-        else
-            getgenv().Farming = false
+            task.spawn(function()
+                while getgenv().Farming do
+                    grabem(brainrotFold.Infinity)
+                    grabem(brainrotFold.Godly)
+                    grabem(brainrotFold.Secret)
+                    grabem(brainrotFold.Celestial)
+                    task.wait(1)
+                end
+            end)
         end
     end)
 end

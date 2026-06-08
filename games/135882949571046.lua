@@ -1,34 +1,28 @@
 -- dream for brainrots
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
     getgenv().farming = false
 
+    local _remotes       = game:GetService("ReplicatedStorage").Remotes
+    local _evDreamState  = _remotes.DreamStateChanged
+    local _evReqDream    = _remotes.RequestDreamBrainrots
+    local _evPickup      = _remotes.PickupDreamBrainrot
+    local _evWallExit    = _remotes.RequestDreamWallExit
+
     elements:Toggle("Farming", section, function(v)
+        getgenv().farming = v
         if v then
-            getgenv().farming = true
-
-            while getgenv().farming do
-                local Event = game:GetService("ReplicatedStorage").Remotes.DreamStateChanged
-                Event:FireServer(
-                    true
-                )
-
-                local Event = game:GetService("ReplicatedStorage").Remotes.RequestDreamBrainrots
-                Event:FireServer()
-
-                local Event = game:GetService("ReplicatedStorage").Remotes.PickupDreamBrainrot
-                Event:FireServer(
-                    "60"
-                )
-
-                task.wait()
-                local Event = game:GetService("ReplicatedStorage").Remotes.RequestDreamWallExit
-                Event:FireServer()
-                task.wait()
-            end
-        else
-            getgenv().farming = false
+            task.spawn(function()
+                while getgenv().farming do
+                    _evDreamState:FireServer(true)
+                    _evReqDream:FireServer()
+                    _evPickup:FireServer("60")
+                    task.wait()
+                    _evWallExit:FireServer()
+                    task.wait()
+                end
+            end)
         end
     end)
 end

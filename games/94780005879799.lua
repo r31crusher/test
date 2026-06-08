@@ -1,54 +1,48 @@
 -- scream for brainrots
 
 return function(section)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
+    local elements = getgenv()._astroElements
     getgenv().AddingSpins = false
     getgenv().AutoSleepy = false
     getgenv().AutoOg = false
 
-    elements:Toggle("Add Inf Spins", section, function(v)
-        if v then
-            getgenv().AddingSpins = true
+    local _remotes       = game:GetService("ReplicatedStorage").Remotes
+    local _evAddSpin     = _remotes.AddSpin
+    local _evSpinWheel   = _remotes.SpinEventWheel
 
-            while getgenv().AddingSpins do
-                local Event = game:GetService("ReplicatedStorage").Remotes.AddSpin
-                Event:FireServer()
-                task.wait()
-            end
-        else
-            getgenv().AddingSpins = false
+    elements:Toggle("Add Inf Spins", section, function(v)
+        getgenv().AddingSpins = v
+        if v then
+            task.spawn(function()
+                while getgenv().AddingSpins do
+                    _evAddSpin:FireServer()
+                    task.wait()
+                end
+            end)
         end
     end)
 
     elements:Toggle("Auto Spin Sleepy Mutation", section, function(v)
+        getgenv().AutoSleepy = v
         if v then
-            getgenv().AutoSleepy = true
-
-            while getgenv().AutoSleepy do
-                local Event = game:GetService("ReplicatedStorage").Remotes.SpinEventWheel
-                Event:FireServer(
-                    5
-                )
-                task.wait(0.5)
-            end
-        else
-            getgenv().AutoSleepy = false
+            task.spawn(function()
+                while getgenv().AutoSleepy do
+                    _evSpinWheel:FireServer(5)
+                    task.wait(0.5)
+                end
+            end)
         end
     end)
 
     elements:Toggle("Auto Spin OG", section, function(v)
+        getgenv().AutoOg = v
         if v then
-            getgenv().AutoOg = true
-
-            while getgenv().AutoOg do
-                local Event = game:GetService("ReplicatedStorage").Remotes.SpinEventWheel
-                Event:FireServer(
-                    4
-                )
-                task.wait(0.5)
-            end
-        else
-            getgenv().AutoOg = false
+            task.spawn(function()
+                while getgenv().AutoOg do
+                    _evSpinWheel:FireServer(4)
+                    task.wait(0.5)
+                end
+            end)
         end
     end)
 end

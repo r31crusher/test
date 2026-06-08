@@ -11,10 +11,10 @@ local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 
 -- ── Window ────────────────────────────────────────────────────────────────────
 local Window = Library:CreateWindow({
-    Title          = "Astro",
-    Footer         = "universal tools",
-    ToggleKeybind  = Enum.KeyCode.Insert,
-    AutoShow       = true,
+    Title         = "Astro",
+    Footer        = "universal tools",
+    ToggleKeybind = Enum.KeyCode.Insert,
+    AutoShow      = true,
 })
 
 -- ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -32,15 +32,18 @@ local Tabs = {
 local HomeGB      = Tabs.Home:AddLeftGroupbox("Home")
 local GameGB      = Tabs.Game:AddLeftGroupbox("Game")
 local GameslistGB = Tabs.Gameslist:AddLeftGroupbox("Games List")
-local SettingsGB  = Tabs.Settings:AddLeftGroupbox("Settings")
 local CreditsGB   = Tabs.Credits:AddLeftGroupbox("Credits")
 
--- ── Universal – Tabbox (replaces hand-rolled sub-tab system) ─────────────────
-local UniTabBox  = Tabs.Universal:AddLeftTabbox()
-local movTab     = UniTabBox:AddTab("Movement")
-local combatTab  = UniTabBox:AddTab("Combat")
-local espTab     = UniTabBox:AddTab("ESP")
-local visualTab  = UniTabBox:AddTab("Visual")
+-- ── Settings groupboxes ───────────────────────────────────────────────────────
+local SettingsGB  = Tabs.Settings:AddLeftGroupbox("Config")
+local SettingsRGB = Tabs.Settings:AddRightGroupbox("Actions")
+
+-- ── Universal – Tabbox ────────────────────────────────────────────────────────
+local UniTabBox = Tabs.Universal:AddLeftTabbox()
+local movTab    = UniTabBox:AddTab("Movement")
+local combatTab = UniTabBox:AddTab("Combat")
+local espTab    = UniTabBox:AddTab("ESP")
+local visualTab = UniTabBox:AddTab("Visual")
 
 -- ── UID helper ────────────────────────────────────────────────────────────────
 local _uidCtr = 0
@@ -81,7 +84,7 @@ if ok2 and listSrc then
     local gameList = HttpService:JSONDecode(listSrc)
     for _, g in ipairs(gameList) do
         GameslistGB:AddButton({
-            Text     = (g.status or "●") .. " " .. tostring(g["game"]),
+            Text = (g.status or "●") .. " " .. tostring(g["game"]),
             Func = function() TeleportService:Teleport(tonumber(g.id)) end,
         })
     end
@@ -92,6 +95,21 @@ end
 -- ═════════════════════════════════════════════════════════════════════════════
 local _walkSpeed   = 50
 local _walkEnabled = false
+
+movTab:AddLabel("── Speed ──────────────────────────────────")
+
+local _setSpeedBoost_obj = movTab:AddToggle(uid("tog"), {
+    Text     = "Speed Boost",
+    Default  = false,
+    Callback = function(v)
+        _walkEnabled = v
+        if plr.Character then
+            local h = plr.Character:FindFirstChildOfClass("Humanoid")
+            if h then h.WalkSpeed = v and _walkSpeed or 16 end
+        end
+    end,
+})
+local _setSpeedBoost = function(v) _setSpeedBoost_obj:SetValue(v) end
 
 local _setWalkSpeed_obj = movTab:AddSlider(uid("sld"), {
     Text     = "Walk Speed",
@@ -109,69 +127,12 @@ local _setWalkSpeed_obj = movTab:AddSlider(uid("sld"), {
 })
 local _setWalkSpeed = function(v) _setWalkSpeed_obj:SetValue(v) end
 
-local _setSpeedBoost_obj = movTab:AddToggle(uid("tog"), {
-    Text     = "Speed Boost",
-    Default  = false,
-    Callback = function(v)
-        _walkEnabled = v
-        if plr.Character then
-            local h = plr.Character:FindFirstChildOfClass("Humanoid")
-            if h then h.WalkSpeed = v and _walkSpeed or 16 end
-        end
-    end,
-})
-local _setSpeedBoost = function(v) _setSpeedBoost_obj:SetValue(v) end
-
 plr.CharacterAdded:Connect(function(char)
     local h = char:WaitForChild("Humanoid", 5)
     if h then h.WalkSpeed = _walkEnabled and _walkSpeed or 16 end
 end)
 
--- ── Noclip ────────────────────────────────────────────────────────────────────
-getgenv()._astroNoclip = false
-local _noclipTog = movTab:AddToggle(uid("tog"), {
-    Text     = "Noclip",
-    Default  = false,
-    Callback = function(v)
-        getgenv()._astroNoclip = v
-    end,
-})
-local setNoclip = function(v) _noclipTog:SetValue(v) end
-
-local _noclipKB = _noclipTog:AddKeyPicker({
-    Text    = "Noclip Key",
-    Default = "V",
-    Mode    = "Toggle",
-    SyncToggleState = false,
-    Callback = function(v)
-        if v ~= nil then
-            getgenv()._astroNoclip = v
-            _noclipTog:SetValue(v)
-        end
-    end,
-})
-
-RunService.Stepped:Connect(function()
-    if not getgenv()._astroNoclip then return end
-    local char = plr.Character
-    if not char then return end
-    for _, p in ipairs(char:GetDescendants()) do
-        if p:IsA("BasePart") then p.CanCollide = false end
-    end
-end)
-
--- ── Fly Speed ─────────────────────────────────────────────────────────────────
-local _flySpeed = 50
-
-local _setFlySpeed_obj = movTab:AddSlider(uid("sld"), {
-    Text     = "Fly Speed",
-    Min      = 10,
-    Max      = 300,
-    Default  = 50,
-    Rounding = 0,
-    Callback = function(v) _flySpeed = v end,
-})
-local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
+movTab:AddLabel("── Fly ────────────────────────────────────")
 
 -- ── Fly ───────────────────────────────────────────────────────────────────────
 local _flyBV, _flyBG
@@ -224,16 +185,62 @@ local _flyTog = movTab:AddToggle(uid("tog"), {
 local setFly = function(v) _flyTog:SetValue(v) end
 
 local _flyKB = _flyTog:AddKeyPicker({
-    Text    = "Fly Key",
-    Default = "F",
-    Mode    = "Toggle",
-    SyncToggleState = false,
+    Text             = "Fly Key",
+    Default          = "F",
+    Mode             = "Toggle",
+    SyncToggleState  = false,
+    Callback = function(v)
+        if v ~= nil then setFly(v) end
+    end,
+})
+
+-- ── Fly Speed ─────────────────────────────────────────────────────────────────
+local _flySpeed = 50
+
+local _setFlySpeed_obj = movTab:AddSlider(uid("sld"), {
+    Text     = "Fly Speed",
+    Min      = 10,
+    Max      = 300,
+    Default  = 50,
+    Rounding = 0,
+    Callback = function(v) _flySpeed = v end,
+})
+local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
+
+movTab:AddLabel("── Misc ───────────────────────────────────")
+
+-- ── Noclip ────────────────────────────────────────────────────────────────────
+getgenv()._astroNoclip = false
+local _noclipTog = movTab:AddToggle(uid("tog"), {
+    Text     = "Noclip",
+    Default  = false,
+    Callback = function(v)
+        getgenv()._astroNoclip = v
+    end,
+})
+local setNoclip = function(v) _noclipTog:SetValue(v) end
+
+local _noclipKB = _noclipTog:AddKeyPicker({
+    Text             = "Noclip Key",
+    Default          = "V",
+    Mode             = "Toggle",
+    SyncToggleState  = false,
     Callback = function(v)
         if v ~= nil then
-            setFly(v)
+            getgenv()._astroNoclip = v
+            _noclipTog:SetValue(v)
         end
     end,
 })
+
+RunService.Stepped:Connect(function()
+    if not getgenv()._astroNoclip then return end
+    local char = plr.Character
+    if not char then return end
+    for _, p in ipairs(char:GetDescendants()) do
+        if p:IsA("BasePart") then p.CanCollide = false end
+    end
+end)
 
 -- ── Infinite Jump ─────────────────────────────────────────────────────────────
 getgenv()._astroInfJump = false
@@ -251,56 +258,6 @@ UserInputService.JumpRequest:Connect(function()
     local h = char:FindFirstChildOfClass("Humanoid")
     if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
 end)
-
--- ── Fullbright ────────────────────────────────────────────────────────────────
-local _fbOrig
-local _fullbrightOn = false
-local _setFullbright_obj = movTab:AddToggle(uid("tog"), {
-    Text     = "Fullbright",
-    Default  = false,
-    Callback = function(v)
-        _fullbrightOn = v
-        local L = game:GetService("Lighting")
-        if v then
-            _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
-            L.Brightness     = 2
-            L.Ambient        = Color3.fromRGB(178, 178, 178)
-            L.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
-            L.FogEnd         = 1e6
-        elseif _fbOrig then
-            L.Brightness     = _fbOrig[1]
-            L.Ambient        = _fbOrig[2]
-            L.OutdoorAmbient = _fbOrig[3]
-            L.FogEnd         = _fbOrig[4]
-        end
-    end,
-})
-local _setFullbright = function(v) _setFullbright_obj:SetValue(v) end
-
--- ── Anti-AFK ─────────────────────────────────────────────────────────────────
-getgenv()._astroAntiAfk = false
-local _setAntiAfk_obj = movTab:AddToggle(uid("tog"), {
-    Text     = "Anti-AFK",
-    Default  = false,
-    Callback = function(v)
-        getgenv()._astroAntiAfk = v
-        if v then
-            task.spawn(function()
-                while getgenv()._astroAntiAfk do
-                    task.wait(60)
-                    if getgenv()._astroAntiAfk then
-                        pcall(function()
-                            local vim = game:GetService("VirtualInputManager")
-                            vim:SendKeyEvent(true,  "Q", false, game)
-                            vim:SendKeyEvent(false, "Q", false, game)
-                        end)
-                    end
-                end
-            end)
-        end
-    end,
-})
-local _setAntiAfk = function(v) _setAntiAfk_obj:SetValue(v) end
 
 -- ── Anti-Fall ─────────────────────────────────────────────────────────────────
 -- Saves your last grounded CFrame and teleports you back if you fall 60+ studs
@@ -332,11 +289,99 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- ── Anti-AFK ──────────────────────────────────────────────────────────────────
+getgenv()._astroAntiAfk = false
+local _setAntiAfk_obj = movTab:AddToggle(uid("tog"), {
+    Text     = "Anti-AFK",
+    Default  = false,
+    Callback = function(v)
+        getgenv()._astroAntiAfk = v
+        if v then
+            task.spawn(function()
+                while getgenv()._astroAntiAfk do
+                    task.wait(60)
+                    if getgenv()._astroAntiAfk then
+                        pcall(function()
+                            local vim = game:GetService("VirtualInputManager")
+                            vim:SendKeyEvent(true,  "Q", false, game)
+                            vim:SendKeyEvent(false, "Q", false, game)
+                        end)
+                    end
+                end
+            end)
+        end
+    end,
+})
+local _setAntiAfk = function(v) _setAntiAfk_obj:SetValue(v) end
+
+-- ── Fullbright ────────────────────────────────────────────────────────────────
+local _fbOrig
+local _fullbrightOn = false
+local _setFullbright_obj = movTab:AddToggle(uid("tog"), {
+    Text     = "Fullbright",
+    Default  = false,
+    Callback = function(v)
+        _fullbrightOn = v
+        local L = game:GetService("Lighting")
+        if v then
+            _fbOrig = {L.Brightness, L.Ambient, L.OutdoorAmbient, L.FogEnd}
+            L.Brightness     = 2
+            L.Ambient        = Color3.fromRGB(178, 178, 178)
+            L.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
+            L.FogEnd         = 1e6
+        elseif _fbOrig then
+            L.Brightness     = _fbOrig[1]
+            L.Ambient        = _fbOrig[2]
+            L.OutdoorAmbient = _fbOrig[3]
+            L.FogEnd         = _fbOrig[4]
+        end
+    end,
+})
+local _setFullbright = function(v) _setFullbright_obj:SetValue(v) end
+
 -- ═════════════════════════════════════════════════════════════════════════════
 --  COMBAT
 -- ═════════════════════════════════════════════════════════════════════════════
 local _aimFOV   = 200
 local _aimSpeed = 8
+
+combatTab:AddLabel("── Aimbot ─────────────────────────────────")
+
+-- ── Aimbot ────────────────────────────────────────────────────────────────────
+getgenv()._aimEnabled  = false
+getgenv()._astroAiming = false
+local _aimbotTog = combatTab:AddToggle(uid("tog"), {
+    Text     = "Aimbot",
+    Default  = false,
+    Callback = function(v)
+        getgenv()._aimEnabled = v
+        if not v then getgenv()._astroAiming = false end
+    end,
+})
+local _setAimbot = function(v) _aimbotTog:SetValue(v) end
+
+local _aimbotKB = _aimbotTog:AddKeyPicker({
+    Text            = "Aimbot Key",
+    Default         = "E",
+    Mode            = "Hold",
+    SyncToggleState = false,
+    Callback = function(v)
+        if getgenv()._aimEnabled then
+            getgenv()._astroAiming = v
+        end
+    end,
+})
+
+local _aimMode = "Legacy"
+combatTab:AddDropdown(uid("dd"), {
+    Text     = "Aim Mode",
+    Values   = {"Legacy", "Silent"},
+    Default  = "Legacy",
+    Callback = function(v)
+        _aimMode = v
+        if v == "Silent" then _installSilentHook() end
+    end,
+})
 
 local _setAimFOV_obj = combatTab:AddSlider(uid("sld"), {
     Text     = "Aim FOV",
@@ -365,17 +410,6 @@ local _setTeamCheck_obj = combatTab:AddToggle(uid("tog"), {
     Callback = function(v) getgenv()._astroAimTeamCheck = v end,
 })
 local _setTeamCheck = function(v) _setTeamCheck_obj:SetValue(v) end
-
-local _aimMode = "Legacy"
-combatTab:AddDropdown(uid("dd"), {
-    Text     = "Aim Mode",
-    Values   = {"Legacy", "Silent"},
-    Default  = "Legacy",
-    Callback = function(v)
-        _aimMode = v
-        if v == "Silent" then _installSilentHook() end
-    end,
-})
 
 getgenv()._astroAimVisCheck = false
 local _setAimVisCheck_obj = combatTab:AddToggle(uid("tog"), {
@@ -454,31 +488,6 @@ local function _installSilentHook()
     if ok then _silentHookOrig = orig end
 end
 
--- ── Aimbot ────────────────────────────────────────────────────────────────────
-getgenv()._aimEnabled  = false
-getgenv()._astroAiming = false
-local _aimbotTog = combatTab:AddToggle(uid("tog"), {
-    Text     = "Aimbot",
-    Default  = false,
-    Callback = function(v)
-        getgenv()._aimEnabled = v
-        if not v then getgenv()._astroAiming = false end
-    end,
-})
-local _setAimbot = function(v) _aimbotTog:SetValue(v) end
-
-local _aimbotKB = _aimbotTog:AddKeyPicker({
-    Text    = "Aimbot Key",
-    Default = "E",
-    Mode    = "Hold",
-    SyncToggleState = false,
-    Callback = function(v)
-        if getgenv()._aimEnabled then
-            getgenv()._astroAiming = v
-        end
-    end,
-})
-
 RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function()
     if not getgenv()._astroAiming then return end
     local target = getAimTarget()
@@ -490,6 +499,8 @@ RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function
     end
     -- Silent: the __namecall hook handles ray redirection; no camera movement needed.
 end)
+
+combatTab:AddLabel("── Utilities ──────────────────────────────")
 
 -- ── SpinBot ───────────────────────────────────────────────────────────────────
 getgenv()._astroSpinbot = false
@@ -613,25 +624,83 @@ game:GetService("Players").PlayerAdded:Connect(function(p)
     end)
 end)
 
+-- Bullet Tracers — draws a fading line from shot origin to hit point each frame
+getgenv()._astroTracers = false
+
+local function _drawTracer(origin, hitPos)
+    local cam = workspace.CurrentCamera
+    local ln  = Drawing.new("Line")
+    ln.Color     = Color3.fromRGB(255, 210, 50)
+    ln.Thickness = 1.5
+    local t, dur = 0, 0.35
+    while t < dur do
+        t += RunService.RenderStepped:Wait()
+        local oSP       = cam:WorldToViewportPoint(origin)
+        local hSP, onSc = cam:WorldToViewportPoint(hitPos)
+        ln.Visible = onSc and oSP.Z > 0
+        if ln.Visible then
+            ln.From         = Vector2.new(oSP.X, oSP.Y)
+            ln.To           = Vector2.new(hSP.X, hSP.Y)
+            ln.Transparency = t / dur
+        end
+    end
+    ln.Remove()
+end
+
+-- Chains off whatever __namecall hook is already installed (silent aim or original)
+local _tracerHookOrig = nil
+local function _installTracerHook()
+    if _tracerHookOrig then return end
+    local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
+        local result = _tracerHookOrig(self, ...)
+        if getnamecallmethod() == "Raycast" and self == workspace
+                and getgenv()._astroTracers then
+            local origin, direction = ...
+            if origin and direction then
+                local camPos = workspace.CurrentCamera.CFrame.Position
+                if (origin - camPos).Magnitude < 15 then
+                    local hit = result and result.Position or (origin + direction)
+                    task.spawn(_drawTracer, origin, hit)
+                end
+            end
+        end
+        return result
+    end)
+    if ok then _tracerHookOrig = orig end
+end
+
+combatTab:AddToggle(uid("tog"), {
+    Text     = "Bullet Tracers",
+    Default  = false,
+    Callback = function(v)
+        getgenv()._astroTracers = v
+        if v then _installTracerHook() end
+    end,
+})
+
 -- ═════════════════════════════════════════════════════════════════════════════
 --  ESP
 -- ═════════════════════════════════════════════════════════════════════════════
 local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
 local _espD = {}
 
-local _setBoxEsp_obj  = espTab:AddToggle(uid("tog"), {Text="Box",        Default=false, Callback=function(v) _esp.box      = v end})
-local _setSkelEsp_obj = espTab:AddToggle(uid("tog"), {Text="Skeleton",   Default=false, Callback=function(v) _esp.skeleton = v end})
-local _setNameEsp_obj = espTab:AddToggle(uid("tog"), {Text="Name",       Default=false, Callback=function(v) _esp.name     = v end})
-local _setDistEsp_obj = espTab:AddToggle(uid("tog"), {Text="Distance",   Default=false, Callback=function(v) _esp.distance = v end})
-local _setWeapEsp_obj = espTab:AddToggle(uid("tog"), {Text="Weapon",     Default=false, Callback=function(v) _esp.weapon   = v end})
-local _setHpEsp_obj   = espTab:AddToggle(uid("tog"), {Text="Health Bar", Default=false, Callback=function(v) _esp.health   = v end})
+espTab:AddLabel("── Overlays ───────────────────────────────")
 
-local _setBoxEsp      = function(v) _setBoxEsp_obj:SetValue(v)  end
-local _setSkelEsp     = function(v) _setSkelEsp_obj:SetValue(v) end
-local _setNameEsp     = function(v) _setNameEsp_obj:SetValue(v) end
-local _setDistEsp     = function(v) _setDistEsp_obj:SetValue(v) end
-local _setWeapEsp     = function(v) _setWeapEsp_obj:SetValue(v) end
-local _setHpEsp       = function(v) _setHpEsp_obj:SetValue(v)   end
+local _setBoxEsp_obj  = espTab:AddToggle(uid("tog"), {Text = "Box",        Default = false, Callback = function(v) _esp.box      = v end})
+local _setSkelEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Skeleton",   Default = false, Callback = function(v) _esp.skeleton = v end})
+local _setNameEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Name",       Default = false, Callback = function(v) _esp.name     = v end})
+local _setDistEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Distance",   Default = false, Callback = function(v) _esp.distance = v end})
+local _setWeapEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Weapon",     Default = false, Callback = function(v) _esp.weapon   = v end})
+local _setHpEsp_obj   = espTab:AddToggle(uid("tog"), {Text = "Health Bar", Default = false, Callback = function(v) _esp.health   = v end})
+
+local _setBoxEsp  = function(v) _setBoxEsp_obj:SetValue(v)  end
+local _setSkelEsp = function(v) _setSkelEsp_obj:SetValue(v) end
+local _setNameEsp = function(v) _setNameEsp_obj:SetValue(v) end
+local _setDistEsp = function(v) _setDistEsp_obj:SetValue(v) end
+local _setWeapEsp = function(v) _setWeapEsp_obj:SetValue(v) end
+local _setHpEsp   = function(v) _setHpEsp_obj:SetValue(v)   end
+
+espTab:AddLabel("── Filters ────────────────────────────────")
 
 local _espTeamCheck = false
 local _setEspTeamCheck_obj = espTab:AddToggle(uid("tog"), {
@@ -640,6 +709,14 @@ local _setEspTeamCheck_obj = espTab:AddToggle(uid("tog"), {
     Callback = function(v) _espTeamCheck = v end,
 })
 local _setEspTeamCheck = function(v) _setEspTeamCheck_obj:SetValue(v) end
+
+local _espVisCheck = false
+local _setEspVisCheck_obj = espTab:AddToggle(uid("tog"), {
+    Text     = "Vis Check",
+    Default  = false,
+    Callback = function(v) _espVisCheck = v end,
+})
+local _setEspVisCheck = function(v) _setEspVisCheck_obj:SetValue(v) end
 
 local _espColorMap = {
     Red    = Color3.fromRGB(255, 50,  50),
@@ -653,18 +730,10 @@ local _espColorMap = {
 }
 local _espColorNames = {"Red","Orange","Yellow","Green","Cyan","Blue","Purple","White"}
 
-local _espVisColor     = _espColorMap.Red
-local _espNoVisColor   = _espColorMap.Orange
+local _espVisColor       = _espColorMap.Red
+local _espNoVisColor     = _espColorMap.Orange
 local _espVisColorName   = "Red"
 local _espNoVisColorName = "Orange"
-local _espVisCheck = false
-
-local _setEspVisCheck_obj = espTab:AddToggle(uid("tog"), {
-    Text     = "Vis Check",
-    Default  = false,
-    Callback = function(v) _espVisCheck = v end,
-})
-local _setEspVisCheck = function(v) _setEspVisCheck_obj:SetValue(v) end
 
 espTab:AddDropdown(uid("dd"), {
     Text     = "Visible Color",
@@ -769,51 +838,6 @@ game:GetService("Players").PlayerAdded:Connect(function(p)
     if getgenv()._astroDmgInd or getgenv()._astroHitSound then _watchDmg(p) end
 end)
 game:GetService("Players").PlayerRemoving:Connect(function(p) _unwatchDmg(p) end)
-
--- Bullet Tracers — draws a fading line from shot origin to hit point each frame
-getgenv()._astroTracers = false
-
-local function _drawTracer(origin, hitPos)
-    local cam = workspace.CurrentCamera
-    local ln  = Drawing.new("Line")
-    ln.Color     = Color3.fromRGB(255, 210, 50)
-    ln.Thickness = 1.5
-    local t, dur = 0, 0.35
-    while t < dur do
-        t += RunService.RenderStepped:Wait()
-        local oSP       = cam:WorldToViewportPoint(origin)
-        local hSP, onSc = cam:WorldToViewportPoint(hitPos)
-        ln.Visible = onSc and oSP.Z > 0
-        if ln.Visible then
-            ln.From         = Vector2.new(oSP.X, oSP.Y)
-            ln.To           = Vector2.new(hSP.X, hSP.Y)
-            ln.Transparency = t / dur
-        end
-    end
-    ln.Remove()
-end
-
--- Chains off whatever __namecall hook is already installed (silent aim or original)
-local _tracerHookOrig = nil
-local function _installTracerHook()
-    if _tracerHookOrig then return end
-    local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
-        local result = _tracerHookOrig(self, ...)
-        if getnamecallmethod() == "Raycast" and self == workspace
-                and getgenv()._astroTracers then
-            local origin, direction = ...
-            if origin and direction then
-                local camPos = workspace.CurrentCamera.CFrame.Position
-                if (origin - camPos).Magnitude < 15 then
-                    local hit = result and result.Position or (origin + direction)
-                    task.spawn(_drawTracer, origin, hit)
-                end
-            end
-        end
-        return result
-    end)
-    if ok then _tracerHookOrig = orig end
-end
 
 -- Crosshair — persistent + viewport-size aware
 getgenv()._astroCrosshair = false
@@ -925,14 +949,6 @@ end
 
 -- Visual section UI elements
 visualTab:AddToggle(uid("tog"), {
-    Text     = "Bullet Tracers",
-    Default  = false,
-    Callback = function(v)
-        getgenv()._astroTracers = v
-        if v then _installTracerHook() end
-    end,
-})
-visualTab:AddToggle(uid("tog"), {
     Text     = "Damage Indicators",
     Default  = false,
     Callback = function(v)
@@ -968,27 +984,6 @@ visualTab:AddToggle(uid("tog"), {
 -- ═════════════════════════════════════════════════════════════════════════════
 --  SETTINGS tab / Config system
 -- ═════════════════════════════════════════════════════════════════════════════
-SettingsGB:AddToggle(uid("tog"), {
-    Text     = "Disable 3D Rendering",
-    Default  = false,
-    Callback = function(v)
-        RunService:Set3dRenderingEnabled(not v)
-    end,
-})
-SettingsGB:AddToggle(uid("tog"), {
-    Text     = "Auto Rejoin on kick",
-    Default  = false,
-    Callback = function(v)
-        getgenv().autorjjjj = v
-    end,
-})
-SettingsGB:AddButton({
-    Text     = "Unload",
-    Func = function()
-        if getgenv()._astroUnload then getgenv()._astroUnload() end
-    end,
-})
-
 local CFG_FILE  = "astro/universal/config.json"
 local META_FILE = "astro/universal/meta.json"
 
@@ -1011,25 +1006,25 @@ end
 local function saveConfig()
     _cfgEnsureDirs()
     local data = {
-        walkSpeed     = _walkSpeed,
-        walkEnabled   = _walkEnabled,
-        flySpeed      = _flySpeed,
-        noclipEnabled = getgenv()._astroNoclip,
-        infJump       = getgenv()._astroInfJump,
-        fullbright    = _fullbrightOn,
-        antiAfk       = getgenv()._astroAntiAfk,
-        aimEnabled    = getgenv()._aimEnabled,
-        aimFOV        = _aimFOV,
-        aimSpeed      = _aimSpeed,
-        aimTeamCheck  = getgenv()._astroAimTeamCheck,
-        aimVisCheck   = getgenv()._astroAimVisCheck,
-        aimMode       = _aimMode,
-        espBox        = _esp.box,
-        espSkeleton   = _esp.skeleton,
-        espName       = _esp.name,
-        espDistance   = _esp.distance,
-        espWeapon     = _esp.weapon,
-        espHealth     = _esp.health,
+        walkSpeed         = _walkSpeed,
+        walkEnabled       = _walkEnabled,
+        flySpeed          = _flySpeed,
+        noclipEnabled     = getgenv()._astroNoclip,
+        infJump           = getgenv()._astroInfJump,
+        fullbright        = _fullbrightOn,
+        antiAfk           = getgenv()._astroAntiAfk,
+        aimEnabled        = getgenv()._aimEnabled,
+        aimFOV            = _aimFOV,
+        aimSpeed          = _aimSpeed,
+        aimTeamCheck      = getgenv()._astroAimTeamCheck,
+        aimVisCheck       = getgenv()._astroAimVisCheck,
+        aimMode           = _aimMode,
+        espBox            = _esp.box,
+        espSkeleton       = _esp.skeleton,
+        espName           = _esp.name,
+        espDistance       = _esp.distance,
+        espWeapon         = _esp.weapon,
+        espHealth         = _esp.health,
         espTeamCheck      = _espTeamCheck,
         espVisCheck       = _espVisCheck,
         espVisColorName   = _espVisColorName,
@@ -1043,10 +1038,10 @@ local function loadConfig()
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
     if not ok or type(data) ~= "table" then return false end
 
-    if data.walkSpeed  then _setWalkSpeed(data.walkSpeed)  end
-    if data.flySpeed   then _setFlySpeed(data.flySpeed)    end
-    if data.aimFOV     then _setAimFOV(data.aimFOV)       end
-    if data.aimSpeed   then _setAimSmooth(data.aimSpeed)   end
+    if data.walkSpeed then _setWalkSpeed(data.walkSpeed) end
+    if data.flySpeed  then _setFlySpeed(data.flySpeed)   end
+    if data.aimFOV    then _setAimFOV(data.aimFOV)       end
+    if data.aimSpeed  then _setAimSmooth(data.aimSpeed)  end
 
     if data.walkEnabled   ~= nil then _setSpeedBoost(data.walkEnabled)  end
     if data.noclipEnabled ~= nil then setNoclip(data.noclipEnabled)     end
@@ -1056,7 +1051,10 @@ local function loadConfig()
     if data.aimEnabled    ~= nil then _setAimbot(data.aimEnabled)       end
     if data.aimTeamCheck  ~= nil then _setTeamCheck(data.aimTeamCheck)  end
     if data.aimVisCheck   ~= nil then _setAimVisCheck(data.aimVisCheck) end
-    if data.aimMode             then _aimMode = data.aimMode; if _aimMode == "Silent" then _installSilentHook() end end
+    if data.aimMode then
+        _aimMode = data.aimMode
+        if _aimMode == "Silent" then _installSilentHook() end
+    end
 
     if data.espBox      ~= nil then _setBoxEsp(data.espBox)       end
     if data.espSkeleton ~= nil then _setSkelEsp(data.espSkeleton) end
@@ -1065,8 +1063,8 @@ local function loadConfig()
     if data.espWeapon   ~= nil then _setWeapEsp(data.espWeapon)   end
     if data.espHealth   ~= nil then _setHpEsp(data.espHealth)     end
     if data.espTeamCheck ~= nil then _setEspTeamCheck(data.espTeamCheck) end
-    if data.espVisCheck  ~= nil then _setEspVisCheck(data.espVisCheck)  end
-    if data.espVisColorName   then
+    if data.espVisCheck  ~= nil then _setEspVisCheck(data.espVisCheck)   end
+    if data.espVisColorName then
         _espVisColorName = data.espVisColorName
         _espVisColor = _espColorMap[data.espVisColorName] or _espVisColor
     end
@@ -1089,8 +1087,11 @@ local function silentLoadConfig()
     if data.flySpeed  then _flySpeed  = data.flySpeed  end
     if data.aimFOV    then _aimFOV    = data.aimFOV    end
     if data.aimSpeed  then _aimSpeed  = data.aimSpeed  end
-    if data.aimMode   then _aimMode = data.aimMode; if _aimMode == "Silent" then _installSilentHook() end end
-    if data.espVisColorName   then
+    if data.aimMode then
+        _aimMode = data.aimMode
+        if _aimMode == "Silent" then _installSilentHook() end
+    end
+    if data.espVisColorName then
         _espVisColorName = data.espVisColorName
         _espVisColor = _espColorMap[data.espVisColorName] or _espVisColor
     end
@@ -1104,7 +1105,7 @@ end
 
 local _autoLoad = _readMeta().autoLoad == true
 
-SettingsGB:AddLabel("— Universal Config —")
+-- ── Config groupbox (left) ────────────────────────────────────────────────────
 SettingsGB:AddButton({Text = "Save Config",  Func = function() pcall(saveConfig)       end})
 SettingsGB:AddButton({Text = "Load Config",  Func = function() pcall(loadConfig)       end})
 SettingsGB:AddButton({Text = "Silent Load",  Func = function() pcall(silentLoadConfig) end})
@@ -1121,6 +1122,29 @@ local _autoLoadTog = SettingsGB:AddToggle(uid("tog"), {
 })
 local _setAutoLoad = function(v) _autoLoadTog:SetValue(v) end
 _setAutoLoad(_autoLoad)
+
+SettingsGB:AddToggle(uid("tog"), {
+    Text     = "Disable 3D Rendering",
+    Default  = false,
+    Callback = function(v)
+        RunService:Set3dRenderingEnabled(not v)
+    end,
+})
+SettingsGB:AddToggle(uid("tog"), {
+    Text     = "Auto Rejoin on kick",
+    Default  = false,
+    Callback = function(v)
+        getgenv().autorjjjj = v
+    end,
+})
+
+-- ── Actions groupbox (right) ──────────────────────────────────────────────────
+SettingsRGB:AddButton({
+    Text = "Unload",
+    Func = function()
+        if getgenv()._astroUnload then getgenv()._astroUnload() end
+    end,
+})
 
 if _autoLoad then pcall(loadConfig) end
 
@@ -1141,7 +1165,7 @@ local SKL_R6 = {
 
 local function newLine(color, thick)
     local l = Drawing.new("Line")
-    l.Color = color or Color3.fromRGB(255,50,50)
+    l.Color = color or Color3.fromRGB(255, 50, 50)
     l.Thickness = thick or 1.5
     l.Visible = false
     return l
@@ -1149,7 +1173,7 @@ end
 local function newText(size, color)
     local t = Drawing.new("Text")
     t.Size = size or 13
-    t.Color = color or Color3.fromRGB(255,255,255)
+    t.Color = color or Color3.fromRGB(255, 255, 255)
     t.Outline = true
     t.Center = true
     t.Visible = false
@@ -1160,25 +1184,25 @@ local function getESPData(espUid)
     if not _espD[espUid] then
         _espD[espUid] = {
             box      = Drawing.new("Square"),
-            hpBg     = newLine(Color3.fromRGB(0,0,0), 3),
-            hpBar    = newLine(Color3.fromRGB(0,255,0), 3),
-            nameT    = newText(13, Color3.fromRGB(255,255,255)),
-            distT    = newText(11, Color3.fromRGB(160,210,255)),
-            weapT    = newText(11, Color3.fromRGB(255,210,80)),
+            hpBg     = newLine(Color3.fromRGB(0, 0, 0), 3),
+            hpBar    = newLine(Color3.fromRGB(0, 255, 0), 3),
+            nameT    = newText(13, Color3.fromRGB(255, 255, 255)),
+            distT    = newText(11, Color3.fromRGB(160, 210, 255)),
+            weapT    = newText(11, Color3.fromRGB(255, 210, 80)),
             sklLines = {},
         }
         local b = _espD[espUid].box
-        b.Filled = false
+        b.Filled    = false
         b.Thickness = 1.5
-        b.Color = Color3.fromRGB(255,50,50)
-        b.Visible = false
+        b.Color     = Color3.fromRGB(255, 50, 50)
+        b.Visible   = false
     end
     return _espD[espUid]
 end
 
 local function hideAll(d)
-    d.box.Visible = false
-    d.hpBg.Visible = false
+    d.box.Visible   = false
+    d.hpBg.Visible  = false
     d.hpBar.Visible = false
     d.nameT.Visible = false
     d.distT.Visible = false
@@ -1189,8 +1213,8 @@ end
 local function cleanESP(espUid)
     local d = _espD[espUid]
     if not d then return end
-    pcall(function() d.box:Remove() end)
-    pcall(function() d.hpBg:Remove() end)
+    pcall(function() d.box:Remove()   end)
+    pcall(function() d.hpBg:Remove()  end)
     pcall(function() d.hpBar:Remove() end)
     pcall(function() d.nameT:Remove() end)
     pcall(function() d.distT:Remove() end)
@@ -1212,9 +1236,11 @@ local function updateESP(p)
     local vis = not _espVisCheck or _isVisible(hrp)
     local espColor = vis and _espVisColor or _espNoVisColor
 
-    local probeNames = {"Head","HumanoidRootPart","LeftFoot","RightFoot","LeftHand","RightHand",
-                        "LeftLowerLeg","RightLowerLeg","LeftLowerArm","RightLowerArm",
-                        "Left Leg","Right Leg","Left Arm","Right Arm","Torso"}
+    local probeNames = {
+        "Head","HumanoidRootPart","LeftFoot","RightFoot","LeftHand","RightHand",
+        "LeftLowerLeg","RightLowerLeg","LeftLowerArm","RightLowerArm",
+        "Left Leg","Right Leg","Left Arm","Right Arm","Torso",
+    }
     local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
     local hit = false
     for _, pn in ipairs(probeNames) do
@@ -1250,15 +1276,15 @@ local function updateESP(p)
         local r = math.clamp(math.floor(255*(1-ratio)*2), 0, 255)
         local g = math.clamp(math.floor(255*ratio*2),     0, 255)
         local barX = minX - 5
-        d.hpBg.From = Vector2.new(barX, minY)
-        d.hpBg.To   = Vector2.new(barX, maxY)
+        d.hpBg.From    = Vector2.new(barX, minY)
+        d.hpBg.To      = Vector2.new(barX, maxY)
         d.hpBg.Visible = true
-        d.hpBar.Color = Color3.fromRGB(r, g, 0)
-        d.hpBar.From  = Vector2.new(barX, maxY)
-        d.hpBar.To    = Vector2.new(barX, maxY - (maxY-minY)*ratio)
+        d.hpBar.Color   = Color3.fromRGB(r, g, 0)
+        d.hpBar.From    = Vector2.new(barX, maxY)
+        d.hpBar.To      = Vector2.new(barX, maxY - (maxY-minY)*ratio)
         d.hpBar.Visible = true
     else
-        d.hpBg.Visible = false
+        d.hpBg.Visible  = false
         d.hpBar.Visible = false
     end
 
@@ -1281,7 +1307,7 @@ local function updateESP(p)
     end
     if _esp.weapon then
         local tool = char:FindFirstChildOfClass("Tool")
-        d.weapT.Text    = tool and tool.Name or ""
+        d.weapT.Text     = tool and tool.Name or ""
         d.weapT.Position = Vector2.new(cx, maxY + 2)
         d.weapT.Visible  = d.weapT.Text ~= ""
     else
@@ -1292,7 +1318,7 @@ local function updateESP(p)
         local isR15 = char:FindFirstChild("UpperTorso") ~= nil
         local conns = isR15 and SKL_R15 or SKL_R6
         while #d.sklLines < #conns do
-            table.insert(d.sklLines, newLine(Color3.fromRGB(255,255,255), 1))
+            table.insert(d.sklLines, newLine(Color3.fromRGB(255, 255, 255), 1))
         end
         local camPos  = cam.CFrame.Position
         local camLook = cam.CFrame.LookVector
@@ -1309,9 +1335,9 @@ local function updateESP(p)
                 if inFront0 and inFront1 then
                     local s0 = cam:WorldToViewportPoint(p0.Position)
                     local s1 = cam:WorldToViewportPoint(p1.Position)
-                    ln.From  = Vector2.new(s0.X, s0.Y)
-                    ln.To    = Vector2.new(s1.X, s1.Y)
-                    ln.Color = espColor
+                    ln.From    = Vector2.new(s0.X, s0.Y)
+                    ln.To      = Vector2.new(s1.X, s1.Y)
+                    ln.Color   = espColor
                     ln.Visible = true
                 else
                     ln.Visible = false
@@ -1352,260 +1378,170 @@ if ok3 and credSrc then
 end
 
 -- ═════════════════════════════════════════════════════════════════════════════
---  PLAYERS tab — raw Instance code injected into Obsidian groupbox content
+--  PLAYERS tab
 -- ═════════════════════════════════════════════════════════════════════════════
 do
-    local PlayersGB = Tabs.Players:AddLeftGroupbox("Players")
-    -- Access Obsidian's inner content frame for raw Instance parenting.
-    -- Obsidian groupboxes expose their inner scroll/list frame as .Container.
-    local playersSection = PlayersGB.Container or PlayersGB.Content or PlayersGB[1]
-
     local Players = game:GetService("Players")
 
-    local countLbl = Instance.new("TextLabel", playersSection)
-    countLbl.Size = UDim2.new(1, 0, 0, 20)
-    countLbl.BackgroundTransparency = 1
-    countLbl.Font = Enum.Font.GothamSemibold
-    countLbl.TextSize = 12
-    countLbl.TextColor3 = Color3.fromRGB(130, 118, 175)
-    countLbl.TextXAlignment = Enum.TextXAlignment.Left
-    countLbl.Text = "0 players"
+    -- Count label lives in a persistent right groupbox
+    local PlayersCountGB = Tabs.Players:AddRightGroupbox("")
+    local _countLbl = PlayersCountGB:AddLabel("0 players online")
 
-    local rowContainer = Instance.new("Frame", playersSection)
-    rowContainer.Size = UDim2.new(1, 0, 0, 0)
-    rowContainer.BackgroundTransparency = 1
-    local rowLayout = Instance.new("UIListLayout", rowContainer)
-    rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    rowLayout.Padding = UDim.new(0, 4)
-    rowLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        rowContainer.Size = UDim2.new(1, 0, 0, rowLayout.AbsoluteContentSize.Y)
-    end)
+    -- Track per-player groupboxes so we can destroy and recreate them
+    local _playerBoxes = {}
 
     -- Incrementing stops any active troll loop across all rows
     local _trollId = 0
 
-    local function makePlayerRow(p)
-        local row = Instance.new("Frame", rowContainer)
-        row.Name = tostring(p.UserId)
-        row.Size = UDim2.new(1, 0, 0, 82)
-        row.BackgroundColor3 = Color3.fromRGB(20, 17, 38)
-        row.BorderSizePixel = 0
-        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-        local rs = Instance.new("UIStroke", row)
-        rs.Color = Color3.fromRGB(100, 80, 190)
-        rs.Transparency = 0.7
+    local function _makePlayerBox(p)
+        local displayName = p.DisplayName
+        local nameStr = displayName .. (displayName ~= p.Name and ("  (@" .. p.Name .. ")") or "")
+        local gb = Tabs.Players:AddLeftGroupbox(nameStr)
 
-        -- Name + info (leave 184px on right for 3 top buttons)
-        local nameLabel = Instance.new("TextLabel", row)
-        nameLabel.Size = UDim2.new(1, -194, 0, 18)
-        nameLabel.Position = UDim2.new(0, 10, 0, 6)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextSize = 13
-        nameLabel.TextColor3 = Color3.fromRGB(210, 200, 255)
-        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-        nameLabel.Text = p.DisplayName .. (p.DisplayName ~= p.Name and ("  @" .. p.Name) or "")
-
-        local infoLabel = Instance.new("TextLabel", row)
-        infoLabel.Size = UDim2.new(1, -194, 0, 14)
-        infoLabel.Position = UDim2.new(0, 10, 0, 26)
-        infoLabel.BackgroundTransparency = 1
-        infoLabel.Font = Enum.Font.Gotham
-        infoLabel.TextSize = 11
-        infoLabel.TextColor3 = Color3.fromRGB(130, 118, 175)
-        infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-        local age = p.AccountAge
-        local ageStr = age < 30 and "New (<30d)" or age < 365 and (math.floor(age/30) .. "mo") or (math.floor(age/365) .. "yr")
-        infoLabel.Text = "ID: " .. p.UserId .. "  ·  Acct: " .. ageStr
-
-        -- Top action buttons: TP / Spec / Fling (54px each, right-aligned, y=6)
-        local function makeBtn(label, xOffset, color, cb)
-            local btn = Instance.new("TextButton", row)
-            btn.Size = UDim2.new(0, 54, 0, 26)
-            btn.Position = UDim2.new(1, xOffset, 0, 6)
-            btn.BackgroundColor3 = color
-            btn.BorderSizePixel = 0
-            btn.AutoButtonColor = false
-            btn.Font = Enum.Font.GothamSemibold
-            btn.TextSize = 10
-            btn.TextColor3 = Color3.fromRGB(210, 200, 255)
-            btn.Text = label
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-            btn.MouseEnter:Connect(function()
-                btn.BackgroundColor3 = Color3.fromRGB(
-                    math.clamp(color.R * 255 + 20, 0, 255),
-                    math.clamp(color.G * 255,      0, 255),
-                    math.clamp(color.B * 255 + 30, 0, 255))
-            end)
-            btn.MouseLeave:Connect(function() btn.BackgroundColor3 = color end)
-            btn.MouseButton1Click:Connect(cb)
-        end
-
-        makeBtn("TP", -184, Color3.fromRGB(38, 28, 75), function()
-            local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-            local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
-            if myHRP and tgtHRP then
-                myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
-            end
-        end)
-
-        makeBtn("Spec", -124, Color3.fromRGB(30, 22, 60), function()
-            local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                workspace.CurrentCamera.CameraSubject = hum
-                workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
-            end
-        end)
-
-        -- Fling: 16384 = Roblox network velocity cap; character flipped upside
-        -- down matches the technique used in working fling scripts.
-        makeBtn("Fling", -64, Color3.fromRGB(55, 10, 10), function()
-            local myChar  = plr.Character
-            local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            local tgtChar = p.Character
-            local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-            local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
-            if not myHRP or not tgtHRP or not tgtHum then return end
-
-            local savedCF = myHRP.CFrame
-            local myHum   = myChar:FindFirstChildOfClass("Humanoid")
-            local angle   = 0
-            local offIdx  = 1
-            local offsets = {
-                CFrame.new( 0,     1.5,  0   ),
-                CFrame.new( 0,    -1.5,  0   ),
-                CFrame.new( 2.25,  1.5, -2.25),
-                CFrame.new(-2.25, -1.5,  2.25),
-            }
-
-            if myHum then
-                myHum.Health = myHum.MaxHealth
-                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            end
-
-            local bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(16384, -16384, 16384)
-            bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
-            bv.P        = 9e8
-            bv.Parent   = myHRP
-
-            task.spawn(function()
-                local iters = 0
-                while iters < 120 and tgtHRP.Parent do
-                    local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
-                    if vel > 500 then break end
-                    if vel < 50 then angle = (angle + 100) % 360 end
-                    offIdx = offIdx % #offsets + 1
-                    local moveOff = tgtHum.MoveDirection
-                        * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
-                    myHRP.CFrame = tgtHRP.CFrame
-                        * CFrame.Angles(math.pi, 0, 0)
-                        * offsets[offIdx]
-                        * CFrame.Angles(math.rad(angle), 0, 0)
-                        + moveOff
-                    iters += 1
-                    RunService.Heartbeat:Wait()
+        -- Action buttons row: TP · Spec · Fling
+        gb:AddButton({
+            Text = "TP",
+            Func = function()
+                local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
+                if myHRP and tgtHRP then
+                    myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
                 end
-                bv:Destroy()
-                task.wait(0.1)
-                if myHRP and myHRP.Parent then
-                    myHRP.CFrame = savedCF
-                    myHRP.AssemblyLinearVelocity  = Vector3.zero
-                    myHRP.AssemblyAngularVelocity = Vector3.zero
+            end,
+        })
+        gb:AddButton({
+            Text = "Spec",
+            Func = function()
+                local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    workspace.CurrentCamera.CameraSubject = hum
+                    workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
                 end
+            end,
+        })
+        gb:AddButton({
+            Text = "Fling",
+            Func = function()
+                local myChar  = plr.Character
+                local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                local tgtChar = p.Character
+                local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
+                local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+                if not myHRP or not tgtHRP or not tgtHum then return end
+
+                local savedCF = myHRP.CFrame
+                local myHum   = myChar:FindFirstChildOfClass("Humanoid")
+                local angle   = 0
+                local offIdx  = 1
+                local offsets = {
+                    CFrame.new( 0,     1.5,  0   ),
+                    CFrame.new( 0,    -1.5,  0   ),
+                    CFrame.new( 2.25,  1.5, -2.25),
+                    CFrame.new(-2.25, -1.5,  2.25),
+                }
+
                 if myHum then
                     myHum.Health = myHum.MaxHealth
-                    myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-                    myHum.PlatformStand = false
+                    myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
                 end
-            end)
-        end)
 
-        -- Troll buttons row — each loop anchors your character to the target.
-        -- Pressing any troll button or Stop cancels the previous one.
-        local trollBar = Instance.new("Frame", row)
-        trollBar.Size = UDim2.new(1, -8, 0, 26)
-        trollBar.Position = UDim2.new(0, 4, 0, 50)
-        trollBar.BackgroundTransparency = 1
-        local trollLayout = Instance.new("UIListLayout", trollBar)
-        trollLayout.FillDirection = Enum.FillDirection.Horizontal
-        trollLayout.Padding = UDim.new(0, 4)
+                local bv = Instance.new("BodyVelocity")
+                bv.Velocity = Vector3.new(16384, -16384, 16384)
+                bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+                bv.P        = 9e8
+                bv.Parent   = myHRP
 
-        local trollDefs = {
-            {"Standon", Color3.fromRGB(28, 22, 60)},
-            {"Orbit",   Color3.fromRGB(22, 28, 55)},
-            {"Merge",   Color3.fromRGB(30, 18, 55)},
-            {"Fan",     Color3.fromRGB(22, 22, 58)},
-            {"Stop",    Color3.fromRGB(60, 12, 12)},
-        }
-
-        for i, def in ipairs(trollDefs) do
-            local tbtn = Instance.new("TextButton", trollBar)
-            tbtn.Size = UDim2.new(0.2, -4, 1, 0)
-            tbtn.BackgroundColor3 = def[2]
-            tbtn.BorderSizePixel = 0
-            tbtn.AutoButtonColor = false
-            tbtn.Font = Enum.Font.GothamSemibold
-            tbtn.TextSize = 10
-            tbtn.TextColor3 = Color3.fromRGB(210, 200, 255)
-            tbtn.Text = def[1]
-            tbtn.LayoutOrder = i
-            Instance.new("UICorner", tbtn).CornerRadius = UDim.new(0, 5)
-            local col = def[2]
-            tbtn.MouseEnter:Connect(function()
-                tbtn.BackgroundColor3 = Color3.fromRGB(
-                    math.clamp(col.R*255+20, 0, 255),
-                    math.clamp(col.G*255,    0, 255),
-                    math.clamp(col.B*255+30, 0, 255))
-            end)
-            tbtn.MouseLeave:Connect(function() tbtn.BackgroundColor3 = col end)
-
-            local action = def[1]
-            tbtn.MouseButton1Click:Connect(function()
-                _trollId += 1
-                if action == "Stop" then return end
-                local id = _trollId
                 task.spawn(function()
-                    while _trollId == id do
-                        local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-                        local tChar  = p.Character
-                        local tHRP   = tChar and tChar:FindFirstChild("HumanoidRootPart")
-                        local tHead  = tChar and tChar:FindFirstChild("Head")
-                        if myHRP then
-                            if action == "Standon" and tHead then
-                                myHRP.CFrame = CFrame.new(tHead.Position + Vector3.new(0, 3.5, 0))
-                            elseif action == "Orbit" and tHRP then
-                                local spin = (os.clock() * 270) % 360
-                                myHRP.CFrame = tHRP.CFrame
-                                    * CFrame.Angles(0, math.rad(spin), 0)
-                                    * CFrame.new(0, 0, 5)
-                            elseif action == "Merge" and tHRP then
-                                myHRP.CFrame = tHRP.CFrame
-                            elseif action == "Fan" and tHRP then
-                                myHRP.CFrame = tHRP.CFrame
-                                    * CFrame.new(0, 3, 0)
-                                    * CFrame.Angles(-math.pi/2, 0, 0)
-                                    * CFrame.Angles(0, 0, os.clock() * math.pi * 3)
-                            end
-                        end
+                    local iters = 0
+                    while iters < 120 and tgtHRP.Parent do
+                        local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
+                        if vel > 500 then break end
+                        if vel < 50 then angle = (angle + 100) % 360 end
+                        offIdx = offIdx % #offsets + 1
+                        local moveOff = tgtHum.MoveDirection
+                            * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
+                        myHRP.CFrame = tgtHRP.CFrame
+                            * CFrame.Angles(math.pi, 0, 0)
+                            * offsets[offIdx]
+                            * CFrame.Angles(math.rad(angle), 0, 0)
+                            + moveOff
+                        iters += 1
                         RunService.Heartbeat:Wait()
                     end
+                    bv:Destroy()
+                    task.wait(0.1)
+                    if myHRP and myHRP.Parent then
+                        myHRP.CFrame = savedCF
+                        myHRP.AssemblyLinearVelocity  = Vector3.zero
+                        myHRP.AssemblyAngularVelocity = Vector3.zero
+                    end
+                    if myHum then
+                        myHum.Health = myHum.MaxHealth
+                        myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                        myHum.PlatformStand = false
+                    end
                 end)
-            end)
+            end,
+        })
+
+        -- Troll buttons: Standon · Orbit · Merge · Fan · Stop
+        gb:AddLabel("─────────────────────────")
+        local trollDefs = {"Standon", "Orbit", "Merge", "Fan", "Stop"}
+        for _, action in ipairs(trollDefs) do
+            gb:AddButton({
+                Text = action,
+                Func = function()
+                    _trollId += 1
+                    if action == "Stop" then return end
+                    local id = _trollId
+                    task.spawn(function()
+                        while _trollId == id do
+                            local myHRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                            local tChar = p.Character
+                            local tHRP  = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                            local tHead = tChar and tChar:FindFirstChild("Head")
+                            if myHRP then
+                                if action == "Standon" and tHead then
+                                    myHRP.CFrame = CFrame.new(tHead.Position + Vector3.new(0, 3.5, 0))
+                                elseif action == "Orbit" and tHRP then
+                                    local spin = (os.clock() * 270) % 360
+                                    myHRP.CFrame = tHRP.CFrame
+                                        * CFrame.Angles(0, math.rad(spin), 0)
+                                        * CFrame.new(0, 0, 5)
+                                elseif action == "Merge" and tHRP then
+                                    myHRP.CFrame = tHRP.CFrame
+                                elseif action == "Fan" and tHRP then
+                                    myHRP.CFrame = tHRP.CFrame
+                                        * CFrame.new(0, 3, 0)
+                                        * CFrame.Angles(-math.pi/2, 0, 0)
+                                        * CFrame.Angles(0, 0, os.clock() * math.pi * 3)
+                                end
+                            end
+                            RunService.Heartbeat:Wait()
+                        end
+                    end)
+                end,
+            })
         end
 
-        return row
+        return gb
     end
 
     local function rebuild()
-        for _, child in rowContainer:GetChildren() do
-            if child:IsA("Frame") then child:Destroy() end
+        -- Destroy existing player groupboxes
+        for _, gb in ipairs(_playerBoxes) do
+            pcall(function() gb:Destroy() end)
         end
+        _playerBoxes = {}
+
         local all = Players:GetPlayers()
-        countLbl.Text = #all .. " player" .. (#all == 1 and "" or "s") .. " online"
+        local count = #all
+        _countLbl:SetText(count .. " player" .. (count == 1 and "" or "s") .. " online")
+
         table.sort(all, function(a, b) return a.Name < b.Name end)
-        for _, p in all do
-            makePlayerRow(p)
+        for _, p in ipairs(all) do
+            local gb = _makePlayerBox(p)
+            table.insert(_playerBoxes, gb)
         end
     end
 
@@ -1620,15 +1556,15 @@ end
 -- ── Unload (defined here so all locals are captured correctly) ────────────────
 getgenv()._astroUnload = function()
     -- flags
-    getgenv()._astroFlying         = false
-    getgenv()._astroNoclip         = false
-    getgenv()._astroAiming         = false
-    getgenv()._aimEnabled          = false
-    getgenv()._astroInfJump        = false
-    getgenv()._astroAntiAfk        = false
-    getgenv()._astroAimTeamCheck   = false
-    getgenv()._astroAimVisCheck    = false
-    getgenv().autorjjjj            = false
+    getgenv()._astroFlying       = false
+    getgenv()._astroNoclip       = false
+    getgenv()._astroAiming       = false
+    getgenv()._aimEnabled        = false
+    getgenv()._astroInfJump      = false
+    getgenv()._astroAntiAfk      = false
+    getgenv()._astroAimTeamCheck = false
+    getgenv()._astroAimVisCheck  = false
+    getgenv().autorjjjj          = false
 
     -- stop all render steps
     RunService:UnbindFromRenderStep("AstroFly")

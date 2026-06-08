@@ -154,27 +154,11 @@ return function(section)
     -- ── Speed Hack ────────────────────────────────────────────────────────────
     -- PlayerCharacter module sets WalkSpeed each frame from Params.Character.MoveSpeed.
     -- We win the race by setting it in Heartbeat after it runs (~4x per render step).
-    local speedMult  = 2
-    local speedLabel = Instance.new("TextLabel")
-    speedLabel.Name                   = "LabelElement"
-    speedLabel.Size                   = UDim2.new(1, 0, 0, 24)
-    speedLabel.BackgroundTransparency = 1
-    speedLabel.Font                   = Enum.Font.Gotham
-    speedLabel.TextSize               = 13
-    speedLabel.TextColor3             = Color3.fromRGB(200, 190, 255)
-    speedLabel.TextXAlignment         = Enum.TextXAlignment.Left
-    speedLabel.Text                   = "Speed mult:  2x"
-    speedLabel.Parent                 = section
-
-    local function setSpeedLabel(n)
-        speedMult = n
-        speedLabel.Text = "Speed mult:  " .. n .. "x"
-    end
-
-    elements:Button("1x", section, function() setSpeedLabel(1) end)
-    elements:Button("2x", section, function() setSpeedLabel(2) end)
-    elements:Button("3x", section, function() setSpeedLabel(3) end)
-    elements:Button("5x", section, function() setSpeedLabel(5) end)
+    local _speedMap = {["1x"]=1, ["2x"]=2, ["3x"]=3, ["5x"]=5}
+    local speedMult = 2
+    elements:Dropdown("Speed Multiplier", section, {"1x", "2x", "3x", "5x"}, "2x", function(v)
+        speedMult = _speedMap[v] or 2
+    end)
 
     local function resetSpeed()
         local char = lp.Character
@@ -253,6 +237,5 @@ return function(section)
         for name in loops do cancelLoop(name) end
         stopFly()
         resetSpeed()
-        if speedLabel and speedLabel.Parent then speedLabel:Destroy() end
     end)
 end

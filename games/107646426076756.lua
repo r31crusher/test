@@ -151,22 +151,10 @@ return function(section)
 
     -- ─── Auto Roll Seeds ──────────────────────────────────────────────────────
 
-    elements:Label("Min rarity: Legendary", section)  -- label updated by slider
-    -- We need a reference to update it; create it manually
-    local minRarityLabel = Instance.new("TextLabel")
-    minRarityLabel.Name           = "LabelElement"
-    minRarityLabel.Size           = UDim2.new(1, 0, 0, 24)
-    minRarityLabel.BackgroundTransparency = 1
-    minRarityLabel.Font           = Enum.Font.Gotham
-    minRarityLabel.TextSize       = 13
-    minRarityLabel.TextColor3     = Color3.fromRGB(200, 190, 255)
-    minRarityLabel.TextXAlignment = Enum.TextXAlignment.Left
-    minRarityLabel.Text           = "Plant min:  Legendary"
-    minRarityLabel.Parent         = section
-
+    local minRarityHandle = elements:Label("Plant min:  Legendary", section)
     elements:Slider("Plant Min Rarity", section, 1, 10, 5, function(v)
         minRank = v
-        minRarityLabel.Text = "Plant min:  " .. (RANK_LABEL[v] or tostring(v))
+        minRarityHandle:Set("Plant min:  " .. (RANK_LABEL[v] or tostring(v)))
     end)
 
     -- Auto Claim Drops — claims Plant Rush drops as they are announced by the server
@@ -269,20 +257,10 @@ return function(section)
 
     -- Compost rarity selector — compost seeds AT OR BELOW this rarity (default: Uncommon)
     local compostMaxRank = 2
-    local compostRarityLabel = Instance.new("TextLabel")
-    compostRarityLabel.Name               = "LabelElement"
-    compostRarityLabel.Size               = UDim2.new(1, 0, 0, 24)
-    compostRarityLabel.BackgroundTransparency = 1
-    compostRarityLabel.Font               = Enum.Font.Gotham
-    compostRarityLabel.TextSize           = 13
-    compostRarityLabel.TextColor3         = Color3.fromRGB(200, 190, 255)
-    compostRarityLabel.TextXAlignment     = Enum.TextXAlignment.Left
-    compostRarityLabel.Text               = "Compost up to:  Uncommon"
-    compostRarityLabel.Parent             = section
-
+    local compostRarityHandle = elements:Label("Compost up to:  Uncommon", section)
     elements:Slider("Compost Max Rarity", section, 1, 10, 2, function(v)
         compostMaxRank = v
-        compostRarityLabel.Text = "Compost up to:  " .. (RANK_LABEL[v] or tostring(v))
+        compostRarityHandle:Set("Compost up to:  " .. (RANK_LABEL[v] or tostring(v)))
     end)
 
     -- Auto Composter — pulls ready composters and feeds them seeds up to the chosen rarity
@@ -380,11 +358,5 @@ return function(section)
         rollConn:Disconnect()
         rollSignal:Destroy()
         if _dropConn then _dropConn:Disconnect(); _dropConn = nil end
-        if minRarityLabel and minRarityLabel.Parent then
-            minRarityLabel:Destroy()
-        end
-        if compostRarityLabel and compostRarityLabel.Parent then
-            compostRarityLabel:Destroy()
-        end
     end)
 end

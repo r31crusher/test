@@ -206,22 +206,10 @@ return function(section)
         else return string.format("%.0f", n) end
     end
 
-    local rpsLabel = Instance.new("TextLabel")
-    rpsLabel.Name               = "LabelElement"
-    rpsLabel.Size               = UDim2.new(1, 0, 0, 24)
-    rpsLabel.BackgroundTransparency = 1
-    rpsLabel.Font               = Enum.Font.Gotham
-    rpsLabel.TextSize           = 13
-    rpsLabel.TextColor3         = Color3.fromRGB(200, 190, 255)
-    rpsLabel.TextXAlignment     = Enum.TextXAlignment.Left
-    rpsLabel.Text               = "Pen Income:  $--/s"
-    rpsLabel.Parent             = section
-
+    local rpsHandle = elements:Label("Pen Income:  $--/s", section)
     loops.rpsUpdate = task.spawn(function()
         while task.wait(2) do
-            if rpsLabel and rpsLabel.Parent then
-                rpsLabel.Text = "Pen Income:  $" .. fmtNumber(getTotalRPS()) .. "/s"
-            end
+            rpsHandle:Set("Pen Income:  $" .. fmtNumber(getTotalRPS()) .. "/s")
         end
     end)
 
@@ -312,9 +300,6 @@ return function(section)
     section.AncestorRemoving:Connect(function()
         for name in loops do
             cancelLoop(name)
-        end
-        if rpsLabel and rpsLabel.Parent then
-            rpsLabel:Destroy()
         end
     end)
 end

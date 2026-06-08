@@ -33,7 +33,23 @@ return function(groupbox)
     end
 
     function adapter:Label(text, _parent)
-        groupbox:AddLabel(text)
+        local obj = groupbox:AddLabel(text)
+        return {
+            Set = function(_, t)
+                pcall(function()
+                    if obj and obj.SetText then obj:SetText(t) end
+                end)
+            end,
+        }
+    end
+
+    function adapter:Dropdown(label, _parent, values, default, cb)
+        groupbox:AddDropdown(uid("drop_"), {
+            Text     = label,
+            Values   = values,
+            Default  = default,
+            Callback = cb,
+        })
     end
 
     function adapter:Textbox(label, _parent, cb)
