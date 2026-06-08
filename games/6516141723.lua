@@ -1187,89 +1187,101 @@ return function(section)
     end))
 
     -- ══════════════════════════════════════════════════════════════════════════
-    -- UI ELEMENTS
+    -- SUB-TAB SYSTEM
     -- ══════════════════════════════════════════════════════════════════════════
-    elements:Label("── Character ──", section)
+    local function makeSubSection(parent)
+        local f = Instance.new("Frame", parent)
+        f.Size = UDim2.new(1, 0, 0, 0)
+        f.BackgroundTransparency = 1
+        f.Visible = false
+        local lay = Instance.new("UIListLayout", f)
+        lay.SortOrder = Enum.SortOrder.LayoutOrder
+        lay.Padding = UDim.new(0, 8)
+        lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            f.Size = UDim2.new(1, 0, 0, lay.AbsoluteContentSize.Y)
+        end)
+        return f
+    end
 
-    elements:Toggle("Speed Boost", section, function(v) _speed = v
+    local tabBar = Instance.new("Frame", section)
+    tabBar.Size = UDim2.new(1, 0, 0, 32)
+    tabBar.BackgroundTransparency = 1
+    local tabBarLayout = Instance.new("UIListLayout", tabBar)
+    tabBarLayout.FillDirection = Enum.FillDirection.Horizontal
+    tabBarLayout.Padding = UDim.new(0, 5)
+
+    local sMove   = makeSubSection(section)
+    local sSelf   = makeSubSection(section)
+    local sBypass = makeSubSection(section)
+    local sVisual = makeSubSection(section)
+    local sMisc   = makeSubSection(section)
+
+    local activeSubSection, activeSubBtn
+
+    local function makeSubTabBtn(label, sub)
+        local btn = Instance.new("TextButton", tabBar)
+        btn.Size = UDim2.new(1/5, -4, 1, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
+        btn.BorderSizePixel = 0
+        btn.AutoButtonColor = false
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 12
+        btn.TextColor3 = Color3.fromRGB(170, 160, 210)
+        btn.Text = label
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        btn.MouseButton1Click:Connect(function()
+            if activeSubSection then
+                activeSubSection.Visible = false
+                activeSubBtn.BackgroundColor3 = Color3.fromRGB(15, 13, 26)
+                activeSubBtn.TextColor3 = Color3.fromRGB(170, 160, 210)
+            end
+            sub.Visible = true
+            btn.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
+            btn.TextColor3 = Color3.fromRGB(210, 195, 255)
+            activeSubSection = sub
+            activeSubBtn = btn
+        end)
+        return btn
+    end
+
+    local btnMove   = makeSubTabBtn("Move",   sMove)
+    local btnSelf   = makeSubTabBtn("Self",   sSelf)
+    local btnBypass = makeSubTabBtn("Bypass", sBypass)
+    local btnVisual = makeSubTabBtn("Visual", sVisual)
+    local btnMisc   = makeSubTabBtn("Misc",   sMisc)
+
+    sMove.Visible = true
+    btnMove.BackgroundColor3 = Color3.fromRGB(38, 28, 75)
+    btnMove.TextColor3 = Color3.fromRGB(210, 195, 255)
+    activeSubSection = sMove
+    activeSubBtn = btnMove
+
+    -- ── Move ──────────────────────────────────────────────────────────────────
+    elements:Toggle("Speed Boost", sMove, function(v) _speed = v
         if not v and Humanoid then Humanoid.WalkSpeed = GetCurrentSpeed() end
     end)
-    elements:Slider("Speed Amount", section, 0, 85, 0, function(v) _speedAmt = v end)
+    elements:Slider("Speed Amount", sMove, 0, 85, 0, function(v) _speedAmt = v end)
 
-    elements:Toggle("Fly", section, function(v) _fly = v
+    elements:Toggle("Fly", sMove, function(v) _fly = v
         if not v and FlyBody then FlyBody.Parent = nil end
     end)
-    elements:Slider("Fly Speed", section, 0, 100, 20, function(v) _flySpeed = v end)
+    elements:Slider("Fly Speed", sMove, 0, 100, 20, function(v) _flySpeed = v end)
 
-    elements:Toggle("Noclip", section, function(v) _noclip = v end)
+    elements:Toggle("Noclip", sMove, function(v) _noclip = v end)
 
-    elements:Toggle("Enable Jumping", section, function(v)
+    elements:Toggle("Enable Jumping", sMove, function(v)
         _jumpEnable = v
         if Character then Character:SetAttribute("CanJump", v and true or OldJump) end
     end)
 
-    elements:Toggle("Enable Sliding", section, function(v)
+    elements:Toggle("Enable Sliding", sMove, function(v)
         _slideEnable = v
         if Character then Character:SetAttribute("CanSlide", v and true or OldSlide) end
     end)
 
-    elements:Toggle("Infinite Jumps", section, function(v) _infiniteJumps = v end)
+    elements:Toggle("Infinite Jumps", sMove, function(v) _infiniteJumps = v end)
 
-    elements:Toggle("Remove Closet Delay", section, function(v) _removeClosetDelay = v end)
-
-    elements:Toggle("Remove Acceleration", section, function(v)
-        _removeAccel = v
-        if Character then
-            for _, p in Character:GetDescendants() do
-                if p:IsA("BasePart") then
-                    p.CustomPhysicalProperties = v and CustomPhysics or PartProperties[p]
-                end
-            end
-        end
-    end)
-
-    elements:Label("── Self ──", section)
-
-    elements:Toggle("Door Reach", section, function(v) _doorReach = v end)
-
-    elements:Toggle("Disable Idle Kick", section, function(v) _disableIdle = v end)
-
-    elements:Slider("Prompt Reach Multiplier", section, 1, 10, 1, function(v)
-        _promptReach = v
-        for _, p in Objects.Prompts do
-            if p and p.Parent then
-                p.MaxActivationDistance = (p:GetAttribute("MaxActivationDistance_Old") or p.MaxActivationDistance) * v
-            end
-        end
-    end)
-
-    elements:Toggle("Instant Prompts", section, function(v)
-        _instantPrompt = v
-        for _, p in Objects.Prompts do
-            if p and p.Parent then
-                p.HoldDuration = v and 0 or (p:GetAttribute("HoldDuration_Old") or p.HoldDuration)
-            end
-        end
-    end)
-
-    elements:Toggle("Prompt Clip (no LoS)", section, function(v)
-        _promptClip = v
-        for _, p in Objects.Prompts do
-            if p and p.Parent then
-                p.RequiresLineOfSight = v and false or (p:GetAttribute("RequiresLineOfSight_Old") or p.RequiresLineOfSight)
-            end
-        end
-    end)
-
-    elements:Label("── Automation ──", section)
-
-    elements:Toggle("Auto Breaker Box", section, function(v) _autoBreaker = v end)
-
-    elements:Toggle("Auto Closet", section, function(v) _autoCloset = v end)
-
-    elements:Toggle("Auto Interact", section, function(v) _autoInteract = v end)
-
-    elements:Toggle("Position Spoof", section, function(v)
+    elements:Toggle("Position Spoof", sMove, function(v)
         _posSpoof = v
         if Character and RootPart and Humanoid and Floor ~= "Fools" and Floor ~= "OldHotel" then
             if v then
@@ -1283,18 +1295,90 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Crouch Spoof", section, function(v)
+    elements:Toggle("Crouch Spoof", sMove, function(v)
         _crouchSpoof = v
         if RemotesFolder:FindFirstChild("Crouch") then
             pcall(function() RemotesFolder.Crouch:FireServer(v and true or IsCrouching()) end)
         end
     end)
 
-    elements:Toggle("Velocity Manipulation", section, function(v) _velocityManip = v end)
+    elements:Toggle("Velocity Manipulation", sMove, function(v) _velocityManip = v end)
 
-    elements:Label("── Bypass ──", section)
+    elements:Toggle("Remove Acceleration", sMove, function(v)
+        _removeAccel = v
+        if Character then
+            for _, p in Character:GetDescendants() do
+                if p:IsA("BasePart") then
+                    p.CustomPhysicalProperties = v and CustomPhysics or PartProperties[p]
+                end
+            end
+        end
+    end)
 
-    elements:Toggle("Bypass Giggle", section, function(v)
+    elements:Toggle("Remove Closet Delay", sMove, function(v) _removeClosetDelay = v end)
+
+    -- ── Self ──────────────────────────────────────────────────────────────────
+    elements:Toggle("Door Reach", sSelf, function(v) _doorReach = v end)
+
+    elements:Toggle("Auto Closet", sSelf, function(v) _autoCloset = v end)
+
+    elements:Toggle("Auto Breaker Box", sSelf, function(v) _autoBreaker = v end)
+
+    elements:Toggle("Auto Interact", sSelf, function(v) _autoInteract = v end)
+
+    elements:Toggle("Disable Idle Kick", sSelf, function(v) _disableIdle = v end)
+
+    elements:Slider("Prompt Reach Multiplier", sSelf, 1, 10, 1, function(v)
+        _promptReach = v
+        for _, p in Objects.Prompts do
+            if p and p.Parent then
+                p.MaxActivationDistance = (p:GetAttribute("MaxActivationDistance_Old") or p.MaxActivationDistance) * v
+            end
+        end
+    end)
+
+    elements:Toggle("Instant Prompts", sSelf, function(v)
+        _instantPrompt = v
+        for _, p in Objects.Prompts do
+            if p and p.Parent then
+                p.HoldDuration = v and 0 or (p:GetAttribute("HoldDuration_Old") or p.HoldDuration)
+            end
+        end
+    end)
+
+    elements:Toggle("Prompt Clip (no LoS)", sSelf, function(v)
+        _promptClip = v
+        for _, p in Objects.Prompts do
+            if p and p.Parent then
+                p.RequiresLineOfSight = v and false or (p:GetAttribute("RequiresLineOfSight_Old") or p.RequiresLineOfSight)
+            end
+        end
+    end)
+
+    -- ── Bypass ────────────────────────────────────────────────────────────────
+    elements:Toggle("Bypass Eyes", sBypass, function(v)
+        _bypassEyes = v
+        if v and Globals.IsEyes then
+            if Floor == "Fools" or Floor == "OldHotel" then
+                pcall(function() RemotesFolder.MotorReplication:FireServer(0,-75,0,false) end)
+            else
+                pcall(function() RemotesFolder.MotorReplication:FireServer(-650) end)
+            end
+        end
+    end)
+
+    elements:Toggle("Bypass Lookman", sBypass, function(v)
+        _bypassLookman = v
+        if v and Globals.IsLookman then
+            if Floor == "Fools" or Floor == "OldHotel" then
+                pcall(function() RemotesFolder.MotorReplication:FireServer(0,-75,0,false) end)
+            else
+                pcall(function() RemotesFolder.MotorReplication:FireServer(-650) end)
+            end
+        end
+    end)
+
+    elements:Toggle("Bypass Giggle", sBypass, function(v)
         _bypassGiggle = v
         for _, obj in Objects.Entities do
             if obj.Name == "GiggleCeiling" and obj:FindFirstChild("Hitbox") then
@@ -1303,7 +1387,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Dupe", section, function(v)
+    elements:Toggle("Bypass Dupe", sBypass, function(v)
         _bypassDupe = v
         for _, obj in Objects.Entities do
             if obj.Name == "DoorFake" or obj.Name == "FakeDoor" then
@@ -1317,29 +1401,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Eyes", section, function(v)
-        _bypassEyes = v
-        if v and Globals.IsEyes then
-            if Floor == "Fools" or Floor == "OldHotel" then
-                pcall(function() RemotesFolder.MotorReplication:FireServer(0,-75,0,false) end)
-            else
-                pcall(function() RemotesFolder.MotorReplication:FireServer(-650) end)
-            end
-        end
-    end)
-
-    elements:Toggle("Bypass Lookman", section, function(v)
-        _bypassLookman = v
-        if v and Globals.IsLookman then
-            if Floor == "Fools" or Floor == "OldHotel" then
-                pcall(function() RemotesFolder.MotorReplication:FireServer(0,-75,0,false) end)
-            else
-                pcall(function() RemotesFolder.MotorReplication:FireServer(-650) end)
-            end
-        end
-    end)
-
-    elements:Toggle("Bypass Gloombat Eggs", section, function(v)
+    elements:Toggle("Bypass Gloombat Eggs", sBypass, function(v)
         _bypassGloombat = v
         for _, obj in Objects.Entities do
             for _, p in obj:GetDescendants() do
@@ -1348,7 +1410,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Seek Obstructions", section, function(v)
+    elements:Toggle("Bypass Seek Obstructions", sBypass, function(v)
         _bypassSeekObstruct = v
         for _, p in Objects.SeekObstructions do
             p.CanTouch = not v
@@ -1359,7 +1421,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Vacuum", section, function(v)
+    elements:Toggle("Bypass Vacuum", sBypass, function(v)
         _bypassVacuum = v
         for _, obj in Objects.Entities do
             if obj.Name == "SideroomSpace" then
@@ -1371,14 +1433,14 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Killbricks (Lava)", section, function(v)
+    elements:Toggle("Bypass Killbricks (Lava)", sBypass, function(v)
         _bypassKillbrick = v
         for _, obj in Objects.Obstructions do
             if obj.Name == "Lava" then obj.CanTouch = not v end
         end
     end)
 
-    elements:Toggle("Bypass Seeking Wall", section, function(v)
+    elements:Toggle("Bypass Seeking Wall", sBypass, function(v)
         _bypassSeekWall = v
         for _, obj in Objects.Obstructions do
             if obj.Name == "ScaryWall" then
@@ -1389,7 +1451,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Snare", section, function(v)
+    elements:Toggle("Bypass Snare", sBypass, function(v)
         _bypassSnare = v
         for _, obj in Objects.Entities do
             if obj.Name == "Snare" and obj:FindFirstChild("Hitbox") then
@@ -1398,14 +1460,14 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Banana", section, function(v)
+    elements:Toggle("Bypass Banana", sBypass, function(v)
         _bypassBanana = v
         for _, obj in Objects.Entities do
             if obj.Name == "BananaPeel" then obj.CanTouch = not v end
         end
     end)
 
-    elements:Toggle("Bypass Jeff", section, function(v)
+    elements:Toggle("Bypass Jeff", sBypass, function(v)
         _bypassJeff = v
         for _, obj in Objects.Entities do
             if obj.Name == "JeffTheKiller" then
@@ -1417,36 +1479,9 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Disable Anticheat", section, function(v) _disableAnticheat = v end)
+    elements:Toggle("Disable Anticheat", sBypass, function(v) _disableAnticheat = v end)
 
-    elements:Label("── Remove / No Damage ──", section)
-
-    elements:Toggle("Remove Screech", section, function(v)
-        _removeScreech = v
-        pcall(function()
-            Modules.Screech.Name = v and "Screech_Disabled" or "Screech"
-            if Modules.GlitchScreech then
-                Modules.GlitchScreech.Name = v and "GlitchScreech_Disabled" or "GlitchScreech"
-            end
-        end)
-    end)
-
-    elements:Toggle("Remove Halt", section, function(v)
-        _removeHalt = v
-        pcall(function() Modules.Shade.Name = v and "Shade_Disabled" or "Shade" end)
-    end)
-
-    elements:Toggle("Remove A-90", section, function(v)
-        _removeA90 = v
-        pcall(function() if Modules.A90 then Modules.A90.Name = v and "A90_Disabled" or "A90" end end)
-    end)
-
-    elements:Toggle("Remove Dread", section, function(v)
-        _removeDread = v
-        pcall(function() if Modules.Dread then Modules.Dread.Name = v and "Dread_Disabled" or "Dread" end end)
-    end)
-
-    elements:Toggle("No Screech Damage", section, function(v)
+    elements:Toggle("No Screech Damage", sBypass, function(v)
         _noScreechDmg = v
         if v then
             FakeEvents.Screech.Parent = RemotesFolder
@@ -1457,7 +1492,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("No Halt Damage", section, function(v)
+    elements:Toggle("No Halt Damage", sBypass, function(v)
         _noHaltDmg = v
         if v then
             FakeEvents.Shade.Parent = RemotesFolder
@@ -1468,7 +1503,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("No A-90 Damage", section, function(v)
+    elements:Toggle("No A-90 Damage", sBypass, function(v)
         _noA90Dmg = v
         if FakeEvents.A90_Real then
             if v then FakeEvents.A90.Parent=RemotesFolder; FakeEvents.A90_Real.Parent=nil
@@ -1476,7 +1511,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("No Surge Damage", section, function(v)
+    elements:Toggle("No Surge Damage", sBypass, function(v)
         _noSurgeDmg = v
         if FakeEvents.Surge_Real then
             if v then FakeEvents.Surge.Parent=RemotesFolder; FakeEvents.Surge_Real.Parent=nil
@@ -1484,9 +1519,33 @@ return function(section)
         end
     end)
 
-    elements:Label("── Visuals ──", section)
+    elements:Toggle("Remove Screech", sBypass, function(v)
+        _removeScreech = v
+        pcall(function()
+            Modules.Screech.Name = v and "Screech_Disabled" or "Screech"
+            if Modules.GlitchScreech then
+                Modules.GlitchScreech.Name = v and "GlitchScreech_Disabled" or "GlitchScreech"
+            end
+        end)
+    end)
 
-    elements:Toggle("Remove Camera Fog", section, function(v)
+    elements:Toggle("Remove Halt", sBypass, function(v)
+        _removeHalt = v
+        pcall(function() Modules.Shade.Name = v and "Shade_Disabled" or "Shade" end)
+    end)
+
+    elements:Toggle("Remove A-90", sBypass, function(v)
+        _removeA90 = v
+        pcall(function() if Modules.A90 then Modules.A90.Name = v and "A90_Disabled" or "A90" end end)
+    end)
+
+    elements:Toggle("Remove Dread", sBypass, function(v)
+        _removeDread = v
+        pcall(function() if Modules.Dread then Modules.Dread.Name = v and "Dread_Disabled" or "Dread" end end)
+    end)
+
+    -- ── Visual ────────────────────────────────────────────────────────────────
+    elements:Toggle("Remove Camera Fog", sVisual, function(v)
         _removeFog = v
         Lighting.FogEnd = v and 10000000 or Globals.OldFog
         for _, obj in Globals.FogInstances do
@@ -1496,22 +1555,22 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Disable Glitch Jumpscare", section, function(v)
+    elements:Toggle("Disable Glitch Jumpscare", sVisual, function(v)
         _disableGlitchJS = v
         pcall(function() Modules.Glitch.Name = v and "Glitch_Disabled" or "Glitch" end)
     end)
 
-    elements:Toggle("Disable Timothy Jumpscare", section, function(v)
+    elements:Toggle("Disable Timothy Jumpscare", sVisual, function(v)
         _disableTimothyJS = v
         pcall(function() Modules.SpiderJumpscare.Name = v and "SpiderJumpscare_Disabled" or "SpiderJumpscare" end)
     end)
 
-    elements:Toggle("Disable Void Jumpscare", section, function(v)
+    elements:Toggle("Disable Void Jumpscare", sVisual, function(v)
         _disableVoidJS = v
         pcall(function() if Modules.Void then Modules.Void.Name = v and "Void_Disabled" or "Void" end end)
     end)
 
-    elements:Toggle("Disable Entity Jumpscares", section, function(v)
+    elements:Toggle("Disable Entity Jumpscares", sVisual, function(v)
         _disableEntityJS = v
         pcall(function()
             local js = Globals.MainUI.Initiator.Main_Game.RemoteListener:FindFirstChild("Jumpscares")
@@ -1524,7 +1583,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Disable Hide Vignette", section, function(v)
+    elements:Toggle("Disable Hide Vignette", sVisual, function(v)
         _disableHideVignette = v
         pcall(function()
             local vig = Globals.MainUI:FindFirstChild("HideVignette")
@@ -1533,9 +1592,7 @@ return function(section)
         end)
     end)
 
-    elements:Label("── ESP ──", section)
-
-    elements:Toggle("Entity ESP", section, function(v)
+    elements:Toggle("Entity ESP", sVisual, function(v)
         _espEntity = v
         if v then
             for _, obj in Objects.Entities do
@@ -1547,13 +1604,13 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Door ESP", section, function(v)
+    elements:Toggle("Door ESP", sVisual, function(v)
         _espDoor = v
         if v then for _, obj in Objects.Doors do addESP(obj,"Door","door") end
         else      for _, obj in Objects.Doors do remESP(obj) end end
     end)
 
-    elements:Toggle("Hiding Spot ESP", section, function(v)
+    elements:Toggle("Hiding Spot ESP", sVisual, function(v)
         _espHide = v
         local names = {Wardrobe="Closet",Backdoor_Wardrobe="Closet",Toolshed="Closet",
                        RetroWardrobe="Closet",["Wardrobe-FOOLS26"]="Closet",
@@ -1563,7 +1620,7 @@ return function(section)
         else     for _, obj in Objects.HidingSpots do remESP(obj) end end
     end)
 
-    elements:Toggle("Item ESP", section, function(v)
+    elements:Toggle("Item ESP", sVisual, function(v)
         _espItem = v
         if v then
             for _, obj in Objects.Items do
@@ -1572,7 +1629,7 @@ return function(section)
         else for _, obj in Objects.Items do remESP(obj) end end
     end)
 
-    elements:Toggle("Chest ESP", section, function(v)
+    elements:Toggle("Chest ESP", sVisual, function(v)
         _espChest = v
         if v then
             local labels = {ChestBox="Chest",ChestBoxLocked="Locked Chest",Chest_Vine="Vine Chest",
@@ -1582,13 +1639,13 @@ return function(section)
         else for _, obj in Objects.Chests do remESP(obj) end end
     end)
 
-    elements:Toggle("Objective ESP", section, function(v)
+    elements:Toggle("Objective ESP", sVisual, function(v)
         _espObjective = v
         if v then for _, obj in Objects.Objectives do addESP(obj, obj.Name, "objective") end
         else      for _, obj in Objects.Objectives do remESP(obj) end end
     end)
 
-    elements:Toggle("Currency ESP", section, function(v)
+    elements:Toggle("Currency ESP", sVisual, function(v)
         _espCurrency = v
         if v then
             for _, obj in Objects.Currency do
@@ -1598,13 +1655,13 @@ return function(section)
         else for _, obj in Objects.Currency do remESP(obj) end end
     end)
 
-    elements:Toggle("Ladder ESP", section, function(v)
+    elements:Toggle("Ladder ESP", sVisual, function(v)
         _espLadder = v
         if v then for _, obj in Objects.Ladders do addESP(obj,"Ladder","ladder") end
         else      for _, obj in Objects.Ladders do remESP(obj) end end
     end)
 
-    elements:Toggle("Player ESP", section, function(v)
+    elements:Toggle("Player ESP", sVisual, function(v)
         _espPlayer = v
         if v then
             for _, p in Players:GetPlayers() do
@@ -1619,17 +1676,16 @@ return function(section)
         end
     end)
 
-    elements:Label("── Misc ──", section)
-
-    elements:Button("Revive Self", section, function()
+    -- ── Misc ──────────────────────────────────────────────────────────────────
+    elements:Button("Revive Self", sMisc, function()
         pcall(function() RemotesFolder.Revive:FireServer() end)
     end)
 
-    elements:Button("Play Again", section, function()
+    elements:Button("Play Again", sMisc, function()
         pcall(function() RemotesFolder.PlayAgain:FireServer() end)
     end)
 
-    elements:Button("Return to Lobby", section, function()
+    elements:Button("Return to Lobby", sMisc, function()
         pcall(function() RemotesFolder.Lobby:FireServer() end)
     end)
 
