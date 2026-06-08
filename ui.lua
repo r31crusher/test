@@ -115,7 +115,7 @@ CloseBtn.MouseButton1Click:Connect(function() setMenuVisible(false) end)
 ShowBtn.MouseButton1Click:Connect(function()  setMenuVisible(true)  end)
 UserInputService.InputBegan:Connect(function(input, gp)
     if UserInputService:GetFocusedTextBox() then return end
-    if not gp and input.KeyCode == Enum.KeyCode.Insert then
+    if input.KeyCode == Enum.KeyCode.Insert then
         setMenuVisible(not MainFrame.Visible)
     end
 end)
