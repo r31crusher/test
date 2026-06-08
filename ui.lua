@@ -1,94 +1,116 @@
--- ── Astro – ui.lua (Obsidian edition) ────────────────────────────────────────
+-- ── Astro – ui.lua ────────────────────────────────────────────────────────────
 local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
 local plr              = game:GetService("Players").LocalPlayer
 
--- ── Obsidian library ──────────────────────────────────────────────────────────
 local repo    = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 
--- ── Window ────────────────────────────────────────────────────────────────────
 local Window = Library:CreateWindow({
     Title         = "Astro",
-    Footer        = "universal tools",
+    Footer        = "v2.0  |  Insert to toggle",
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
 })
 
--- ── Tabs ──────────────────────────────────────────────────────────────────────
 local Tabs = {
-    Home      = Window:AddTab("Home"),
-    Universal = Window:AddTab("Universal"),
-    Game      = Window:AddTab("Game"),
-    Players   = Window:AddTab("Players"),
-    Gameslist = Window:AddTab("Gameslist"),
-    Settings  = Window:AddTab("Settings"),
-    Credits   = Window:AddTab("Credits"),
+    Home      = Window:AddTab("Home",      "home"),
+    Universal = Window:AddTab("Universal", "shield"),
+    Game      = Window:AddTab("Game",      "gamepad-2"),
+    Players   = Window:AddTab("Players",   "users"),
+    Gameslist = Window:AddTab("Gameslist", "list"),
+    Settings  = Window:AddTab("Settings",  "settings"),
+    Credits   = Window:AddTab("Credits",   "heart"),
 }
 
--- ── Groupboxes ────────────────────────────────────────────────────────────────
-local HomeGB      = Tabs.Home:AddLeftGroupbox("Home")
-local GameGB      = Tabs.Game:AddLeftGroupbox("Game")
-local GameslistGB = Tabs.Gameslist:AddLeftGroupbox("Games List")
-local CreditsGB   = Tabs.Credits:AddLeftGroupbox("Credits")
+local _uidCtr = 0
+local function uid(p) _uidCtr += 1; return p .. tostring(_uidCtr) end
 
--- ── Settings groupboxes ───────────────────────────────────────────────────────
-local SettingsGB  = Tabs.Settings:AddLeftGroupbox("Config")
-local SettingsRGB = Tabs.Settings:AddRightGroupbox("Actions")
+-- ── Forward-declare toggle objects needed by Home Quick Actions ───────────────
+local _setSpeedBoost_obj, _flyTog, _noclipTog, _aimbotTog, _setBoxEsp_obj
 
--- ── Universal – Tabbox ────────────────────────────────────────────────────────
+-- ── elements adapter ──────────────────────────────────────────────────────────
+local GameGB       = Tabs.Game:AddLeftGroupbox("Game")
+local GameRGB      = Tabs.Game:AddRightGroupbox("Info")
+local _makeAdapter = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
+getgenv()._astroElements = _makeAdapter(GameGB)
+local _gameSection = GameGB.Container or GameGB.Content or GameGB[1] or GameGB
+
+-- ── Session stats ─────────────────────────────────────────────────────────────
+local _sessionStart  = tick()
+local _featuresUsed  = 0
+local _playersJoined = 0
+game:GetService("Players").PlayerAdded:Connect(function() _playersJoined += 1 end)
+
+-- ═════════════════════════════════════════════════════════════════════════════
+--  HOME TAB
+-- ═════════════════════════════════════════════════════════════════════════════
+local HomeLogoGB  = Tabs.Home:AddLeftGroupbox("Astro")
+local HomeQAGB    = Tabs.Home:AddRightGroupbox("Quick Actions")
+local HomeStatsGB = Tabs.Home:AddRightGroupbox("Session")
+
+HomeLogoGB:AddLabel("  ___   ___  ____  ____  ___  ")
+HomeLogoGB:AddLabel(" / _ | / __||_  / |  _ \\/ _ \\ ")
+HomeLogoGB:AddLabel("| (_| |\\__ \\ / /  | |_) | (_) |")
+HomeLogoGB:AddLabel(" \\__,_||___//_/   |____/ \\___/ ")
+HomeLogoGB:AddLabel(" ")
+HomeLogoGB:AddLabel("universal exploit tools")
+HomeLogoGB:AddLabel("press Insert to show / hide")
+HomeLogoGB:AddLabel(" ")
+HomeLogoGB:AddLabel("Game:  " .. tostring(game.PlaceId))
+
+HomeQAGB:AddButton({Text = "Toggle Speed",  Func = function()
+    if _setSpeedBoost_obj then _setSpeedBoost_obj:SetValue(not _setSpeedBoost_obj.Value) end
+end})
+HomeQAGB:AddButton({Text = "Toggle Fly",    Func = function()
+    if _flyTog    then _flyTog:SetValue(not _flyTog.Value)       end
+end})
+HomeQAGB:AddButton({Text = "Toggle Noclip", Func = function()
+    if _noclipTog then _noclipTog:SetValue(not _noclipTog.Value) end
+end})
+HomeQAGB:AddButton({Text = "Toggle Aimbot", Func = function()
+    if _aimbotTog then _aimbotTog:SetValue(not _aimbotTog.Value) end
+end})
+HomeQAGB:AddButton({Text = "Toggle Box ESP", Func = function()
+    if _setBoxEsp_obj then _setBoxEsp_obj:SetValue(not _setBoxEsp_obj.Value) end
+end})
+
+local _sessionElapsedLbl  = HomeStatsGB:AddLabel("Uptime:  0:00")
+local _sessionFeaturesLbl = HomeStatsGB:AddLabel("Features used:  0")
+local _sessionPlayersLbl  = HomeStatsGB:AddLabel("Players joined:  0")
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        local e    = math.floor(tick() - _sessionStart)
+        local mins = math.floor(e / 60)
+        local secs = e % 60
+        pcall(function()
+            _sessionElapsedLbl:SetText(string.format("Uptime:  %d:%02d", mins, secs))
+            _sessionFeaturesLbl:SetText("Features used:  " .. _featuresUsed)
+            _sessionPlayersLbl:SetText("Players joined:  " .. _playersJoined)
+        end)
+    end
+end)
+
+-- ═════════════════════════════════════════════════════════════════════════════
+--  UNIVERSAL GROUPBOXES
+-- ═════════════════════════════════════════════════════════════════════════════
 local UniTabBox = Tabs.Universal:AddLeftTabbox()
 local movTab    = UniTabBox:AddTab("Movement")
 local combatTab = UniTabBox:AddTab("Combat")
 local espTab    = UniTabBox:AddTab("ESP")
 local visualTab = UniTabBox:AddTab("Visual")
 
--- ── UID helper ────────────────────────────────────────────────────────────────
-local _uidCtr = 0
-local function uid(p) _uidCtr += 1; return p .. tostring(_uidCtr) end
-
--- ── elements adapter (keeps game scripts working) ─────────────────────────────
--- elements.lua now exports a factory function; bind it to GameGB so game
--- scripts calling getgenv()._astroElements:Toggle(...) get real Obsidian elements.
-local _makeAdapter = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
-getgenv()._astroElements = _makeAdapter(GameGB)
-
--- ── Home tab ──────────────────────────────────────────────────────────────────
-HomeGB:AddLabel("Welcome to Astro!  Press Insert to toggle.")
-HomeGB:AddLabel("Select a tab on the left to get started.")
-
--- ── Game tab ──────────────────────────────────────────────────────────────────
--- Game scripts receive the GameGB groupbox's underlying content Frame as `section`
--- so they can parent raw Instances (sub-tab bars, etc.) into it.
--- GameGB.Container is Obsidian's inner ScrollingFrame; fall back through common names.
-local _gameSection = GameGB.Container or GameGB.Content or GameGB[1] or GameGB
-
-local ok, gameSrc = pcall(game.HttpGet, game, getgitpath("games") .. tostring(game.PlaceId) .. ".lua")
-if ok and gameSrc and #gameSrc > 0 and gameSrc ~= "404: Not Found" then
-    local gameModule = loadstring(gameSrc)
-    if gameModule then
-        pcall(function() gameModule()(_gameSection) end)
-    end
-else
-    GameGB:AddLabel("No module for this game.")
-    GameGB:AddButton({Text = "Go to Games List", Func = function()
-        Library:Notify("Astro", "Switch to the Gameslist tab.", 3)
-    end})
-end
-
--- ── Games List tab ────────────────────────────────────────────────────────────
-local ok2, listSrc = pcall(game.HttpGet, game, getgitpath("src") .. "gameslist.json")
-if ok2 and listSrc then
-    local gameList = HttpService:JSONDecode(listSrc)
-    for _, g in ipairs(gameList) do
-        GameslistGB:AddButton({
-            Text = (g.status or "●") .. " " .. tostring(g["game"]),
-            Func = function() TeleportService:Teleport(tonumber(g.id)) end,
-        })
-    end
-end
+local movL  = movTab:AddLeftGroupbox("Speed & Fly")
+local movR  = movTab:AddRightGroupbox("Misc")
+local cmbL  = combatTab:AddLeftGroupbox("Aimbot")
+local cmbR  = combatTab:AddRightGroupbox("Utilities")
+local espL  = espTab:AddLeftGroupbox("Overlays")
+local espR  = espTab:AddRightGroupbox("Colors")
+local visL  = visualTab:AddLeftGroupbox("Visual")
 
 -- ═════════════════════════════════════════════════════════════════════════════
 --  MOVEMENT
@@ -96,13 +118,12 @@ end
 local _walkSpeed   = 50
 local _walkEnabled = false
 
-movTab:AddLabel("── Speed ──────────────────────────────────")
-
-local _setSpeedBoost_obj = movTab:AddToggle(uid("tog"), {
+_setSpeedBoost_obj = movL:AddToggle(uid("tog"), {
     Text     = "Speed Boost",
     Default  = false,
     Callback = function(v)
         _walkEnabled = v
+        if v then _featuresUsed += 1 end
         if plr.Character then
             local h = plr.Character:FindFirstChildOfClass("Humanoid")
             if h then h.WalkSpeed = v and _walkSpeed or 16 end
@@ -111,7 +132,7 @@ local _setSpeedBoost_obj = movTab:AddToggle(uid("tog"), {
 })
 local _setSpeedBoost = function(v) _setSpeedBoost_obj:SetValue(v) end
 
-local _setWalkSpeed_obj = movTab:AddSlider(uid("sld"), {
+local _setWalkSpeed_obj = movL:AddSlider(uid("sld"), {
     Text     = "Walk Speed",
     Min      = 8,
     Max      = 250,
@@ -132,17 +153,17 @@ plr.CharacterAdded:Connect(function(char)
     if h then h.WalkSpeed = _walkEnabled and _walkSpeed or 16 end
 end)
 
-movTab:AddLabel("── Fly ────────────────────────────────────")
-
 -- ── Fly ───────────────────────────────────────────────────────────────────────
 local _flyBV, _flyBG
-
+local _flySpeed = 50
 getgenv()._astroFlying = false
-local _flyTog = movTab:AddToggle(uid("tog"), {
+
+_flyTog = movL:AddToggle(uid("tog"), {
     Text     = "Fly  (WASD · Space=up · Shift=down)",
     Default  = false,
     Callback = function(on)
         getgenv()._astroFlying = on
+        if on then _featuresUsed += 1 end
         local char = plr.Character
         if not char then return end
         local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -184,20 +205,17 @@ local _flyTog = movTab:AddToggle(uid("tog"), {
 })
 local setFly = function(v) _flyTog:SetValue(v) end
 
-local _flyKB = _flyTog:AddKeyPicker({
-    Text             = "Fly Key",
-    Default          = "F",
-    Mode             = "Toggle",
-    SyncToggleState  = false,
+_flyTog:AddKeyPicker(uid("kp"), {
+    Text            = "Fly Key",
+    Default         = "F",
+    Mode            = "Toggle",
+    SyncToggleState = false,
     Callback = function(v)
         if v ~= nil then setFly(v) end
     end,
 })
 
--- ── Fly Speed ─────────────────────────────────────────────────────────────────
-local _flySpeed = 50
-
-local _setFlySpeed_obj = movTab:AddSlider(uid("sld"), {
+local _setFlySpeed_obj = movL:AddSlider(uid("sld"), {
     Text     = "Fly Speed",
     Min      = 10,
     Max      = 300,
@@ -207,24 +225,23 @@ local _setFlySpeed_obj = movTab:AddSlider(uid("sld"), {
 })
 local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
 
-movTab:AddLabel("── Misc ───────────────────────────────────")
-
 -- ── Noclip ────────────────────────────────────────────────────────────────────
 getgenv()._astroNoclip = false
-local _noclipTog = movTab:AddToggle(uid("tog"), {
+_noclipTog = movR:AddToggle(uid("tog"), {
     Text     = "Noclip",
     Default  = false,
     Callback = function(v)
         getgenv()._astroNoclip = v
+        if v then _featuresUsed += 1 end
     end,
 })
 local setNoclip = function(v) _noclipTog:SetValue(v) end
 
-local _noclipKB = _noclipTog:AddKeyPicker({
-    Text             = "Noclip Key",
-    Default          = "V",
-    Mode             = "Toggle",
-    SyncToggleState  = false,
+_noclipTog:AddKeyPicker(uid("kp"), {
+    Text            = "Noclip Key",
+    Default         = "V",
+    Mode            = "Toggle",
+    SyncToggleState = false,
     Callback = function(v)
         if v ~= nil then
             getgenv()._astroNoclip = v
@@ -244,7 +261,7 @@ end)
 
 -- ── Infinite Jump ─────────────────────────────────────────────────────────────
 getgenv()._astroInfJump = false
-local _setInfJump_obj = movTab:AddToggle(uid("tog"), {
+local _setInfJump_obj = movR:AddToggle(uid("tog"), {
     Text     = "Infinite Jump",
     Default  = false,
     Callback = function(v) getgenv()._astroInfJump = v end,
@@ -260,12 +277,10 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 -- ── Anti-Fall ─────────────────────────────────────────────────────────────────
--- Saves your last grounded CFrame and teleports you back if you fall 60+ studs
--- below it (e.g. walking off the map into the void).
 getgenv()._astroAntiFall = false
 local _afLastSafe = nil
 
-local _setAntiFall_obj = movTab:AddToggle(uid("tog"), {
+local _setAntiFall_obj = movR:AddToggle(uid("tog"), {
     Text     = "Anti-Fall",
     Default  = false,
     Callback = function(v)
@@ -291,7 +306,7 @@ end)
 
 -- ── Anti-AFK ──────────────────────────────────────────────────────────────────
 getgenv()._astroAntiAfk = false
-local _setAntiAfk_obj = movTab:AddToggle(uid("tog"), {
+local _setAntiAfk_obj = movR:AddToggle(uid("tog"), {
     Text     = "Anti-AFK",
     Default  = false,
     Callback = function(v)
@@ -317,7 +332,7 @@ local _setAntiAfk = function(v) _setAntiAfk_obj:SetValue(v) end
 -- ── Fullbright ────────────────────────────────────────────────────────────────
 local _fbOrig
 local _fullbrightOn = false
-local _setFullbright_obj = movTab:AddToggle(uid("tog"), {
+local _setFullbright_obj = movR:AddToggle(uid("tog"), {
     Text     = "Fullbright",
     Default  = false,
     Callback = function(v)
@@ -344,82 +359,9 @@ local _setFullbright = function(v) _setFullbright_obj:SetValue(v) end
 -- ═════════════════════════════════════════════════════════════════════════════
 local _aimFOV   = 200
 local _aimSpeed = 8
+local _aimMode  = "Legacy"
 
-combatTab:AddLabel("── Aimbot ─────────────────────────────────")
-
--- ── Aimbot ────────────────────────────────────────────────────────────────────
-getgenv()._aimEnabled  = false
-getgenv()._astroAiming = false
-local _aimbotTog = combatTab:AddToggle(uid("tog"), {
-    Text     = "Aimbot",
-    Default  = false,
-    Callback = function(v)
-        getgenv()._aimEnabled = v
-        if not v then getgenv()._astroAiming = false end
-    end,
-})
-local _setAimbot = function(v) _aimbotTog:SetValue(v) end
-
-local _aimbotKB = _aimbotTog:AddKeyPicker({
-    Text            = "Aimbot Key",
-    Default         = "E",
-    Mode            = "Hold",
-    SyncToggleState = false,
-    Callback = function(v)
-        if getgenv()._aimEnabled then
-            getgenv()._astroAiming = v
-        end
-    end,
-})
-
-local _aimMode = "Legacy"
-combatTab:AddDropdown(uid("dd"), {
-    Text     = "Aim Mode",
-    Values   = {"Legacy", "Silent"},
-    Default  = "Legacy",
-    Callback = function(v)
-        _aimMode = v
-        if v == "Silent" then _installSilentHook() end
-    end,
-})
-
-local _setAimFOV_obj = combatTab:AddSlider(uid("sld"), {
-    Text     = "Aim FOV",
-    Min      = 50,
-    Max      = 600,
-    Default  = 200,
-    Rounding = 0,
-    Callback = function(v) _aimFOV = v end,
-})
-local _setAimFOV = function(v) _setAimFOV_obj:SetValue(v) end
-
-local _setAimSmooth_obj = combatTab:AddSlider(uid("sld"), {
-    Text     = "Aim Smoothness",
-    Min      = 1,
-    Max      = 20,
-    Default  = 8,
-    Rounding = 0,
-    Callback = function(v) _aimSpeed = v end,
-})
-local _setAimSmooth = function(v) _setAimSmooth_obj:SetValue(v) end
-
-getgenv()._astroAimTeamCheck = false
-local _setTeamCheck_obj = combatTab:AddToggle(uid("tog"), {
-    Text     = "Team Check",
-    Default  = false,
-    Callback = function(v) getgenv()._astroAimTeamCheck = v end,
-})
-local _setTeamCheck = function(v) _setTeamCheck_obj:SetValue(v) end
-
-getgenv()._astroAimVisCheck = false
-local _setAimVisCheck_obj = combatTab:AddToggle(uid("tog"), {
-    Text     = "Vis Check",
-    Default  = false,
-    Callback = function(v) getgenv()._astroAimVisCheck = v end,
-})
-local _setAimVisCheck = function(v) _setAimVisCheck_obj:SetValue(v) end
-
--- Shared raycast params reused each frame to avoid GC pressure
+-- Shared raycast params
 local _rayParams = RaycastParams.new()
 _rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -432,9 +374,9 @@ local function _isVisible(targetPart)
 end
 
 local function getAimTarget()
-    local cam      = workspace.CurrentCamera
-    local lp       = game:GetService("Players").LocalPlayer
-    local center   = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+    local cam    = workspace.CurrentCamera
+    local lp     = game:GetService("Players").LocalPlayer
+    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
     local best, bestDist = nil, _aimFOV
     for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
         if p == lp then continue end
@@ -455,15 +397,10 @@ end
 
 local _silentHookOrig = nil
 
--- Installs a __namecall hook that intercepts workspace:Raycast / Spherecast
--- calls that look like weapon fire and redirects them toward the aim target.
--- Called lazily the first time Silent mode is activated.
 local function _installSilentHook()
     if _silentHookOrig then return end
     local ok, orig = pcall(hookmetamethod, game, "__namecall", function(self, ...)
         local method = getnamecallmethod()
-        -- Silent mode: redirect whenever aimbot is enabled (no keybind hold needed).
-        -- Legacy mode: keybind hold (_astroAiming) moves the camera instead.
         local saActive = _aimMode == "Silent" and getgenv()._aimEnabled
         if self == workspace and saActive
                 and (method == "Raycast" or method == "Spherecast" or method == "Blockcast") then
@@ -488,6 +425,78 @@ local function _installSilentHook()
     if ok then _silentHookOrig = orig end
 end
 
+-- ── Aimbot (cmbL) ─────────────────────────────────────────────────────────────
+getgenv()._aimEnabled  = false
+getgenv()._astroAiming = false
+_aimbotTog = cmbL:AddToggle(uid("tog"), {
+    Text     = "Aimbot",
+    Default  = false,
+    Callback = function(v)
+        getgenv()._aimEnabled = v
+        if v then _featuresUsed += 1 end
+        if not v then getgenv()._astroAiming = false end
+    end,
+})
+local _setAimbot = function(v) _aimbotTog:SetValue(v) end
+
+_aimbotTog:AddKeyPicker(uid("kp"), {
+    Text            = "Aimbot Key",
+    Default         = "E",
+    Mode            = "Hold",
+    SyncToggleState = false,
+    Callback = function(v)
+        if getgenv()._aimEnabled then
+            getgenv()._astroAiming = v
+        end
+    end,
+})
+
+cmbL:AddDropdown(uid("dd"), {
+    Text     = "Aim Mode",
+    Values   = {"Legacy", "Silent"},
+    Default  = "Legacy",
+    Callback = function(v)
+        _aimMode = v
+        if v == "Silent" then _installSilentHook() end
+    end,
+})
+
+local _setAimFOV_obj = cmbL:AddSlider(uid("sld"), {
+    Text     = "Aim FOV",
+    Min      = 50,
+    Max      = 600,
+    Default  = 200,
+    Rounding = 0,
+    Callback = function(v) _aimFOV = v end,
+})
+local _setAimFOV = function(v) _setAimFOV_obj:SetValue(v) end
+
+local _setAimSmooth_obj = cmbL:AddSlider(uid("sld"), {
+    Text     = "Aim Smoothness",
+    Min      = 1,
+    Max      = 20,
+    Default  = 8,
+    Rounding = 0,
+    Callback = function(v) _aimSpeed = v end,
+})
+local _setAimSmooth = function(v) _setAimSmooth_obj:SetValue(v) end
+
+getgenv()._astroAimTeamCheck = false
+local _setTeamCheck_obj = cmbL:AddToggle(uid("tog"), {
+    Text     = "Team Check",
+    Default  = false,
+    Callback = function(v) getgenv()._astroAimTeamCheck = v end,
+})
+local _setTeamCheck = function(v) _setTeamCheck_obj:SetValue(v) end
+
+getgenv()._astroAimVisCheck = false
+local _setAimVisCheck_obj = cmbL:AddToggle(uid("tog"), {
+    Text     = "Vis Check",
+    Default  = false,
+    Callback = function(v) getgenv()._astroAimVisCheck = v end,
+})
+local _setAimVisCheck = function(v) _setAimVisCheck_obj:SetValue(v) end
+
 RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function()
     if not getgenv()._astroAiming then return end
     local target = getAimTarget()
@@ -497,14 +506,11 @@ RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function
         local t = math.clamp(_aimSpeed / 20, 0.05, 1)
         cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, target.Position), t)
     end
-    -- Silent: the __namecall hook handles ray redirection; no camera movement needed.
 end)
 
-combatTab:AddLabel("── Utilities ──────────────────────────────")
-
--- ── SpinBot ───────────────────────────────────────────────────────────────────
+-- ── Spinbot (cmbR) ────────────────────────────────────────────────────────────
 getgenv()._astroSpinbot = false
-local _setSpinbot_obj = combatTab:AddToggle(uid("tog"), {
+cmbR:AddToggle(uid("tog"), {
     Text     = "Spinbot",
     Default  = false,
     Callback = function(v)
@@ -526,13 +532,10 @@ local _setSpinbot_obj = combatTab:AddToggle(uid("tog"), {
         end
     end,
 })
-local _setSpinbot = function(v) _setSpinbot_obj:SetValue(v) end
 
--- ── Desync ────────────────────────────────────────────────────────────────────
--- Rapidly sends a bogus position to the server then snaps back so the
--- server-side hitbox drifts away from your actual client position.
+-- ── Desync (cmbR) ─────────────────────────────────────────────────────────────
 getgenv()._astroDesync = false
-local _setDesync_obj = combatTab:AddToggle(uid("tog"), {
+cmbR:AddToggle(uid("tog"), {
     Text     = "Desync",
     Default  = false,
     Callback = function(v)
@@ -554,9 +557,8 @@ local _setDesync_obj = combatTab:AddToggle(uid("tog"), {
         end
     end,
 })
-local _setDesync = function(v) _setDesync_obj:SetValue(v) end
 
--- ── HitBoxes ──────────────────────────────────────────────────────────────────
+-- ── HitBoxes (cmbR) ───────────────────────────────────────────────────────────
 getgenv()._astroHitboxes = false
 local _hitboxSize      = 8
 local _hitboxOrigSizes = {}
@@ -581,7 +583,7 @@ local function _clearHitbox(p)
     _hitboxOrigSizes[p.UserId] = nil
 end
 
-local _setHitboxes_obj = combatTab:AddToggle(uid("tog"), {
+local _setHitboxes_obj = cmbR:AddToggle(uid("tog"), {
     Text     = "Hitboxes",
     Default  = false,
     Callback = function(v)
@@ -596,7 +598,7 @@ local _setHitboxes_obj = combatTab:AddToggle(uid("tog"), {
 })
 local _setHitboxes = function(v) _setHitboxes_obj:SetValue(v) end
 
-combatTab:AddSlider(uid("sld"), {
+cmbR:AddSlider(uid("sld"), {
     Text     = "Hitbox Size",
     Min      = 2,
     Max      = 20,
@@ -624,7 +626,7 @@ game:GetService("Players").PlayerAdded:Connect(function(p)
     end)
 end)
 
--- Bullet Tracers — draws a fading line from shot origin to hit point each frame
+-- ── Bullet Tracers (cmbR) ─────────────────────────────────────────────────────
 getgenv()._astroTracers = false
 
 local function _drawTracer(origin, hitPos)
@@ -644,10 +646,9 @@ local function _drawTracer(origin, hitPos)
             ln.Transparency = t / dur
         end
     end
-    ln.Remove()
+    ln:Remove()
 end
 
--- Chains off whatever __namecall hook is already installed (silent aim or original)
 local _tracerHookOrig = nil
 local function _installTracerHook()
     if _tracerHookOrig then return end
@@ -669,7 +670,7 @@ local function _installTracerHook()
     if ok then _tracerHookOrig = orig end
 end
 
-combatTab:AddToggle(uid("tog"), {
+cmbR:AddToggle(uid("tog"), {
     Text     = "Bullet Tracers",
     Default  = false,
     Callback = function(v)
@@ -684,14 +685,12 @@ combatTab:AddToggle(uid("tog"), {
 local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
 local _espD = {}
 
-espTab:AddLabel("── Overlays ───────────────────────────────")
-
-local _setBoxEsp_obj  = espTab:AddToggle(uid("tog"), {Text = "Box",        Default = false, Callback = function(v) _esp.box      = v end})
-local _setSkelEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Skeleton",   Default = false, Callback = function(v) _esp.skeleton = v end})
-local _setNameEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Name",       Default = false, Callback = function(v) _esp.name     = v end})
-local _setDistEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Distance",   Default = false, Callback = function(v) _esp.distance = v end})
-local _setWeapEsp_obj = espTab:AddToggle(uid("tog"), {Text = "Weapon",     Default = false, Callback = function(v) _esp.weapon   = v end})
-local _setHpEsp_obj   = espTab:AddToggle(uid("tog"), {Text = "Health Bar", Default = false, Callback = function(v) _esp.health   = v end})
+_setBoxEsp_obj  = espL:AddToggle(uid("tog"), {Text = "Box",        Default = false, Callback = function(v) _esp.box      = v; if v then _featuresUsed+=1 end end})
+local _setSkelEsp_obj = espL:AddToggle(uid("tog"), {Text = "Skeleton",   Default = false, Callback = function(v) _esp.skeleton = v end})
+local _setNameEsp_obj = espL:AddToggle(uid("tog"), {Text = "Name",       Default = false, Callback = function(v) _esp.name     = v end})
+local _setDistEsp_obj = espL:AddToggle(uid("tog"), {Text = "Distance",   Default = false, Callback = function(v) _esp.distance = v end})
+local _setWeapEsp_obj = espL:AddToggle(uid("tog"), {Text = "Weapon",     Default = false, Callback = function(v) _esp.weapon   = v end})
+local _setHpEsp_obj   = espL:AddToggle(uid("tog"), {Text = "Health Bar", Default = false, Callback = function(v) _esp.health   = v end})
 
 local _setBoxEsp  = function(v) _setBoxEsp_obj:SetValue(v)  end
 local _setSkelEsp = function(v) _setSkelEsp_obj:SetValue(v) end
@@ -700,10 +699,8 @@ local _setDistEsp = function(v) _setDistEsp_obj:SetValue(v) end
 local _setWeapEsp = function(v) _setWeapEsp_obj:SetValue(v) end
 local _setHpEsp   = function(v) _setHpEsp_obj:SetValue(v)   end
 
-espTab:AddLabel("── Filters ────────────────────────────────")
-
 local _espTeamCheck = false
-local _setEspTeamCheck_obj = espTab:AddToggle(uid("tog"), {
+local _setEspTeamCheck_obj = espL:AddToggle(uid("tog"), {
     Text     = "Team Check",
     Default  = false,
     Callback = function(v) _espTeamCheck = v end,
@@ -711,7 +708,7 @@ local _setEspTeamCheck_obj = espTab:AddToggle(uid("tog"), {
 local _setEspTeamCheck = function(v) _setEspTeamCheck_obj:SetValue(v) end
 
 local _espVisCheck = false
-local _setEspVisCheck_obj = espTab:AddToggle(uid("tog"), {
+local _setEspVisCheck_obj = espL:AddToggle(uid("tog"), {
     Text     = "Vis Check",
     Default  = false,
     Callback = function(v) _espVisCheck = v end,
@@ -728,35 +725,28 @@ local _espColorMap = {
     Purple = Color3.fromRGB(180, 60,  255),
     White  = Color3.fromRGB(255, 255, 255),
 }
-local _espColorNames = {"Red","Orange","Yellow","Green","Cyan","Blue","Purple","White"}
-
+local _espColorNames     = {"Red","Orange","Yellow","Green","Cyan","Blue","Purple","White"}
 local _espVisColor       = _espColorMap.Red
 local _espNoVisColor     = _espColorMap.Orange
 local _espVisColorName   = "Red"
 local _espNoVisColorName = "Orange"
 
-espTab:AddDropdown(uid("dd"), {
+espR:AddDropdown(uid("dd"), {
     Text     = "Visible Color",
     Values   = _espColorNames,
     Default  = "Red",
-    Callback = function(v)
-        _espVisColorName = v; _espVisColor = _espColorMap[v]
-    end,
+    Callback = function(v) _espVisColorName = v; _espVisColor = _espColorMap[v] end,
 })
-espTab:AddDropdown(uid("dd"), {
+espR:AddDropdown(uid("dd"), {
     Text     = "Hidden Color",
     Values   = _espColorNames,
     Default  = "Orange",
-    Callback = function(v)
-        _espNoVisColorName = v; _espNoVisColor = _espColorMap[v]
-    end,
+    Callback = function(v) _espNoVisColorName = v; _espNoVisColor = _espColorMap[v] end,
 })
 
 -- ═════════════════════════════════════════════════════════════════════════════
 --  VISUAL
 -- ═════════════════════════════════════════════════════════════════════════════
-
--- Hit Sound (shared by both Hit Sound and Damage Indicators toggles)
 local _hitSoundObj = Instance.new("Sound")
 _hitSoundObj.SoundId = "rbxassetid://2766953031"
 _hitSoundObj.Volume  = 0.5
@@ -764,7 +754,6 @@ _hitSoundObj.RollOffMaxDistance = 0
 _hitSoundObj.Parent = game.CoreGui
 getgenv()._astroHitSound = false
 
--- Floating damage numbers via Drawing API
 local function _showDmgNum(worldPos, amount)
     local txt   = Drawing.new("Text")
     txt.Text    = "-" .. math.round(amount)
@@ -784,10 +773,9 @@ local function _showDmgNum(worldPos, amount)
             txt.Transparency = t / dur
         end
     end
-    txt.Remove()
+    txt:Remove()
 end
 
--- Damage / hit-sound watchers — shared by both toggles
 getgenv()._astroDmgInd = false
 local _dmgWatchers = {}
 
@@ -839,7 +827,7 @@ game:GetService("Players").PlayerAdded:Connect(function(p)
 end)
 game:GetService("Players").PlayerRemoving:Connect(function(p) _unwatchDmg(p) end)
 
--- Crosshair — persistent + viewport-size aware
+-- Crosshair
 getgenv()._astroCrosshair = false
 local _chLines  = {}
 local _chRender = nil
@@ -854,7 +842,7 @@ local function _buildCrosshair()
     local dot = Drawing.new("Circle")
     dot.Radius = 1.5; dot.Color = Color3.fromRGB(255, 255, 255)
     dot.Filled = true; dot.Visible = true
-    _chLines = {mkLine(), mkLine(), mkLine(), mkLine(), dot}  -- top/bot/left/right/dot
+    _chLines = {mkLine(), mkLine(), mkLine(), mkLine(), dot}
 
     _chRender = RunService.RenderStepped:Connect(function()
         if not getgenv()._astroCrosshair then return end
@@ -874,8 +862,7 @@ local function _destroyCrosshair()
     _chLines = {}
 end
 
--- Viewmodel — ViewportFrame in the bottom-right corner showing the held tool
--- with spring-physics sway tied to camera movement.
+-- Viewmodel
 getgenv()._astroViewmodel = false
 local _vmGui, _vmRender, _vmLastCF, _vmPrevTool
 local _vmSpringX = {pos = 0, vel = 0}
@@ -947,8 +934,7 @@ local function _disableViewmodel()
     _vmPrevTool = nil
 end
 
--- Visual section UI elements
-visualTab:AddToggle(uid("tog"), {
+visL:AddToggle(uid("tog"), {
     Text     = "Damage Indicators",
     Default  = false,
     Callback = function(v)
@@ -956,7 +942,7 @@ visualTab:AddToggle(uid("tog"), {
         if v then _startDmgWatch() else _stopDmgWatchIfNone() end
     end,
 })
-visualTab:AddToggle(uid("tog"), {
+visL:AddToggle(uid("tog"), {
     Text     = "Hit Sound",
     Default  = false,
     Callback = function(v)
@@ -964,7 +950,7 @@ visualTab:AddToggle(uid("tog"), {
         if v then _startDmgWatch() else _stopDmgWatchIfNone() end
     end,
 })
-visualTab:AddToggle(uid("tog"), {
+visL:AddToggle(uid("tog"), {
     Text     = "Crosshair",
     Default  = false,
     Callback = function(v)
@@ -972,7 +958,7 @@ visualTab:AddToggle(uid("tog"), {
         if v then _buildCrosshair() else _destroyCrosshair() end
     end,
 })
-visualTab:AddToggle(uid("tog"), {
+visL:AddToggle(uid("tog"), {
     Text     = "Viewmodel",
     Default  = false,
     Callback = function(v)
@@ -982,8 +968,11 @@ visualTab:AddToggle(uid("tog"), {
 })
 
 -- ═════════════════════════════════════════════════════════════════════════════
---  SETTINGS tab / Config system
+--  SETTINGS / Config
 -- ═════════════════════════════════════════════════════════════════════════════
+local SettingsGB  = Tabs.Settings:AddLeftGroupbox("Config")
+local SettingsRGB = Tabs.Settings:AddRightGroupbox("Actions")
+
 local CFG_FILE  = "astro/universal/config.json"
 local META_FILE = "astro/universal/meta.json"
 
@@ -1076,8 +1065,6 @@ local function loadConfig()
     return true
 end
 
--- Silent load: restores preference values only (speeds, FOV, aim mode).
--- Intentionally skips feature toggles so no hacks activate automatically.
 local function silentLoadConfig()
     if not isfile(CFG_FILE) then return false end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
@@ -1105,7 +1092,6 @@ end
 
 local _autoLoad = _readMeta().autoLoad == true
 
--- ── Config groupbox (left) ────────────────────────────────────────────────────
 SettingsGB:AddButton({Text = "Save Config",  Func = function() pcall(saveConfig)       end})
 SettingsGB:AddButton({Text = "Load Config",  Func = function() pcall(loadConfig)       end})
 SettingsGB:AddButton({Text = "Silent Load",  Func = function() pcall(silentLoadConfig) end})
@@ -1115,8 +1101,7 @@ local _autoLoadTog = SettingsGB:AddToggle(uid("tog"), {
     Default  = false,
     Callback = function(v)
         _autoLoad = v
-        local m = _readMeta()
-        m.autoLoad = v
+        local m = _readMeta(); m.autoLoad = v
         pcall(_writeMeta, m)
     end,
 })
@@ -1126,19 +1111,14 @@ _setAutoLoad(_autoLoad)
 SettingsGB:AddToggle(uid("tog"), {
     Text     = "Disable 3D Rendering",
     Default  = false,
-    Callback = function(v)
-        RunService:Set3dRenderingEnabled(not v)
-    end,
+    Callback = function(v) RunService:Set3dRenderingEnabled(not v) end,
 })
 SettingsGB:AddToggle(uid("tog"), {
     Text     = "Auto Rejoin on kick",
     Default  = false,
-    Callback = function(v)
-        getgenv().autorjjjj = v
-    end,
+    Callback = function(v) getgenv().autorjjjj = v end,
 })
 
--- ── Actions groupbox (right) ──────────────────────────────────────────────────
 SettingsRGB:AddButton({
     Text = "Unload",
     Func = function()
@@ -1297,6 +1277,7 @@ local function updateESP(p)
     else
         d.nameT.Visible = false
     end
+
     if _esp.distance and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local dist = math.floor((plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
         d.distT.Text     = dist .. "m"
@@ -1305,6 +1286,7 @@ local function updateESP(p)
     else
         d.distT.Visible = false
     end
+
     if _esp.weapon then
         local tool = char:FindFirstChildOfClass("Tool")
         d.weapT.Text     = tool and tool.Name or ""
@@ -1327,9 +1309,6 @@ local function updateESP(p)
             local p1 = char:FindFirstChild(c[2])
             local ln = d.sklLines[i]
             if p0 and p1 then
-                -- dot product check: both endpoints must be in front of the camera plane.
-                -- WorldToViewportPoint Z is always positive (absolute distance), so it
-                -- cannot detect behind-camera points; the dot product is the correct test.
                 local inFront0 = (p0.Position - camPos):Dot(camLook) > 0
                 local inFront1 = (p1.Position - camPos):Dot(camLook) > 0
                 if inFront0 and inFront1 then
@@ -1364,8 +1343,9 @@ game:GetService("Players").PlayerRemoving:Connect(function(p)
 end)
 
 -- ═════════════════════════════════════════════════════════════════════════════
---  CREDITS tab
+--  CREDITS TAB
 -- ═════════════════════════════════════════════════════════════════════════════
+local CreditsGB = Tabs.Credits:AddLeftGroupbox("Credits")
 local ok3, credSrc = pcall(game.HttpGet, game, getgitpath("src") .. "credits.json")
 if ok3 and credSrc then
     local credits = HttpService:JSONDecode(credSrc)
@@ -1378,121 +1358,125 @@ if ok3 and credSrc then
 end
 
 -- ═════════════════════════════════════════════════════════════════════════════
---  PLAYERS tab
+--  PLAYERS TAB
 -- ═════════════════════════════════════════════════════════════════════════════
 do
     local Players = game:GetService("Players")
-
-    -- Count label lives in a persistent right groupbox
-    local PlayersCountGB = Tabs.Players:AddRightGroupbox("")
+    local PlayersCountGB = Tabs.Players:AddRightGroupbox("Server")
     local _countLbl = PlayersCountGB:AddLabel("0 players online")
 
-    -- Track per-player groupboxes so we can destroy and recreate them
-    local _playerBoxes = {}
-
-    -- Incrementing stops any active troll loop across all rows
+    local _playerBoxes   = {}
+    local _playerCleanups = {}
     local _trollId = 0
 
     local function _makePlayerBox(p)
+        local isActive = true
         local displayName = p.DisplayName
         local nameStr = displayName .. (displayName ~= p.Name and ("  (@" .. p.Name .. ")") or "")
         local gb = Tabs.Players:AddLeftGroupbox(nameStr)
 
-        -- Action buttons row: TP · Spec · Fling
-        gb:AddButton({
-            Text = "TP",
-            Func = function()
-                local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-                local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
-                if myHRP and tgtHRP then
-                    myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
+        local infoLbl = gb:AddLabel("HP: --  |  Dist: --")
+        task.spawn(function()
+            while isActive do
+                local char  = p.Character
+                local hum   = char and char:FindFirstChildOfClass("Humanoid")
+                local hrp   = char and char:FindFirstChild("HumanoidRootPart")
+                local myHrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                if hum and hrp and myHrp then
+                    local hp   = math.floor(hum.Health)
+                    local dist = math.floor((hrp.Position - myHrp.Position).Magnitude)
+                    pcall(function() infoLbl:SetText("HP: " .. hp .. "  |  Dist: " .. dist .. "m") end)
+                elseif not char then
+                    pcall(function() infoLbl:SetText("(not spawned)") end)
                 end
-            end,
-        })
-        gb:AddButton({
-            Text = "Spec",
-            Func = function()
-                local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    workspace.CurrentCamera.CameraSubject = hum
-                    workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
+                task.wait(0.5)
+            end
+        end)
+
+        gb:AddButton({Text = "TP",   Func = function()
+            local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
+            if myHRP and tgtHRP then
+                myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
+            end
+        end})
+        gb:AddButton({Text = "Spec", Func = function()
+            local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                workspace.CurrentCamera.CameraSubject = hum
+                workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
+            end
+        end})
+        gb:AddButton({Text = "Fling", Func = function()
+            local myChar  = plr.Character
+            local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local tgtChar = p.Character
+            local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
+            local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+            if not myHRP or not tgtHRP or not tgtHum then return end
+
+            local savedCF = myHRP.CFrame
+            local myHum   = myChar:FindFirstChildOfClass("Humanoid")
+            local angle   = 0
+            local offIdx  = 1
+            local offsets = {
+                CFrame.new( 0,     1.5,  0   ),
+                CFrame.new( 0,    -1.5,  0   ),
+                CFrame.new( 2.25,  1.5, -2.25),
+                CFrame.new(-2.25, -1.5,  2.25),
+            }
+
+            if myHum then
+                myHum.Health = myHum.MaxHealth
+                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            end
+
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity = Vector3.new(16384, -16384, 16384)
+            bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+            bv.P        = 9e8
+            bv.Parent   = myHRP
+
+            task.spawn(function()
+                local iters = 0
+                while iters < 120 and tgtHRP.Parent do
+                    local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
+                    if vel > 500 then break end
+                    if vel < 50 then angle = (angle + 100) % 360 end
+                    offIdx = offIdx % #offsets + 1
+                    local moveOff = tgtHum.MoveDirection
+                        * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
+                    myHRP.CFrame = tgtHRP.CFrame
+                        * CFrame.Angles(math.pi, 0, 0)
+                        * offsets[offIdx]
+                        * CFrame.Angles(math.rad(angle), 0, 0)
+                        + moveOff
+                    iters += 1
+                    RunService.Heartbeat:Wait()
                 end
-            end,
-        })
-        gb:AddButton({
-            Text = "Fling",
-            Func = function()
-                local myChar  = plr.Character
-                local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                local tgtChar = p.Character
-                local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-                local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
-                if not myHRP or not tgtHRP or not tgtHum then return end
-
-                local savedCF = myHRP.CFrame
-                local myHum   = myChar:FindFirstChildOfClass("Humanoid")
-                local angle   = 0
-                local offIdx  = 1
-                local offsets = {
-                    CFrame.new( 0,     1.5,  0   ),
-                    CFrame.new( 0,    -1.5,  0   ),
-                    CFrame.new( 2.25,  1.5, -2.25),
-                    CFrame.new(-2.25, -1.5,  2.25),
-                }
-
+                bv:Destroy()
+                task.wait(0.1)
+                if myHRP and myHRP.Parent then
+                    myHRP.CFrame = savedCF
+                    myHRP.AssemblyLinearVelocity  = Vector3.zero
+                    myHRP.AssemblyAngularVelocity = Vector3.zero
+                end
                 if myHum then
                     myHum.Health = myHum.MaxHealth
-                    myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                    myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                    myHum.PlatformStand = false
                 end
+            end)
+        end})
 
-                local bv = Instance.new("BodyVelocity")
-                bv.Velocity = Vector3.new(16384, -16384, 16384)
-                bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
-                bv.P        = 9e8
-                bv.Parent   = myHRP
-
-                task.spawn(function()
-                    local iters = 0
-                    while iters < 120 and tgtHRP.Parent do
-                        local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
-                        if vel > 500 then break end
-                        if vel < 50 then angle = (angle + 100) % 360 end
-                        offIdx = offIdx % #offsets + 1
-                        local moveOff = tgtHum.MoveDirection
-                            * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
-                        myHRP.CFrame = tgtHRP.CFrame
-                            * CFrame.Angles(math.pi, 0, 0)
-                            * offsets[offIdx]
-                            * CFrame.Angles(math.rad(angle), 0, 0)
-                            + moveOff
-                        iters += 1
-                        RunService.Heartbeat:Wait()
-                    end
-                    bv:Destroy()
-                    task.wait(0.1)
-                    if myHRP and myHRP.Parent then
-                        myHRP.CFrame = savedCF
-                        myHRP.AssemblyLinearVelocity  = Vector3.zero
-                        myHRP.AssemblyAngularVelocity = Vector3.zero
-                    end
-                    if myHum then
-                        myHum.Health = myHum.MaxHealth
-                        myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-                        myHum.PlatformStand = false
-                    end
-                end)
-            end,
-        })
-
-        -- Troll buttons: Standon · Orbit · Merge · Fan · Stop
         gb:AddLabel("─────────────────────────")
-        local trollDefs = {"Standon", "Orbit", "Merge", "Fan", "Stop"}
-        for _, action in ipairs(trollDefs) do
+        for _, action in ipairs({"Standon", "Orbit", "Merge", "Fan", "Stop"}) do
+            local _action = action
             gb:AddButton({
-                Text = action,
+                Text = _action,
                 Func = function()
                     _trollId += 1
-                    if action == "Stop" then return end
+                    if _action == "Stop" then return end
                     local id = _trollId
                     task.spawn(function()
                         while _trollId == id do
@@ -1501,16 +1485,16 @@ do
                             local tHRP  = tChar and tChar:FindFirstChild("HumanoidRootPart")
                             local tHead = tChar and tChar:FindFirstChild("Head")
                             if myHRP then
-                                if action == "Standon" and tHead then
+                                if _action == "Standon" and tHead then
                                     myHRP.CFrame = CFrame.new(tHead.Position + Vector3.new(0, 3.5, 0))
-                                elseif action == "Orbit" and tHRP then
+                                elseif _action == "Orbit" and tHRP then
                                     local spin = (os.clock() * 270) % 360
                                     myHRP.CFrame = tHRP.CFrame
                                         * CFrame.Angles(0, math.rad(spin), 0)
                                         * CFrame.new(0, 0, 5)
-                                elseif action == "Merge" and tHRP then
+                                elseif _action == "Merge" and tHRP then
                                     myHRP.CFrame = tHRP.CFrame
-                                elseif action == "Fan" and tHRP then
+                                elseif _action == "Fan" and tHRP then
                                     myHRP.CFrame = tHRP.CFrame
                                         * CFrame.new(0, 3, 0)
                                         * CFrame.Angles(-math.pi/2, 0, 0)
@@ -1524,38 +1508,92 @@ do
             })
         end
 
-        return gb
+        return gb, function() isActive = false end
     end
 
     local function rebuild()
-        -- Destroy existing player groupboxes
-        for _, gb in ipairs(_playerBoxes) do
-            pcall(function() gb:Destroy() end)
-        end
-        _playerBoxes = {}
+        for _, cleanup in ipairs(_playerCleanups) do cleanup() end
+        for _, gb in ipairs(_playerBoxes) do pcall(function() gb:Destroy() end) end
+        _playerBoxes   = {}
+        _playerCleanups = {}
 
-        local all = Players:GetPlayers()
+        local all   = Players:GetPlayers()
         local count = #all
         _countLbl:SetText(count .. " player" .. (count == 1 and "" or "s") .. " online")
 
         table.sort(all, function(a, b) return a.Name < b.Name end)
         for _, p in ipairs(all) do
-            local gb = _makePlayerBox(p)
+            local gb, cleanup = _makePlayerBox(p)
             table.insert(_playerBoxes, gb)
+            table.insert(_playerCleanups, cleanup)
         end
     end
 
     rebuild()
     Players.PlayerAdded:Connect(rebuild)
-    Players.PlayerRemoving:Connect(function()
-        task.wait()
-        rebuild()
-    end)
+    Players.PlayerRemoving:Connect(function() task.wait(); rebuild() end)
 end
 
--- ── Unload (defined here so all locals are captured correctly) ────────────────
+-- ═════════════════════════════════════════════════════════════════════════════
+--  GAME TAB — load module
+-- ═════════════════════════════════════════════════════════════════════════════
+GameRGB:AddLabel("PlaceId:  " .. tostring(game.PlaceId))
+GameRGB:AddButton({Text = "Copy PlaceId", Func = function()
+    pcall(function() setclipboard(tostring(game.PlaceId)) end)
+    Library:Notify("Astro", "PlaceId copied.", 2)
+end})
+
+local ok, gameSrc = pcall(game.HttpGet, game, getgitpath("games") .. tostring(game.PlaceId) .. ".lua")
+if ok and gameSrc and #gameSrc > 0 and gameSrc ~= "404: Not Found" then
+    local gameModule = loadstring(gameSrc)
+    if gameModule then
+        pcall(function() gameModule()(_gameSection) end)
+    end
+else
+    GameGB:AddLabel("No module for this game.")
+    GameGB:AddButton({Text = "Go to Games List", Func = function()
+        Library:Notify("Astro", "Switch to the Gameslist tab.", 3)
+    end})
+end
+
+-- ═════════════════════════════════════════════════════════════════════════════
+--  GAMESLIST TAB
+-- ═════════════════════════════════════════════════════════════════════════════
+local GameslistGB  = Tabs.Gameslist:AddLeftGroupbox("Teleport")
+local GameslistRGB = Tabs.Gameslist:AddRightGroupbox("Info")
+
+local ok2, listSrc = pcall(game.HttpGet, game, getgitpath("src") .. "gameslist.json")
+if ok2 and listSrc then
+    local gameList  = HttpService:JSONDecode(listSrc)
+    local _glNames  = {}
+    local _glIdMap  = {}
+    for _, g in ipairs(gameList) do
+        local name = (g.status or "●") .. " " .. tostring(g["game"])
+        table.insert(_glNames, name)
+        _glIdMap[name] = tonumber(g.id)
+    end
+
+    if #_glNames > 0 then
+        local _selectedGl = _glNames[1]
+        GameslistGB:AddDropdown(uid("dd"), {
+            Text       = "Select Game",
+            Values     = _glNames,
+            Default    = _glNames[1],
+            Searchable = true,
+            Callback   = function(v) _selectedGl = v end,
+        })
+        GameslistGB:AddButton({Text = "Teleport", Func = function()
+            local id = _selectedGl and _glIdMap[_selectedGl]
+            if id then TeleportService:Teleport(id) end
+        end})
+        GameslistRGB:AddLabel(tostring(#_glNames) .. " games supported")
+    end
+end
+
+-- ═════════════════════════════════════════════════════════════════════════════
+--  UNLOAD
+-- ═════════════════════════════════════════════════════════════════════════════
 getgenv()._astroUnload = function()
-    -- flags
     getgenv()._astroFlying       = false
     getgenv()._astroNoclip       = false
     getgenv()._astroAiming       = false
@@ -1566,16 +1604,14 @@ getgenv()._astroUnload = function()
     getgenv()._astroAimVisCheck  = false
     getgenv().autorjjjj          = false
 
-    -- stop all render steps
     RunService:UnbindFromRenderStep("AstroFly")
     RunService:UnbindFromRenderStep("AstroAim")
+    RunService:UnbindFromRenderStep("AstroSpinBot")
     RunService:Set3dRenderingEnabled(true)
 
-    -- fly cleanup
     if _flyBV then _flyBV:Destroy(); _flyBV = nil end
     if _flyBG then _flyBG:Destroy(); _flyBG = nil end
 
-    -- fullbright restore
     if _fullbrightOn and _fbOrig then
         local L = game:GetService("Lighting")
         L.Brightness     = _fbOrig[1]
@@ -1585,26 +1621,19 @@ getgenv()._astroUnload = function()
     end
     _fullbrightOn = false
 
-    -- walk speed reset
     _walkEnabled = false
     if plr.Character then
         local h = plr.Character:FindFirstChildOfClass("Humanoid")
-        if h then
-            h.WalkSpeed     = 16
-            h.PlatformStand = false
-        end
+        if h then h.WalkSpeed = 16; h.PlatformStand = false end
     end
 
-    -- combat extras
-    getgenv()._astroSpinbot  = false
     getgenv()._astroDesync   = false
     getgenv()._astroHitboxes = false
     getgenv()._astroAntiFall = false
-    RunService:UnbindFromRenderStep("AstroSpinBot")
+    getgenv()._astroSpinbot  = false
     for _, p in game:GetService("Players"):GetPlayers() do _clearHitbox(p) end
     _hitboxOrigSizes = {}
 
-    -- visual extras
     getgenv()._astroTracers   = false
     getgenv()._astroDmgInd    = false
     getgenv()._astroHitSound  = false
@@ -1615,7 +1644,6 @@ getgenv()._astroUnload = function()
     _destroyCrosshair()
     _disableViewmodel()
 
-    -- restore __namecall hooks (tracer chains off silent aim, restore inner-first)
     if _tracerHookOrig then
         pcall(hookmetamethod, game, "__namecall", _tracerHookOrig)
         _tracerHookOrig = nil
@@ -1625,19 +1653,13 @@ getgenv()._astroUnload = function()
         _silentHookOrig = nil
     end
 
-    -- clear ESP state so the RenderStepped loop stops updating and recreating drawings
     _esp.box      = false
     _esp.skeleton = false
     _esp.name     = false
     _esp.distance = false
     _esp.weapon   = false
     _esp.health   = false
+    for espUid in pairs(_espD) do cleanESP(espUid) end
 
-    -- clear all ESP drawings
-    for espUid in pairs(_espD) do
-        cleanESP(espUid)
-    end
-
-    -- unload Obsidian (destroys its ScreenGui)
     pcall(function() Library:Unload() end)
 end
