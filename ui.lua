@@ -1791,43 +1791,33 @@ do
             pcall(setclipboard, tostring(p.UserId))
         end)
 
-        -- Fling: weld a massively spinning invisible part to the target's HRP
+        -- Fling: two-pronged — direct velocity on their HRP (works if game
+        -- doesn't enforce network ownership strictly) + push fling where we
+        -- teleport our own character into theirs and launch ourselves (works
+        -- in games where character collisions are enabled).
         makeBtn("Fling", -58, Color3.fromRGB(55, 10, 10), function()
+            local myChar  = plr.Character
+            local myHRP   = myChar  and myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-            if not tgtHRP then return end
+            if not myHRP or not tgtHRP then return end
 
-            -- Invisible anchor part, placed at target
-            local fp = Instance.new("Part")
-            fp.Size        = Vector3.new(1, 1, 1)
-            fp.CFrame      = tgtHRP.CFrame
-            fp.Anchored    = false
-            fp.CanCollide  = false
-            fp.Transparency = 1
-            fp.Massless    = true
-            fp.Parent      = workspace
+            local rx = math.random(-300, 300)
+            local rz = math.random(-300, 300)
 
-            -- Weld it to the target's HRP so physics transfers to them
-            local weld = Instance.new("WeldConstraint")
-            weld.Part0 = fp
-            weld.Part1 = tgtHRP
-            weld.Parent = fp
+            -- Attempt 1: set their velocity directly
+            tgtHRP.AssemblyLinearVelocity = Vector3.new(rx, 800, rz)
 
-            -- Extreme angular velocity — the weld torques the target violently
-            local bav = Instance.new("BodyAngularVelocity")
-            bav.AngularVelocity = Vector3.new(0, 9e9, 0)
-            bav.MaxTorque       = Vector3.new(9e9, 9e9, 9e9)
-            bav.P               = 9e9
-            bav.Parent          = fp
-
-            -- Also kick them upward so they leave the ground
-            local bv = Instance.new("BodyVelocity")
-            bv.Velocity  = Vector3.new(0, 500, 0)
-            bv.MaxForce  = Vector3.new(0, 9e9, 0)
-            bv.P         = 9e9
-            bv.Parent    = fp
-
-            game:GetService("Debris"):AddItem(fp, 0.2)
+            -- Attempt 2: push fling — snap self inside them and launch
+            local orig = myHRP.CFrame
+            myHRP.CFrame = tgtHRP.CFrame
+            myHRP.AssemblyLinearVelocity = Vector3.new(rx, 800, rz)
+            task.delay(0.2, function()
+                if myHRP and myHRP.Parent then
+                    myHRP.CFrame = orig
+                    myHRP.AssemblyLinearVelocity = Vector3.zero
+                end
+            end)
         end)
 
         return row
@@ -2010,10 +2000,22 @@ getgenv()._astroUnload = function()
         _silentHookOrig = nil
     end
 
+    -- clear ESP state so the RenderStepped loop stops updating and recreating drawings
+    _esp.box      = false
+    _esp.skeleton = false
+    _esp.name     = false
+    _esp.distance = false
+    _esp.weapon   = false
+    _esp.health   = false
+
     -- clear all ESP drawings
     for uid in pairs(_espD) do
         cleanESP(uid)
     end
+
+    -- restore mouse in case menu was open at unload time
+    UserInputService.MouseBehavior    = Enum.MouseBehavior.Default
+    UserInputService.MouseIconEnabled = true
 
     -- destroy GUI (triggers AncestorRemoving on game script section → cleans MM2 targetGui etc.)
     gui:Destroy()
