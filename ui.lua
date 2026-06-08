@@ -1802,8 +1802,9 @@ do
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
             if not myHRP or not tgtHRP then return end
 
-            -- Lie sideways directly at their HRP center
-            myHRP.CFrame = CFrame.new(tgtHRP.Position) * CFrame.Angles(0, 0, math.pi / 2)
+            -- Lie sideways slightly above and behind them
+            local behind = tgtHRP.Position - tgtHRP.CFrame.LookVector * 2 + Vector3.new(0, 2, 0)
+            myHRP.CFrame = CFrame.new(behind) * CFrame.Angles(0, 0, math.pi / 2)
 
             -- Spin on our own HRP — replicates to server/others
             local bav = Instance.new("BodyAngularVelocity")
