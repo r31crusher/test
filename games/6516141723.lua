@@ -10,6 +10,7 @@ return function(section)
     local Lighting       = game:GetService("Lighting")
     local PathSvc        = game:GetService("PathfindingService")
     local VirtualUser    = game:GetService("VirtualUser")
+    local HttpService    = game:GetService("HttpService")
     local LocalPlayer    = Players.LocalPlayer
 
     -- ── Exploit globals (graceful fallback) ───────────────────────────────────
@@ -1187,6 +1188,13 @@ return function(section)
     end))
 
     -- ══════════════════════════════════════════════════════════════════════════
+    -- CONFIG (pre-declare so button/toggle callbacks capture the right slots)
+    -- ══════════════════════════════════════════════════════════════════════════
+    local CFG_FILE  = "astro/doors/config.json"
+    local META_FILE = "astro/doors/meta.json"
+    local readMeta, writeMeta, cfgEnsureDirs, saveConfig, loadConfig, silentLoadConfig
+
+    -- ══════════════════════════════════════════════════════════════════════════
     -- SUB-TAB SYSTEM
     -- ══════════════════════════════════════════════════════════════════════════
     local function makeSubSection(parent)
@@ -1257,31 +1265,31 @@ return function(section)
     activeSubBtn = btnMove
 
     -- ── Move ──────────────────────────────────────────────────────────────────
-    elements:Toggle("Speed Boost", sMove, function(v) _speed = v
+    local setSpeed    = elements:Toggle("Speed Boost", sMove, function(v) _speed = v
         if not v and Humanoid then Humanoid.WalkSpeed = GetCurrentSpeed() end
     end)
-    elements:Slider("Speed Amount", sMove, 0, 85, 0, function(v) _speedAmt = v end)
+    local setSpeedAmt = elements:Slider("Speed Amount", sMove, 0, 85, 0, function(v) _speedAmt = v end)
 
-    elements:Toggle("Fly", sMove, function(v) _fly = v
+    local setFly    = elements:Toggle("Fly", sMove, function(v) _fly = v
         if not v and FlyBody then FlyBody.Parent = nil end
     end)
-    elements:Slider("Fly Speed", sMove, 0, 100, 20, function(v) _flySpeed = v end)
+    local setFlySpd = elements:Slider("Fly Speed", sMove, 0, 100, 20, function(v) _flySpeed = v end)
 
-    elements:Toggle("Noclip", sMove, function(v) _noclip = v end)
+    local setNoclip = elements:Toggle("Noclip", sMove, function(v) _noclip = v end)
 
-    elements:Toggle("Enable Jumping", sMove, function(v)
+    local setJumpEnable = elements:Toggle("Enable Jumping", sMove, function(v)
         _jumpEnable = v
         if Character then Character:SetAttribute("CanJump", v and true or OldJump) end
     end)
 
-    elements:Toggle("Enable Sliding", sMove, function(v)
+    local setSlideEnable = elements:Toggle("Enable Sliding", sMove, function(v)
         _slideEnable = v
         if Character then Character:SetAttribute("CanSlide", v and true or OldSlide) end
     end)
 
-    elements:Toggle("Infinite Jumps", sMove, function(v) _infiniteJumps = v end)
+    local setInfJumps = elements:Toggle("Infinite Jumps", sMove, function(v) _infiniteJumps = v end)
 
-    elements:Toggle("Position Spoof", sMove, function(v)
+    local setPosSpoof = elements:Toggle("Position Spoof", sMove, function(v)
         _posSpoof = v
         if Character and RootPart and Humanoid and Floor ~= "Fools" and Floor ~= "OldHotel" then
             if v then
@@ -1295,16 +1303,16 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Crouch Spoof", sMove, function(v)
+    local setCrouchSpoof = elements:Toggle("Crouch Spoof", sMove, function(v)
         _crouchSpoof = v
         if RemotesFolder:FindFirstChild("Crouch") then
             pcall(function() RemotesFolder.Crouch:FireServer(v and true or IsCrouching()) end)
         end
     end)
 
-    elements:Toggle("Velocity Manipulation", sMove, function(v) _velocityManip = v end)
+    local setVelocityManip  = elements:Toggle("Velocity Manipulation", sMove, function(v) _velocityManip = v end)
 
-    elements:Toggle("Remove Acceleration", sMove, function(v)
+    local setRemoveAccel = elements:Toggle("Remove Acceleration", sMove, function(v)
         _removeAccel = v
         if Character then
             for _, p in Character:GetDescendants() do
@@ -1315,20 +1323,16 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Remove Closet Delay", sMove, function(v) _removeClosetDelay = v end)
+    local setRemoveClosetDelay = elements:Toggle("Remove Closet Delay", sMove, function(v) _removeClosetDelay = v end)
 
     -- ── Self ──────────────────────────────────────────────────────────────────
-    elements:Toggle("Door Reach", sSelf, function(v) _doorReach = v end)
+    local setDoorReach   = elements:Toggle("Door Reach",       sSelf, function(v) _doorReach   = v end)
+    local setAutoCloset  = elements:Toggle("Auto Closet",      sSelf, function(v) _autoCloset  = v end)
+    local setAutoBreaker = elements:Toggle("Auto Breaker Box", sSelf, function(v) _autoBreaker = v end)
+    local setAutoInteract= elements:Toggle("Auto Interact",    sSelf, function(v) _autoInteract= v end)
+    local setDisableIdle = elements:Toggle("Disable Idle Kick",sSelf, function(v) _disableIdle = v end)
 
-    elements:Toggle("Auto Closet", sSelf, function(v) _autoCloset = v end)
-
-    elements:Toggle("Auto Breaker Box", sSelf, function(v) _autoBreaker = v end)
-
-    elements:Toggle("Auto Interact", sSelf, function(v) _autoInteract = v end)
-
-    elements:Toggle("Disable Idle Kick", sSelf, function(v) _disableIdle = v end)
-
-    elements:Slider("Prompt Reach Multiplier", sSelf, 1, 10, 1, function(v)
+    local setPromptReach = elements:Slider("Prompt Reach Multiplier", sSelf, 1, 10, 1, function(v)
         _promptReach = v
         for _, p in Objects.Prompts do
             if p and p.Parent then
@@ -1337,7 +1341,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Instant Prompts", sSelf, function(v)
+    local setInstantPrompt = elements:Toggle("Instant Prompts", sSelf, function(v)
         _instantPrompt = v
         for _, p in Objects.Prompts do
             if p and p.Parent then
@@ -1346,7 +1350,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Prompt Clip (no LoS)", sSelf, function(v)
+    local setPromptClip = elements:Toggle("Prompt Clip (no LoS)", sSelf, function(v)
         _promptClip = v
         for _, p in Objects.Prompts do
             if p and p.Parent then
@@ -1356,7 +1360,7 @@ return function(section)
     end)
 
     -- ── Bypass ────────────────────────────────────────────────────────────────
-    elements:Toggle("Bypass Eyes", sBypass, function(v)
+    local setBypassEyes = elements:Toggle("Bypass Eyes", sBypass, function(v)
         _bypassEyes = v
         if v and Globals.IsEyes then
             if Floor == "Fools" or Floor == "OldHotel" then
@@ -1367,7 +1371,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Lookman", sBypass, function(v)
+    local setBypassLookman = elements:Toggle("Bypass Lookman", sBypass, function(v)
         _bypassLookman = v
         if v and Globals.IsLookman then
             if Floor == "Fools" or Floor == "OldHotel" then
@@ -1378,7 +1382,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Giggle", sBypass, function(v)
+    local setBypassGiggle = elements:Toggle("Bypass Giggle", sBypass, function(v)
         _bypassGiggle = v
         for _, obj in Objects.Entities do
             if obj.Name == "GiggleCeiling" and obj:FindFirstChild("Hitbox") then
@@ -1387,7 +1391,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Dupe", sBypass, function(v)
+    local setBypassDupe = elements:Toggle("Bypass Dupe", sBypass, function(v)
         _bypassDupe = v
         for _, obj in Objects.Entities do
             if obj.Name == "DoorFake" or obj.Name == "FakeDoor" then
@@ -1401,7 +1405,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Gloombat Eggs", sBypass, function(v)
+    local setBypassGloombat = elements:Toggle("Bypass Gloombat Eggs", sBypass, function(v)
         _bypassGloombat = v
         for _, obj in Objects.Entities do
             for _, p in obj:GetDescendants() do
@@ -1410,7 +1414,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Seek Obstructions", sBypass, function(v)
+    local setBypassSeekObstruct = elements:Toggle("Bypass Seek Obstructions", sBypass, function(v)
         _bypassSeekObstruct = v
         for _, p in Objects.SeekObstructions do
             p.CanTouch = not v
@@ -1421,7 +1425,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Vacuum", sBypass, function(v)
+    local setBypassVacuum = elements:Toggle("Bypass Vacuum", sBypass, function(v)
         _bypassVacuum = v
         for _, obj in Objects.Entities do
             if obj.Name == "SideroomSpace" then
@@ -1433,14 +1437,14 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Killbricks (Lava)", sBypass, function(v)
+    local setBypassKillbrick = elements:Toggle("Bypass Killbricks (Lava)", sBypass, function(v)
         _bypassKillbrick = v
         for _, obj in Objects.Obstructions do
             if obj.Name == "Lava" then obj.CanTouch = not v end
         end
     end)
 
-    elements:Toggle("Bypass Seeking Wall", sBypass, function(v)
+    local setBypassSeekWall = elements:Toggle("Bypass Seeking Wall", sBypass, function(v)
         _bypassSeekWall = v
         for _, obj in Objects.Obstructions do
             if obj.Name == "ScaryWall" then
@@ -1451,7 +1455,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Snare", sBypass, function(v)
+    local setBypassSnare = elements:Toggle("Bypass Snare", sBypass, function(v)
         _bypassSnare = v
         for _, obj in Objects.Entities do
             if obj.Name == "Snare" and obj:FindFirstChild("Hitbox") then
@@ -1460,14 +1464,14 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Bypass Banana", sBypass, function(v)
+    local setBypassBanana = elements:Toggle("Bypass Banana", sBypass, function(v)
         _bypassBanana = v
         for _, obj in Objects.Entities do
             if obj.Name == "BananaPeel" then obj.CanTouch = not v end
         end
     end)
 
-    elements:Toggle("Bypass Jeff", sBypass, function(v)
+    local setBypassJeff = elements:Toggle("Bypass Jeff", sBypass, function(v)
         _bypassJeff = v
         for _, obj in Objects.Entities do
             if obj.Name == "JeffTheKiller" then
@@ -1479,9 +1483,9 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Disable Anticheat", sBypass, function(v) _disableAnticheat = v end)
+    local setDisableAnticheat = elements:Toggle("Disable Anticheat", sBypass, function(v) _disableAnticheat = v end)
 
-    elements:Toggle("No Screech Damage", sBypass, function(v)
+    local setNoScreechDmg = elements:Toggle("No Screech Damage", sBypass, function(v)
         _noScreechDmg = v
         if v then
             FakeEvents.Screech.Parent = RemotesFolder
@@ -1492,7 +1496,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("No Halt Damage", sBypass, function(v)
+    local setNoHaltDmg = elements:Toggle("No Halt Damage", sBypass, function(v)
         _noHaltDmg = v
         if v then
             FakeEvents.Shade.Parent = RemotesFolder
@@ -1503,7 +1507,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("No A-90 Damage", sBypass, function(v)
+    local setNoA90Dmg = elements:Toggle("No A-90 Damage", sBypass, function(v)
         _noA90Dmg = v
         if FakeEvents.A90_Real then
             if v then FakeEvents.A90.Parent=RemotesFolder; FakeEvents.A90_Real.Parent=nil
@@ -1511,7 +1515,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("No Surge Damage", sBypass, function(v)
+    local setNoSurgeDmg = elements:Toggle("No Surge Damage", sBypass, function(v)
         _noSurgeDmg = v
         if FakeEvents.Surge_Real then
             if v then FakeEvents.Surge.Parent=RemotesFolder; FakeEvents.Surge_Real.Parent=nil
@@ -1519,7 +1523,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Remove Screech", sBypass, function(v)
+    local setRemoveScreech = elements:Toggle("Remove Screech", sBypass, function(v)
         _removeScreech = v
         pcall(function()
             Modules.Screech.Name = v and "Screech_Disabled" or "Screech"
@@ -1529,23 +1533,23 @@ return function(section)
         end)
     end)
 
-    elements:Toggle("Remove Halt", sBypass, function(v)
+    local setRemoveHalt = elements:Toggle("Remove Halt", sBypass, function(v)
         _removeHalt = v
         pcall(function() Modules.Shade.Name = v and "Shade_Disabled" or "Shade" end)
     end)
 
-    elements:Toggle("Remove A-90", sBypass, function(v)
+    local setRemoveA90 = elements:Toggle("Remove A-90", sBypass, function(v)
         _removeA90 = v
         pcall(function() if Modules.A90 then Modules.A90.Name = v and "A90_Disabled" or "A90" end end)
     end)
 
-    elements:Toggle("Remove Dread", sBypass, function(v)
+    local setRemoveDread = elements:Toggle("Remove Dread", sBypass, function(v)
         _removeDread = v
         pcall(function() if Modules.Dread then Modules.Dread.Name = v and "Dread_Disabled" or "Dread" end end)
     end)
 
     -- ── Visual ────────────────────────────────────────────────────────────────
-    elements:Toggle("Remove Camera Fog", sVisual, function(v)
+    local setRemoveFog = elements:Toggle("Remove Camera Fog", sVisual, function(v)
         _removeFog = v
         Lighting.FogEnd = v and 10000000 or Globals.OldFog
         for _, obj in Globals.FogInstances do
@@ -1555,22 +1559,22 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Disable Glitch Jumpscare", sVisual, function(v)
+    local setDisableGlitchJS = elements:Toggle("Disable Glitch Jumpscare", sVisual, function(v)
         _disableGlitchJS = v
         pcall(function() Modules.Glitch.Name = v and "Glitch_Disabled" or "Glitch" end)
     end)
 
-    elements:Toggle("Disable Timothy Jumpscare", sVisual, function(v)
+    local setDisableTimothyJS = elements:Toggle("Disable Timothy Jumpscare", sVisual, function(v)
         _disableTimothyJS = v
         pcall(function() Modules.SpiderJumpscare.Name = v and "SpiderJumpscare_Disabled" or "SpiderJumpscare" end)
     end)
 
-    elements:Toggle("Disable Void Jumpscare", sVisual, function(v)
+    local setDisableVoidJS = elements:Toggle("Disable Void Jumpscare", sVisual, function(v)
         _disableVoidJS = v
         pcall(function() if Modules.Void then Modules.Void.Name = v and "Void_Disabled" or "Void" end end)
     end)
 
-    elements:Toggle("Disable Entity Jumpscares", sVisual, function(v)
+    local setDisableEntityJS = elements:Toggle("Disable Entity Jumpscares", sVisual, function(v)
         _disableEntityJS = v
         pcall(function()
             local js = Globals.MainUI.Initiator.Main_Game.RemoteListener:FindFirstChild("Jumpscares")
@@ -1583,7 +1587,7 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Disable Hide Vignette", sVisual, function(v)
+    local setDisableHideVignette = elements:Toggle("Disable Hide Vignette", sVisual, function(v)
         _disableHideVignette = v
         pcall(function()
             local vig = Globals.MainUI:FindFirstChild("HideVignette")
@@ -1592,7 +1596,7 @@ return function(section)
         end)
     end)
 
-    elements:Toggle("Entity ESP", sVisual, function(v)
+    local setEspEntity = elements:Toggle("Entity ESP", sVisual, function(v)
         _espEntity = v
         if v then
             for _, obj in Objects.Entities do
@@ -1604,13 +1608,13 @@ return function(section)
         end
     end)
 
-    elements:Toggle("Door ESP", sVisual, function(v)
+    local setEspDoor = elements:Toggle("Door ESP", sVisual, function(v)
         _espDoor = v
         if v then for _, obj in Objects.Doors do addESP(obj,"Door","door") end
         else      for _, obj in Objects.Doors do remESP(obj) end end
     end)
 
-    elements:Toggle("Hiding Spot ESP", sVisual, function(v)
+    local setEspHide = elements:Toggle("Hiding Spot ESP", sVisual, function(v)
         _espHide = v
         local names = {Wardrobe="Closet",Backdoor_Wardrobe="Closet",Toolshed="Closet",
                        RetroWardrobe="Closet",["Wardrobe-FOOLS26"]="Closet",
@@ -1620,7 +1624,7 @@ return function(section)
         else     for _, obj in Objects.HidingSpots do remESP(obj) end end
     end)
 
-    elements:Toggle("Item ESP", sVisual, function(v)
+    local setEspItem = elements:Toggle("Item ESP", sVisual, function(v)
         _espItem = v
         if v then
             for _, obj in Objects.Items do
@@ -1629,7 +1633,7 @@ return function(section)
         else for _, obj in Objects.Items do remESP(obj) end end
     end)
 
-    elements:Toggle("Chest ESP", sVisual, function(v)
+    local setEspChest = elements:Toggle("Chest ESP", sVisual, function(v)
         _espChest = v
         if v then
             local labels = {ChestBox="Chest",ChestBoxLocked="Locked Chest",Chest_Vine="Vine Chest",
@@ -1639,13 +1643,13 @@ return function(section)
         else for _, obj in Objects.Chests do remESP(obj) end end
     end)
 
-    elements:Toggle("Objective ESP", sVisual, function(v)
+    local setEspObjective = elements:Toggle("Objective ESP", sVisual, function(v)
         _espObjective = v
         if v then for _, obj in Objects.Objectives do addESP(obj, obj.Name, "objective") end
         else      for _, obj in Objects.Objectives do remESP(obj) end end
     end)
 
-    elements:Toggle("Currency ESP", sVisual, function(v)
+    local setEspCurrency = elements:Toggle("Currency ESP", sVisual, function(v)
         _espCurrency = v
         if v then
             for _, obj in Objects.Currency do
@@ -1655,13 +1659,13 @@ return function(section)
         else for _, obj in Objects.Currency do remESP(obj) end end
     end)
 
-    elements:Toggle("Ladder ESP", sVisual, function(v)
+    local setEspLadder = elements:Toggle("Ladder ESP", sVisual, function(v)
         _espLadder = v
         if v then for _, obj in Objects.Ladders do addESP(obj,"Ladder","ladder") end
         else      for _, obj in Objects.Ladders do remESP(obj) end end
     end)
 
-    elements:Toggle("Player ESP", sVisual, function(v)
+    local setEspPlayer = elements:Toggle("Player ESP", sVisual, function(v)
         _espPlayer = v
         if v then
             for _, p in Players:GetPlayers() do
@@ -1688,6 +1692,150 @@ return function(section)
     elements:Button("Return to Lobby", sMisc, function()
         pcall(function() RemotesFolder.Lobby:FireServer() end)
     end)
+
+    -- ── Config (assign to pre-declared slots) ────────────────────────────────
+    cfgEnsureDirs = function()
+        if not isfolder("astro")       then makefolder("astro")       end
+        if not isfolder("astro/doors") then makefolder("astro/doors") end
+    end
+
+    readMeta = function()
+        if not isfile(META_FILE) then return {} end
+        local ok, d = pcall(function() return HttpService:JSONDecode(readfile(META_FILE)) end)
+        return (ok and type(d) == "table") and d or {}
+    end
+
+    writeMeta = function(tbl)
+        cfgEnsureDirs()
+        writefile(META_FILE, HttpService:JSONEncode(tbl))
+    end
+
+    saveConfig = function()
+        cfgEnsureDirs()
+        writefile(CFG_FILE, HttpService:JSONEncode({
+            -- move
+            speed=_speed, speedAmt=_speedAmt, fly=_fly, flySpeed=_flySpeed,
+            noclip=_noclip, jumpEnable=_jumpEnable, slideEnable=_slideEnable,
+            infJumps=_infiniteJumps, posSpoof=_posSpoof, crouchSpoof=_crouchSpoof,
+            velocityManip=_velocityManip, removeAccel=_removeAccel,
+            removeClosetDelay=_removeClosetDelay,
+            -- self
+            doorReach=_doorReach, autoCloset=_autoCloset, autoBreaker=_autoBreaker,
+            autoInteract=_autoInteract, disableIdle=_disableIdle,
+            promptReach=_promptReach, instantPrompt=_instantPrompt, promptClip=_promptClip,
+            -- bypass
+            bypassEyes=_bypassEyes, bypassLookman=_bypassLookman,
+            bypassGiggle=_bypassGiggle, bypassDupe=_bypassDupe,
+            bypassGloombat=_bypassGloombat, bypassSeekObstruct=_bypassSeekObstruct,
+            bypassVacuum=_bypassVacuum, bypassKillbrick=_bypassKillbrick,
+            bypassSeekWall=_bypassSeekWall, bypassSnare=_bypassSnare,
+            bypassBanana=_bypassBanana, bypassJeff=_bypassJeff,
+            disableAnticheat=_disableAnticheat,
+            noScreechDmg=_noScreechDmg, noHaltDmg=_noHaltDmg,
+            noA90Dmg=_noA90Dmg, noSurgeDmg=_noSurgeDmg,
+            removeScreech=_removeScreech, removeHalt=_removeHalt,
+            removeA90=_removeA90, removeDread=_removeDread,
+            -- visual
+            removeFog=_removeFog,
+            disableGlitchJS=_disableGlitchJS, disableTimothyJS=_disableTimothyJS,
+            disableVoidJS=_disableVoidJS, disableEntityJS=_disableEntityJS,
+            disableHideVignette=_disableHideVignette,
+            espEntity=_espEntity, espDoor=_espDoor, espHide=_espHide,
+            espItem=_espItem, espChest=_espChest, espObjective=_espObjective,
+            espCurrency=_espCurrency, espLadder=_espLadder, espPlayer=_espPlayer,
+        }))
+    end
+
+    loadConfig = function()
+        if not isfile(CFG_FILE) then return false end
+        local ok, d = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
+        if not ok or type(d) ~= "table" then return false end
+        -- sliders first (values, no side effects that need char)
+        if d.speedAmt   then setSpeedAmt(d.speedAmt)     end
+        if d.flySpeed   then setFlySpd(d.flySpeed)       end
+        if d.promptReach then setPromptReach(d.promptReach) end
+        -- toggles
+        if d.speed         ~= nil then setSpeed(d.speed)                   end
+        if d.fly           ~= nil then setFly(d.fly)                       end
+        if d.noclip        ~= nil then setNoclip(d.noclip)                 end
+        if d.jumpEnable    ~= nil then setJumpEnable(d.jumpEnable)         end
+        if d.slideEnable   ~= nil then setSlideEnable(d.slideEnable)       end
+        if d.infJumps      ~= nil then setInfJumps(d.infJumps)             end
+        if d.posSpoof      ~= nil then setPosSpoof(d.posSpoof)             end
+        if d.crouchSpoof   ~= nil then setCrouchSpoof(d.crouchSpoof)       end
+        if d.velocityManip ~= nil then setVelocityManip(d.velocityManip)   end
+        if d.removeAccel   ~= nil then setRemoveAccel(d.removeAccel)       end
+        if d.removeClosetDelay ~= nil then setRemoveClosetDelay(d.removeClosetDelay) end
+        if d.doorReach     ~= nil then setDoorReach(d.doorReach)           end
+        if d.autoCloset    ~= nil then setAutoCloset(d.autoCloset)         end
+        if d.autoBreaker   ~= nil then setAutoBreaker(d.autoBreaker)       end
+        if d.autoInteract  ~= nil then setAutoInteract(d.autoInteract)     end
+        if d.disableIdle   ~= nil then setDisableIdle(d.disableIdle)       end
+        if d.instantPrompt ~= nil then setInstantPrompt(d.instantPrompt)   end
+        if d.promptClip    ~= nil then setPromptClip(d.promptClip)         end
+        if d.bypassEyes    ~= nil then setBypassEyes(d.bypassEyes)         end
+        if d.bypassLookman ~= nil then setBypassLookman(d.bypassLookman)   end
+        if d.bypassGiggle  ~= nil then setBypassGiggle(d.bypassGiggle)     end
+        if d.bypassDupe    ~= nil then setBypassDupe(d.bypassDupe)         end
+        if d.bypassGloombat ~= nil then setBypassGloombat(d.bypassGloombat) end
+        if d.bypassSeekObstruct ~= nil then setBypassSeekObstruct(d.bypassSeekObstruct) end
+        if d.bypassVacuum  ~= nil then setBypassVacuum(d.bypassVacuum)     end
+        if d.bypassKillbrick ~= nil then setBypassKillbrick(d.bypassKillbrick) end
+        if d.bypassSeekWall ~= nil then setBypassSeekWall(d.bypassSeekWall) end
+        if d.bypassSnare   ~= nil then setBypassSnare(d.bypassSnare)       end
+        if d.bypassBanana  ~= nil then setBypassBanana(d.bypassBanana)     end
+        if d.bypassJeff    ~= nil then setBypassJeff(d.bypassJeff)         end
+        if d.disableAnticheat ~= nil then setDisableAnticheat(d.disableAnticheat) end
+        if d.noScreechDmg  ~= nil then setNoScreechDmg(d.noScreechDmg)   end
+        if d.noHaltDmg     ~= nil then setNoHaltDmg(d.noHaltDmg)         end
+        if d.noA90Dmg      ~= nil then setNoA90Dmg(d.noA90Dmg)           end
+        if d.noSurgeDmg    ~= nil then setNoSurgeDmg(d.noSurgeDmg)       end
+        if d.removeScreech ~= nil then setRemoveScreech(d.removeScreech) end
+        if d.removeHalt    ~= nil then setRemoveHalt(d.removeHalt)       end
+        if d.removeA90     ~= nil then setRemoveA90(d.removeA90)         end
+        if d.removeDread   ~= nil then setRemoveDread(d.removeDread)     end
+        if d.removeFog     ~= nil then setRemoveFog(d.removeFog)         end
+        if d.disableGlitchJS   ~= nil then setDisableGlitchJS(d.disableGlitchJS)     end
+        if d.disableTimothyJS  ~= nil then setDisableTimothyJS(d.disableTimothyJS)   end
+        if d.disableVoidJS     ~= nil then setDisableVoidJS(d.disableVoidJS)         end
+        if d.disableEntityJS   ~= nil then setDisableEntityJS(d.disableEntityJS)     end
+        if d.disableHideVignette ~= nil then setDisableHideVignette(d.disableHideVignette) end
+        if d.espEntity    ~= nil then setEspEntity(d.espEntity)     end
+        if d.espDoor      ~= nil then setEspDoor(d.espDoor)         end
+        if d.espHide      ~= nil then setEspHide(d.espHide)         end
+        if d.espItem      ~= nil then setEspItem(d.espItem)         end
+        if d.espChest     ~= nil then setEspChest(d.espChest)       end
+        if d.espObjective ~= nil then setEspObjective(d.espObjective) end
+        if d.espCurrency  ~= nil then setEspCurrency(d.espCurrency) end
+        if d.espLadder    ~= nil then setEspLadder(d.espLadder)     end
+        if d.espPlayer    ~= nil then setEspPlayer(d.espPlayer)     end
+        return true
+    end
+
+    silentLoadConfig = function()
+        if not isfile(CFG_FILE) then return false end
+        local ok, d = pcall(function() return HttpService:JSONDecode(readfile(CFG_FILE)) end)
+        if not ok or type(d) ~= "table" then return false end
+        if d.speedAmt    then setSpeedAmt(d.speedAmt)       end
+        if d.flySpeed    then setFlySpd(d.flySpeed)         end
+        if d.promptReach then setPromptReach(d.promptReach) end
+        return true
+    end
+
+    local _autoLoad = readMeta().autoLoad == true
+
+    elements:Label("— Doors Config —", sMisc)
+    elements:Button("Save Config",  sMisc, function() pcall(saveConfig)       end)
+    elements:Button("Load Config",  sMisc, function() pcall(loadConfig)       end)
+    elements:Button("Silent Load",  sMisc, function() pcall(silentLoadConfig) end)
+    local setAutoLoad = elements:Toggle("Auto Load on Start", sMisc, function(v)
+        _autoLoad = v
+        local m = readMeta(); m.autoLoad = v
+        pcall(writeMeta, m)
+    end)
+    setAutoLoad(_autoLoad)
+
+    if _autoLoad then pcall(loadConfig) end
 
     -- ── Unload (faithful restore from reference) ──────────────────────────────
     section.AncestorRemoving:Connect(function()
