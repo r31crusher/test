@@ -38,6 +38,14 @@ local _makeAdapter = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"
 getgenv()._astroElements = _makeAdapter(GameGB)
 local _gameSection = GameGB.Container or GameGB.Content or GameGB[1] or GameGB
 
+-- ── Menu visibility (used to hide ESP drawings when menu is open) ─────────────
+local _menuOpen = true  -- starts open because AutoShow = true
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
+        _menuOpen = not _menuOpen
+    end
+end)
+
 -- ── Session stats ─────────────────────────────────────────────────────────────
 local _sessionStart  = tick()
 local _featuresUsed  = 0
@@ -96,26 +104,23 @@ task.spawn(function()
 end)
 
 -- ═════════════════════════════════════════════════════════════════════════════
---  UNIVERSAL GROUPBOXES
+--  UNIVERSAL GROUPBOXES  (two full-height columns, no sub-tabs)
 -- ═════════════════════════════════════════════════════════════════════════════
-local UniTabBox = Tabs.Universal:AddLeftTabbox()
-local movTab    = UniTabBox:AddTab("Movement")
-local combatTab = UniTabBox:AddTab("Combat")
-local espTab    = UniTabBox:AddTab("ESP")
-local visualTab = UniTabBox:AddTab("Visual")
+local UnivL = Tabs.Universal:AddLeftGroupbox("Movement & Combat")
+local UnivR = Tabs.Universal:AddRightGroupbox("ESP & Visual")
 
--- Sub-tabs only support direct element addition; aliases keep code readable
-local movL  = movTab
-local movR  = movTab
-local cmbL  = combatTab
-local cmbR  = combatTab
-local espL  = espTab
-local espR  = espTab
-local visL  = visualTab
+local movL  = UnivL
+local movR  = UnivL
+local cmbL  = UnivL
+local cmbR  = UnivL
+local espL  = UnivR
+local espR  = UnivR
+local visL  = UnivR
 
 -- ═════════════════════════════════════════════════════════════════════════════
 --  MOVEMENT
 -- ═════════════════════════════════════════════════════════════════════════════
+UnivL:AddLabel("── Speed ─────────────────────────────────")
 local _walkSpeed   = 50
 local _walkEnabled = false
 
@@ -154,6 +159,7 @@ plr.CharacterAdded:Connect(function(char)
     if h then h.WalkSpeed = _walkEnabled and _walkSpeed or 16 end
 end)
 
+UnivL:AddLabel("── Fly ───────────────────────────────────")
 -- ── Fly ───────────────────────────────────────────────────────────────────────
 local _flyBV, _flyBG
 local _flySpeed = 50
@@ -226,6 +232,7 @@ local _setFlySpeed_obj = movL:AddSlider(uid("sld"), {
 })
 local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
 
+UnivL:AddLabel("── Misc ──────────────────────────────────")
 -- ── Noclip ────────────────────────────────────────────────────────────────────
 getgenv()._astroNoclip = false
 _noclipTog = movR:AddToggle(uid("tog"), {
@@ -358,6 +365,7 @@ local _setFullbright = function(v) _setFullbright_obj:SetValue(v) end
 -- ═════════════════════════════════════════════════════════════════════════════
 --  COMBAT
 -- ═════════════════════════════════════════════════════════════════════════════
+UnivL:AddLabel("── Aimbot ────────────────────────────────")
 local _aimFOV   = 200
 local _aimSpeed = 8
 local _aimMode  = "Legacy"
@@ -509,6 +517,7 @@ RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function
     end
 end)
 
+UnivL:AddLabel("── Utilities ─────────────────────────────")
 -- ── Spinbot (cmbR) ────────────────────────────────────────────────────────────
 getgenv()._astroSpinbot = false
 cmbR:AddToggle(uid("tog"), {
@@ -683,6 +692,7 @@ cmbR:AddToggle(uid("tog"), {
 -- ═════════════════════════════════════════════════════════════════════════════
 --  ESP
 -- ═════════════════════════════════════════════════════════════════════════════
+UnivR:AddLabel("── ESP Overlays ──────────────────────────")
 local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
 local _espD = {}
 
@@ -700,6 +710,7 @@ local _setDistEsp = function(v) _setDistEsp_obj:SetValue(v) end
 local _setWeapEsp = function(v) _setWeapEsp_obj:SetValue(v) end
 local _setHpEsp   = function(v) _setHpEsp_obj:SetValue(v)   end
 
+UnivR:AddLabel("── ESP Filters ───────────────────────────")
 local _espTeamCheck = false
 local _setEspTeamCheck_obj = espL:AddToggle(uid("tog"), {
     Text     = "Team Check",
@@ -732,6 +743,7 @@ local _espNoVisColor     = _espColorMap.Orange
 local _espVisColorName   = "Red"
 local _espNoVisColorName = "Orange"
 
+UnivR:AddLabel("── ESP Colors ────────────────────────────")
 espR:AddDropdown(uid("dd"), {
     Text     = "Visible Color",
     Values   = _espColorNames,
@@ -748,6 +760,7 @@ espR:AddDropdown(uid("dd"), {
 -- ═════════════════════════════════════════════════════════════════════════════
 --  VISUAL
 -- ═════════════════════════════════════════════════════════════════════════════
+UnivR:AddLabel("── Visual ────────────────────────────────")
 local _hitSoundObj = Instance.new("Sound")
 _hitSoundObj.SoundId = "rbxassetid://2766953031"
 _hitSoundObj.Volume  = 0.5
@@ -1333,6 +1346,10 @@ local function updateESP(p)
 end
 
 RunService.RenderStepped:Connect(function()
+    if _menuOpen then
+        for _, d in pairs(_espD) do hideAll(d) end
+        return
+    end
     if not (_esp.box or _esp.skeleton or _esp.name or _esp.distance or _esp.weapon or _esp.health) then return end
     for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
         if p ~= plr then updateESP(p) end
