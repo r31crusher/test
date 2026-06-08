@@ -1706,10 +1706,13 @@ do
         rowContainer.Size = UDim2.new(1, 0, 0, rowLayout.AbsoluteContentSize.Y)
     end)
 
+    -- Incrementing stops any active troll loop across all rows
+    local _trollId = 0
+
     local function makePlayerRow(p)
         local row = Instance.new("Frame", rowContainer)
         row.Name = tostring(p.UserId)
-        row.Size = UDim2.new(1, 0, 0, 48)
+        row.Size = UDim2.new(1, 0, 0, 82)
         row.BackgroundColor3 = Color3.fromRGB(20, 17, 38)
         row.BorderSizePixel = 0
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
@@ -1717,9 +1720,9 @@ do
         rs.Color = Color3.fromRGB(100, 80, 190)
         rs.Transparency = 0.7
 
-        -- Name + info
+        -- Name + info (leave 184px on right for 3 top buttons)
         local nameLabel = Instance.new("TextLabel", row)
-        nameLabel.Size = UDim2.new(1, -242, 0, 18)
+        nameLabel.Size = UDim2.new(1, -194, 0, 18)
         nameLabel.Position = UDim2.new(0, 10, 0, 6)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Font = Enum.Font.GothamBold
@@ -1729,7 +1732,7 @@ do
         nameLabel.Text = p.DisplayName .. (p.DisplayName ~= p.Name and ("  @" .. p.Name) or "")
 
         local infoLabel = Instance.new("TextLabel", row)
-        infoLabel.Size = UDim2.new(1, -242, 0, 14)
+        infoLabel.Size = UDim2.new(1, -194, 0, 14)
         infoLabel.Position = UDim2.new(0, 10, 0, 26)
         infoLabel.BackgroundTransparency = 1
         infoLabel.Font = Enum.Font.Gotham
@@ -1740,11 +1743,11 @@ do
         local ageStr = age < 30 and "New (<30d)" or age < 365 and (math.floor(age/30) .. "mo") or (math.floor(age/365) .. "yr")
         infoLabel.Text = "ID: " .. p.UserId .. "  ·  Acct: " .. ageStr
 
-        -- Buttons (4 across, 50px each, 6px gap → rightmost at -10)
+        -- Top action buttons: TP / Spec / Fling (54px each, right-aligned, y=6)
         local function makeBtn(label, xOffset, color, cb)
             local btn = Instance.new("TextButton", row)
-            btn.Size = UDim2.new(0, 50, 0, 26)
-            btn.Position = UDim2.new(1, xOffset, 0.5, -13)
+            btn.Size = UDim2.new(0, 54, 0, 26)
+            btn.Position = UDim2.new(1, xOffset, 0, 6)
             btn.BackgroundColor3 = color
             btn.BorderSizePixel = 0
             btn.AutoButtonColor = false
@@ -1761,51 +1764,38 @@ do
             end)
             btn.MouseLeave:Connect(function() btn.BackgroundColor3 = color end)
             btn.MouseButton1Click:Connect(cb)
-            return btn
         end
 
-        -- TP To
-        makeBtn("TP", -226, Color3.fromRGB(38, 28, 75), function()
-            local myChar = plr.Character
-            local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            local tgtChar = p.Character
-            local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
+        makeBtn("TP", -184, Color3.fromRGB(38, 28, 75), function()
+            local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
             if myHRP and tgtHRP then
                 myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
             end
         end)
 
-        -- Spectate
-        makeBtn("Spec", -170, Color3.fromRGB(30, 22, 60), function()
-            local cam = workspace.CurrentCamera
-            local tgtChar = p.Character
-            local hum = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+        makeBtn("Spec", -124, Color3.fromRGB(30, 22, 60), function()
+            local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
             if hum then
-                cam.CameraSubject = hum
-                cam.CameraType = Enum.CameraType.Follow
+                workspace.CurrentCamera.CameraSubject = hum
+                workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
             end
         end)
 
-        -- Copy UserId
-        makeBtn("Copy ID", -114, Color3.fromRGB(22, 18, 45), function()
-            pcall(setclipboard, tostring(p.UserId))
-        end)
-
-        -- Fling: oscillates around target each frame with massive BodyVelocity.
-        -- Cycles through 4 offsets + rotating X angle until target launches.
-        -- Only works in games where character collisions are enabled.
-        makeBtn("Fling", -58, Color3.fromRGB(55, 10, 10), function()
+        -- Fling: 16384 = Roblox network velocity cap; character flipped upside
+        -- down matches the technique used in working fling scripts.
+        makeBtn("Fling", -64, Color3.fromRGB(55, 10, 10), function()
             local myChar  = plr.Character
-            local myHRP   = myChar  and myChar:FindFirstChild("HumanoidRootPart")
+            local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
             local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
             if not myHRP or not tgtHRP or not tgtHum then return end
 
-            local savedCF  = myHRP.CFrame
-            local angle    = 0
-            local offIdx   = 1
-            local offsets  = {
+            local savedCF = myHRP.CFrame
+            local angle   = 0
+            local offIdx  = 1
+            local offsets = {
                 CFrame.new( 0,     1.5,  0   ),
                 CFrame.new( 0,    -1.5,  0   ),
                 CFrame.new( 2.25,  1.5, -2.25),
@@ -1813,10 +1803,10 @@ do
             }
 
             local bv = Instance.new("BodyVelocity")
-            bv.Velocity  = Vector3.new(9e8, 9e8, 9e8)
-            bv.MaxForce  = Vector3.new(1/0, 1/0, 1/0)
-            bv.P         = 9e8
-            bv.Parent    = myHRP
+            bv.Velocity = Vector3.new(16384, -16384, 16384)
+            bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+            bv.P        = 9e8
+            bv.Parent   = myHRP
 
             task.spawn(function()
                 local iters = 0
@@ -1824,20 +1814,17 @@ do
                     local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
                     if vel > 500 then break end
                     if vel < 50 then angle = (angle + 100) % 360 end
-
                     offIdx = offIdx % #offsets + 1
                     local moveOff = tgtHum.MoveDirection
                         * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
-
                     myHRP.CFrame = tgtHRP.CFrame
+                        * CFrame.Angles(math.pi, 0, 0)
                         * offsets[offIdx]
                         * CFrame.Angles(math.rad(angle), 0, 0)
                         + moveOff
-
                     iters += 1
                     RunService.Heartbeat:Wait()
                 end
-
                 bv:Destroy()
                 task.wait(0.1)
                 if myHRP and myHRP.Parent then
@@ -1849,6 +1836,79 @@ do
                 end
             end)
         end)
+
+        -- Troll buttons row — each loop anchors your character to the target.
+        -- Pressing any troll button or Stop cancels the previous one.
+        local trollBar = Instance.new("Frame", row)
+        trollBar.Size = UDim2.new(1, -8, 0, 26)
+        trollBar.Position = UDim2.new(0, 4, 0, 50)
+        trollBar.BackgroundTransparency = 1
+        local trollLayout = Instance.new("UIListLayout", trollBar)
+        trollLayout.FillDirection = Enum.FillDirection.Horizontal
+        trollLayout.Padding = UDim.new(0, 4)
+
+        local trollDefs = {
+            {"Standon", Color3.fromRGB(28, 22, 60)},
+            {"Orbit",   Color3.fromRGB(22, 28, 55)},
+            {"Merge",   Color3.fromRGB(30, 18, 55)},
+            {"Fan",     Color3.fromRGB(22, 22, 58)},
+            {"Stop",    Color3.fromRGB(60, 12, 12)},
+        }
+
+        for i, def in ipairs(trollDefs) do
+            local tbtn = Instance.new("TextButton", trollBar)
+            tbtn.Size = UDim2.new(0.2, -4, 1, 0)
+            tbtn.BackgroundColor3 = def[2]
+            tbtn.BorderSizePixel = 0
+            tbtn.AutoButtonColor = false
+            tbtn.Font = Enum.Font.GothamSemibold
+            tbtn.TextSize = 10
+            tbtn.TextColor3 = Color3.fromRGB(210, 200, 255)
+            tbtn.Text = def[1]
+            tbtn.LayoutOrder = i
+            Instance.new("UICorner", tbtn).CornerRadius = UDim.new(0, 5)
+            local col = def[2]
+            tbtn.MouseEnter:Connect(function()
+                tbtn.BackgroundColor3 = Color3.fromRGB(
+                    math.clamp(col.R*255+20, 0, 255),
+                    math.clamp(col.G*255,    0, 255),
+                    math.clamp(col.B*255+30, 0, 255))
+            end)
+            tbtn.MouseLeave:Connect(function() tbtn.BackgroundColor3 = col end)
+
+            local action = def[1]
+            tbtn.MouseButton1Click:Connect(function()
+                _trollId += 1
+                if action == "Stop" then return end
+                local id = _trollId
+                task.spawn(function()
+                    while _trollId == id do
+                        local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                        local tChar  = p.Character
+                        local tHRP   = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                        local tHead  = tChar and tChar:FindFirstChild("Head")
+                        if myHRP then
+                            if action == "Standon" and tHead then
+                                myHRP.CFrame = CFrame.new(tHead.Position + Vector3.new(0, 3.5, 0))
+                            elseif action == "Orbit" and tHRP then
+                                local spin = (os.clock() * 270) % 360
+                                myHRP.CFrame = tHRP.CFrame
+                                    * CFrame.Angles(0, math.rad(spin), 0)
+                                    * CFrame.new(0, 0, 5)
+                            elseif action == "Merge" and tHRP then
+                                myHRP.CFrame = tHRP.CFrame
+                            elseif action == "Fan" and tHRP then
+                                myHRP.CFrame = tHRP.CFrame
+                                    * CFrame.new(0, 3, 0)
+                                    * CFrame.Angles(-math.pi/2, 0, 0)
+                                    * CFrame.Angles(0, 0, os.clock() * math.pi * 3)
+                            end
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end)
+            end)
+        end
 
         return row
     end
@@ -1868,7 +1928,7 @@ do
     rebuild()
     Players.PlayerAdded:Connect(rebuild)
     Players.PlayerRemoving:Connect(function()
-        task.wait()  -- let the player actually leave before counting
+        task.wait()
         rebuild()
     end)
 end
