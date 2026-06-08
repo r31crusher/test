@@ -104,13 +104,14 @@ local combatTab = UniTabBox:AddTab("Combat")
 local espTab    = UniTabBox:AddTab("ESP")
 local visualTab = UniTabBox:AddTab("Visual")
 
-local movL  = movTab:AddLeftGroupbox("Speed & Fly")
-local movR  = movTab:AddRightGroupbox("Misc")
-local cmbL  = combatTab:AddLeftGroupbox("Aimbot")
-local cmbR  = combatTab:AddRightGroupbox("Utilities")
-local espL  = espTab:AddLeftGroupbox("Overlays")
-local espR  = espTab:AddRightGroupbox("Colors")
-local visL  = visualTab:AddLeftGroupbox("Visual")
+-- Sub-tabs only support direct element addition; aliases keep code readable
+local movL  = movTab
+local movR  = movTab
+local cmbL  = combatTab
+local cmbR  = combatTab
+local espL  = espTab
+local espR  = espTab
+local visL  = visualTab
 
 -- ═════════════════════════════════════════════════════════════════════════════
 --  MOVEMENT
@@ -205,7 +206,7 @@ _flyTog = movL:AddToggle(uid("tog"), {
 })
 local setFly = function(v) _flyTog:SetValue(v) end
 
-_flyTog:AddKeyPicker(uid("kp"), {
+_flyTog:AddKeyPicker({
     Text            = "Fly Key",
     Default         = "F",
     Mode            = "Toggle",
@@ -237,7 +238,7 @@ _noclipTog = movR:AddToggle(uid("tog"), {
 })
 local setNoclip = function(v) _noclipTog:SetValue(v) end
 
-_noclipTog:AddKeyPicker(uid("kp"), {
+_noclipTog:AddKeyPicker({
     Text            = "Noclip Key",
     Default         = "V",
     Mode            = "Toggle",
@@ -439,7 +440,7 @@ _aimbotTog = cmbL:AddToggle(uid("tog"), {
 })
 local _setAimbot = function(v) _aimbotTog:SetValue(v) end
 
-_aimbotTog:AddKeyPicker(uid("kp"), {
+_aimbotTog:AddKeyPicker({
     Text            = "Aimbot Key",
     Default         = "E",
     Mode            = "Hold",
