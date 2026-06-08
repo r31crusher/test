@@ -1791,37 +1791,63 @@ do
             pcall(setclipboard, tostring(p.UserId))
         end)
 
-        -- Fling: lie sideways on top of them and spin like a rolling pin.
-        -- BodyAngularVelocity on your own HRP replicates (you own it) so the
-        -- spinning body grinds into their collision box and pushes them.
+        -- Fling: oscillates around target each frame with massive BodyVelocity.
+        -- Cycles through 4 offsets + rotating X angle until target launches.
         -- Only works in games where character collisions are enabled.
         makeBtn("Fling", -58, Color3.fromRGB(55, 10, 10), function()
             local myChar  = plr.Character
             local myHRP   = myChar  and myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-            if not myHRP or not tgtHRP then return end
+            local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+            if not myHRP or not tgtHRP or not tgtHum then return end
 
-            -- Lie sideways slightly above and behind them
-            local behind = tgtHRP.Position - tgtHRP.CFrame.LookVector * 2 + Vector3.new(0, 2, 0)
-            myHRP.CFrame = CFrame.new(behind) * CFrame.Angles(0, 0, math.pi / 2)
+            local savedCF  = myHRP.CFrame
+            local angle    = 0
+            local offIdx   = 1
+            local offsets  = {
+                CFrame.new( 0,     1.5,  0   ),
+                CFrame.new( 0,    -1.5,  0   ),
+                CFrame.new( 2.25,  1.5, -2.25),
+                CFrame.new(-2.25, -1.5,  2.25),
+            }
 
-            -- Spin on our own HRP — replicates to server/others
-            local bav = Instance.new("BodyAngularVelocity")
-            bav.AngularVelocity = Vector3.new(0, 0, 200)
-            bav.MaxTorque       = Vector3.new(9e9, 9e9, 9e9)
-            bav.P               = 9e9
-            bav.Parent          = myHRP
-
-            -- Grind downward into them
             local bv = Instance.new("BodyVelocity")
-            bv.Velocity  = Vector3.new(0, -600, 0)
-            bv.MaxForce  = Vector3.new(9e9, 9e9, 9e9)
-            bv.P         = 9e9
+            bv.Velocity  = Vector3.new(9e8, 9e8, 9e8)
+            bv.MaxForce  = Vector3.new(1/0, 1/0, 1/0)
+            bv.P         = 9e8
             bv.Parent    = myHRP
 
-            game:GetService("Debris"):AddItem(bav, 0.5)
-            game:GetService("Debris"):AddItem(bv,  0.5)
+            task.spawn(function()
+                local iters = 0
+                while iters < 120 and tgtHRP.Parent do
+                    local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
+                    if vel > 500 then break end
+                    if vel < 50 then angle = (angle + 100) % 360 end
+
+                    offIdx = offIdx % #offsets + 1
+                    local moveOff = tgtHum.MoveDirection
+                        * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
+
+                    myHRP.CFrame = tgtHRP.CFrame
+                        * offsets[offIdx]
+                        * CFrame.Angles(math.rad(angle), 0, 0)
+                        + moveOff
+
+                    iters += 1
+                    RunService.Heartbeat:Wait()
+                end
+
+                bv:Destroy()
+                task.wait(0.1)
+                if myHRP and myHRP.Parent then
+                    myHRP.CFrame = savedCF
+                    myHRP.AssemblyLinearVelocity  = Vector3.zero
+                    myHRP.AssemblyAngularVelocity = Vector3.zero
+                    local hum = myChar:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.PlatformStand = false end
+                end
+            end)
         end)
 
         return row
