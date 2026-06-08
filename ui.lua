@@ -1791,31 +1791,22 @@ do
             pcall(setclipboard, tostring(p.UserId))
         end)
 
-        -- Fling: two-pronged — direct velocity on their HRP (works if game
-        -- doesn't enforce network ownership strictly) + push fling where we
-        -- teleport our own character into theirs and launch ourselves (works
-        -- in games where character collisions are enabled).
+        -- Fling: slam self into them at full velocity.
+        -- Only works in games where character collisions are enabled.
         makeBtn("Fling", -58, Color3.fromRGB(55, 10, 10), function()
             local myChar  = plr.Character
             local myHRP   = myChar  and myChar:FindFirstChild("HumanoidRootPart")
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
             if not myHRP or not tgtHRP then return end
-
-            local rx = math.random(-300, 300)
-            local rz = math.random(-300, 300)
-
-            -- Attempt 1: set their velocity directly
-            tgtHRP.AssemblyLinearVelocity = Vector3.new(rx, 800, rz)
-
-            -- Attempt 2: push fling — snap self inside them and launch
-            local orig = myHRP.CFrame
-            myHRP.CFrame = tgtHRP.CFrame
-            myHRP.AssemblyLinearVelocity = Vector3.new(rx, 800, rz)
-            task.delay(0.2, function()
-                if myHRP and myHRP.Parent then
-                    myHRP.CFrame = orig
-                    myHRP.AssemblyLinearVelocity = Vector3.zero
+            myHRP.CFrame = CFrame.new(tgtHRP.Position)
+            task.spawn(function()
+                for _ = 1, 8 do
+                    if not myHRP.Parent then break end
+                    myHRP.AssemblyLinearVelocity = Vector3.new(
+                        math.random(-400, 400), 1200, math.random(-400, 400)
+                    )
+                    task.wait(0.05)
                 end
             end)
         end)
