@@ -1791,7 +1791,9 @@ do
             pcall(setclipboard, tostring(p.UserId))
         end)
 
-        -- Fling: slam self into them at full velocity.
+        -- Fling: lie sideways on top of them and spin like a rolling pin.
+        -- BodyAngularVelocity on your own HRP replicates (you own it) so the
+        -- spinning body grinds into their collision box and pushes them.
         -- Only works in games where character collisions are enabled.
         makeBtn("Fling", -58, Color3.fromRGB(55, 10, 10), function()
             local myChar  = plr.Character
@@ -1799,16 +1801,27 @@ do
             local tgtChar = p.Character
             local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
             if not myHRP or not tgtHRP then return end
-            myHRP.CFrame = CFrame.new(tgtHRP.Position)
-            task.spawn(function()
-                for _ = 1, 8 do
-                    if not myHRP.Parent then break end
-                    myHRP.AssemblyLinearVelocity = Vector3.new(
-                        math.random(-400, 400), 1200, math.random(-400, 400)
-                    )
-                    task.wait(0.05)
-                end
-            end)
+
+            -- Lie sideways on top of them
+            myHRP.CFrame = CFrame.new(tgtHRP.Position + Vector3.new(0, 3, 0))
+                * CFrame.Angles(0, 0, math.pi / 2)
+
+            -- Spin on our own HRP — replicates to server/others
+            local bav = Instance.new("BodyAngularVelocity")
+            bav.AngularVelocity = Vector3.new(0, 0, 200)
+            bav.MaxTorque       = Vector3.new(9e9, 9e9, 9e9)
+            bav.P               = 9e9
+            bav.Parent          = myHRP
+
+            -- Grind downward into them
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity  = Vector3.new(0, -600, 0)
+            bv.MaxForce  = Vector3.new(9e9, 9e9, 9e9)
+            bv.P         = 9e9
+            bv.Parent    = myHRP
+
+            game:GetService("Debris"):AddItem(bav, 0.5)
+            game:GetService("Debris"):AddItem(bv,  0.5)
         end)
 
         return row
