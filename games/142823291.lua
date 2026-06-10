@@ -367,7 +367,8 @@ return function(section)
 
 
 
-    -- ── Auto Collect Coins ────────────────────────────────────────────────────
+    local CollectionService = game:GetService("CollectionService")
+
     getgenv()._mm2_coins = false
     elements:Toggle("Auto Collect Coins", section, function(v)
         getgenv()._mm2_coins = v
@@ -377,11 +378,11 @@ return function(section)
                 local char = player.Character
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    for _, obj in workspace:GetDescendants() do
+                    for _, coin in CollectionService:GetTagged("CoinVisual") do
                         if not getgenv()._mm2_coins then break end
-                        if obj:IsA("BasePart") and obj.Name:lower():find("coin") then
-                            pcall(firetouchinterest, obj, hrp, 0)
-                            pcall(firetouchinterest, obj, hrp, 1)
+                        if not coin:GetAttribute("Collected") and coin.Parent then
+                            pcall(firetouchinterest, coin, hrp, 0)
+                            pcall(firetouchinterest, coin, hrp, 1)
                         end
                     end
                 end
