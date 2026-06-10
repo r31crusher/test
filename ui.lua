@@ -15,13 +15,15 @@ Library.Scheme.OutlineColor    = Color3.fromRGB(28, 28, 40)
 Library.Scheme.FontColor       = Color3.new(1, 1, 1)
 
 local _logoAsset
-pcall(function()
-    local logoUrl = "https://raw.githubusercontent.com/r31crusher/test/main/assets/astro.jpg"
-    if not isfile("_astro_logo.jpg") then
-        writefile("_astro_logo.jpg", game:HttpGet(logoUrl, true))
-    end
-    _logoAsset = getcustomasset("_astro_logo.jpg")
-end)
+if type(isfile) == "function" and type(writefile) == "function" and type(getcustomasset) == "function" then
+    pcall(function()
+        if not isfile("_astro_logo.jpg") then
+            writefile("_astro_logo.jpg", game:HttpGet(
+                "https://raw.githubusercontent.com/r31crusher/test/main/assets/astro.jpg", true))
+        end
+        _logoAsset = getcustomasset("_astro_logo.jpg")
+    end)
+end
 
 local Window = Library:CreateWindow({
     Title         = "Astro",
@@ -29,7 +31,7 @@ local Window = Library:CreateWindow({
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
     Size          = UDim2.fromOffset(820, 640),
-    Icon     = _logoAsset and { Url = _logoAsset, ImageRectOffset = Vector2.new(0, 0), ImageRectSize = Vector2.new(0, 0) } or nil,
+    Icon     = _logoAsset and {Url = _logoAsset, ImageRectOffset = Vector2.new(0,0), ImageRectSize = Vector2.new(0,0)} or nil,
     IconSize = UDim2.fromOffset(28, 28),
 })
 
@@ -226,7 +228,7 @@ _flyTog:AddKeyPicker(_flyKPIdx, {
         if v ~= nil then setFly(v) end
     end,
 })
-local _flyKP = Library.Options[_flyKPIdx]
+local _flyKP = Library.Options and Library.Options[_flyKPIdx]
 _kbRegister("Fly", _flyKP, function() return _flyTog.Value end, "Toggle")
 
 local _setFlySpeed_obj = movL:AddSlider(uid("sld"), {
@@ -277,7 +279,7 @@ _noclipTog:AddKeyPicker(_noclipKPIdx, {
         end
     end,
 })
-local _noclipKP = Library.Options[_noclipKPIdx]
+local _noclipKP = Library.Options and Library.Options[_noclipKPIdx]
 _kbRegister("Noclip", _noclipKP, function() return _noclipTog.Value end, "Toggle")
 
 plr.CharacterAdded:Connect(function()
@@ -480,7 +482,7 @@ _aimbotTog:AddKeyPicker(_aimbotKPIdx, {
         end
     end,
 })
-local _aimbotKP = Library.Options[_aimbotKPIdx]
+local _aimbotKP = Library.Options and Library.Options[_aimbotKPIdx]
 _kbRegister("Aimbot", _aimbotKP, function() return _aimbotTog.Value end, "Hold")
 
 cmbL:AddDropdown(uid("dd"), {
