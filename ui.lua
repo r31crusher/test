@@ -13,6 +13,7 @@ local Window = Library:CreateWindow({
     Footer        = "v2.0  |  Insert to toggle",
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
+    Size          = UDim2.fromOffset(820, 640),
 })
 
 local Tabs = {
@@ -1349,23 +1350,33 @@ local function updateESP(p)
     local vis      = not _espVisCheck or _isVisible(hrp)
     local espColor = vis and _espVisColor or _espNoVisColor
 
+    -- Head: fall back to direct FindFirstChild if cache was built before Head replicated
     local head = pts["Head"]
-    if not head or not head.Parent then hideAll(d); return end
+    if not head or not head.Parent then
+        head = char:FindFirstChild("Head")
+        if head then pts["Head"] = head else hideAll(d); return end
+    end
 
-    -- Compute box bounds from head-top and feet positions — works for both R6 and R15.
-    -- Part-center probing gives a wrong box for R6 because block parts are large and sparse.
-    local headTop = head.Position + Vector3.new(0, head.Size.Y * 0.5, 0)
-    local feetPos = hrp.Position  - Vector3.new(0, hum.HipHeight,     0)
+    -- Feet: use the bottom of the lowest available foot/leg part for accuracy.
+    -- hum.HipHeight alone undershoots by ~0.5 stud on both R6 and R15.
+    local footPart = pts["LeftFoot"] or pts["RightFoot"] or pts["Left Leg"] or pts["Right Leg"]
+    local headTop  = head.Position + Vector3.new(0, head.Size.Y * 0.5, 0)
+    local feetPos
+    if footPart and footPart.Parent then
+        feetPos = footPart.Position - Vector3.new(0, footPart.Size.Y * 0.5, 0)
+    else
+        feetPos = hrp.Position - Vector3.new(0, hum.HipHeight + 0.5, 0)
+    end
 
     local spHead, onHead = cam:WorldToViewportPoint(headTop)
     local spFeet, onFeet = cam:WorldToViewportPoint(feetPos)
-    if not onHead and not onFeet then hideAll(d); return end
+    local spHrp,  onHrp  = cam:WorldToViewportPoint(hrp.Position)
+    if not onHead and not onFeet and not onHrp then hideAll(d); return end
 
-    local spHrp = cam:WorldToViewportPoint(hrp.Position)
     local cx    = spHrp.X
     local minY  = math.min(spHead.Y, spFeet.Y) - 4
     local maxY  = math.max(spHead.Y, spFeet.Y) + 4
-    local halfW = (maxY - minY) * 0.22
+    local halfW = (maxY - minY) * 0.28   -- 0.56 total width:height — standard humanoid proportion
     local minX  = cx - halfW
     local maxX  = cx + halfW
 
@@ -1422,7 +1433,8 @@ local function updateESP(p)
     end
 
     if _esp.skeleton then
-        local isR15  = pts["UpperTorso"] ~= nil
+        -- Use live char lookup for rig detection — cache may be stale if built mid-load
+        local isR15  = char:FindFirstChild("UpperTorso") ~= nil
         local camPos = cam.CFrame.Position
         local camLook= cam.CFrame.LookVector
 
@@ -1430,7 +1442,8 @@ local function updateESP(p)
         if isR15 then
             segs = {}
             for _, c in ipairs(SKL_R15) do
-                local p0, p1 = pts[c[1]], pts[c[2]]
+                local p0 = pts[c[1]] or char:FindFirstChild(c[1])
+                local p1 = pts[c[2]] or char:FindFirstChild(c[2])
                 if p0 and p1 and p0.Parent and p1.Parent then
                     table.insert(segs, {p0.Position, p1.Position})
                 else
@@ -1440,17 +1453,20 @@ local function updateESP(p)
         else
             -- R6: split torso into shoulder/hip so arms connect high and legs connect low.
             -- Connecting everything from Torso center makes an X (arms cross legs diagonally).
-            local torso    = pts["Torso"]
-            local headPt   = pts["Head"]
-            local leftArm  = pts["Left Arm"]
-            local rightArm = pts["Right Arm"]
-            local leftLeg  = pts["Left Leg"]
-            local rightLeg = pts["Right Leg"]
+            local torso    = pts["Torso"] or char:FindFirstChild("Torso")
+            local headPt   = pts["Head"]  or char:FindFirstChild("Head")
+            local leftArm  = pts["Left Arm"]  or char:FindFirstChild("Left Arm")
+            local rightArm = pts["Right Arm"] or char:FindFirstChild("Right Arm")
+            local leftLeg  = pts["Left Leg"]  or char:FindFirstChild("Left Leg")
+            local rightLeg = pts["Right Leg"] or char:FindFirstChild("Right Leg")
+
+            -- Fall back to HRP as spine center if Torso is missing (non-standard R6 rig)
+            local spineRef = torso or hrp
             local shoulder, hip
-            if torso and torso.Parent then
-                local h = torso.Size.Y * 0.5 - 0.1
-                shoulder = torso.Position + Vector3.new(0,  h, 0)
-                hip      = torso.Position + Vector3.new(0, -h, 0)
+            if spineRef and spineRef.Parent then
+                local h = (torso and torso.Size.Y or 2) * 0.5 - 0.1
+                shoulder = spineRef.Position + Vector3.new(0,  h, 0)
+                hip      = spineRef.Position + Vector3.new(0, -h, 0)
             end
             segs = {
                 headPt   and shoulder and {headPt.Position,   shoulder} or false,
@@ -1543,7 +1559,8 @@ do
     })
 
     -- ── Right: live info + actions ────────────────────────────────────────────
-    local _infoLbl = PlayersRight:AddLabel("No player selected")
+    local _nameLbl  = PlayersRight:AddLabel("No player selected")
+    local _statsLbl = PlayersRight:AddLabel("")
 
     PlayersRight:AddButton({Text = "Teleport To", Func = function()
         local p = _selectedPlayer; if not p then return end
@@ -1651,11 +1668,17 @@ do
         })
     end
 
-    -- ── Live HP / distance label ──────────────────────────────────────────────
+    -- ── Live HP / distance labels ─────────────────────────────────────────────
     task.spawn(function()
         while true do
             local p = _selectedPlayer
             if p and p.Parent then
+                -- Truncate long display names so the right column doesn't overflow
+                local dname = p.DisplayName
+                if #dname > 20 then dname = dname:sub(1, 18) .. ".." end
+                local nameStr = dname .. (p.DisplayName ~= p.Name and ("  (@" .. p.Name .. ")") or "")
+                pcall(function() _nameLbl:SetText(nameStr) end)
+
                 local char  = p.Character
                 local hum   = char and char:FindFirstChildOfClass("Humanoid")
                 local hrp   = char and char:FindFirstChild("HumanoidRootPart")
@@ -1663,18 +1686,17 @@ do
                 if hum and hrp and myHrp then
                     local hp   = math.floor(hum.Health)
                     local dist = math.floor((hrp.Position - myHrp.Position).Magnitude)
-                    pcall(function()
-                        _infoLbl:SetText(p.DisplayName .. "  |  HP: " .. hp .. "  |  Dist: " .. dist .. "m")
-                    end)
+                    pcall(function() _statsLbl:SetText("HP: " .. hp .. "  |  Dist: " .. dist .. "m") end)
                 else
-                    pcall(function() _infoLbl:SetText(p.DisplayName .. "  |  (not spawned)") end)
+                    pcall(function() _statsLbl:SetText("(not spawned)") end)
                 end
             else
                 if p and not p.Parent then
                     _selectedPlayer = nil
                     pcall(function() _playerDD:SetValue(nil) end)
                 end
-                pcall(function() _infoLbl:SetText("No player selected") end)
+                pcall(function() _nameLbl:SetText("No player selected") end)
+                pcall(function() _statsLbl:SetText("") end)
             end
             task.wait(0.5)
         end
