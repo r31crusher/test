@@ -1119,69 +1119,6 @@ do
     end)
 end
 
-local _starsGui = Instance.new("ScreenGui")
-_starsGui.Name           = "._astroStars"
-_starsGui.ResetOnSpawn   = false
-_starsGui.IgnoreGuiInset = true
-_starsGui.DisplayOrder   = 997
-_starsGui.Parent         = game.CoreGui
-
-local TweenService = game:GetService("TweenService")
-
-local function _spawnStar()
-    local vp     = workspace.CurrentCamera.ViewportSize
-    local length = math.random(90, 220)
-    local angle  = math.random(22, 38)
-    local rad    = math.rad(angle)
-    local speed  = math.random(350, 700)
-
-    local star = Instance.new("Frame")
-    star.Size              = UDim2.fromOffset(length, math.random(1, 2))
-    star.BackgroundColor3  = Color3.fromRGB(220, 220, 240)
-    star.BorderSizePixel   = 0
-    star.Rotation          = angle
-    star.AnchorPoint       = Vector2.new(0, 0.5)
-    star.BackgroundTransparency = 1
-    star.Parent            = _starsGui
-
-    local grad = Instance.new("UIGradient")
-    grad.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.25, 0.05),
-        NumberSequenceKeypoint.new(1, 0),
-    })
-    grad.Parent = star
-
-    local sx, sy
-    if math.random() < 0.6 then
-        sx = math.random(-length, math.floor(vp.X + length))
-        sy = -length
-    else
-        sx = -length
-        sy = math.random(-length, math.floor(vp.Y))
-    end
-    star.Position = UDim2.fromOffset(sx, sy)
-
-    local dist = vp.X + vp.Y + length * 2
-    local tw = TweenService:Create(star,
-        TweenInfo.new(dist / speed, Enum.EasingStyle.Linear),
-        { Position = UDim2.fromOffset(sx + dist * math.cos(rad), sy + dist * math.sin(rad)) }
-    )
-    tw:Play()
-    tw.Completed:Connect(function() star:Destroy() end)
-end
-
-task.spawn(function()
-
-    for _ = 1, 4 do
-        _spawnStar()
-        task.wait(math.random(1, 4) * 0.15)
-    end
-    while _starsGui.Parent do
-        _spawnStar()
-        task.wait(math.random(4, 14) * 0.1)
-    end
-end)
 
 local function saveConfig()
     _cfgEnsureDirs()
@@ -1991,7 +1928,6 @@ getgenv()._astroUnload = function()
     for uid in pairs(_espD) do cleanESP(uid) end
     pcall(function() _espGui:Destroy() end)
     pcall(function() _kbGui:Destroy()    end)
-    pcall(function() _starsGui:Destroy() end)
 
     pcall(function() Library:Unload() end)
 end
