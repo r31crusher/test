@@ -38,14 +38,6 @@ local _makeAdapter = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"
 getgenv()._astroElements = _makeAdapter(GameGB)
 local _gameSection = GameGB.Container or GameGB.Content or GameGB[1] or GameGB
 
--- ── Menu visibility (used to hide ESP drawings when menu is open) ─────────────
-local _menuOpen = true  -- starts open because AutoShow = true
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
-        _menuOpen = not _menuOpen
-    end
-end)
-
 -- ── Session stats ─────────────────────────────────────────────────────────────
 local _sessionStart  = tick()
 local _featuresUsed  = 0
@@ -235,12 +227,23 @@ local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
 UnivL:AddLabel("── Misc ──────────────────────────────────")
 -- ── Noclip ────────────────────────────────────────────────────────────────────
 getgenv()._astroNoclip = false
+local _noclipParts = {}
+
+local function _cacheNoclipParts()
+    _noclipParts = {}
+    local char = plr.Character
+    if not char then return end
+    for _, p in ipairs(char:GetDescendants()) do
+        if p:IsA("BasePart") then table.insert(_noclipParts, p) end
+    end
+end
+
 _noclipTog = movR:AddToggle(uid("tog"), {
     Text     = "Noclip",
     Default  = false,
     Callback = function(v)
         getgenv()._astroNoclip = v
-        if v then _featuresUsed += 1 end
+        if v then _featuresUsed += 1; _cacheNoclipParts() end
     end,
 })
 local setNoclip = function(v) _noclipTog:SetValue(v) end
@@ -254,16 +257,23 @@ _noclipTog:AddKeyPicker({
         if v ~= nil then
             getgenv()._astroNoclip = v
             _noclipTog:SetValue(v)
+            if v then _cacheNoclipParts() end
         end
     end,
 })
 
+plr.CharacterAdded:Connect(function()
+    _noclipParts = {}
+    if getgenv()._astroNoclip then
+        task.wait(0.5)
+        _cacheNoclipParts()
+    end
+end)
+
 RunService.Stepped:Connect(function()
     if not getgenv()._astroNoclip then return end
-    local char = plr.Character
-    if not char then return end
-    for _, p in ipairs(char:GetDescendants()) do
-        if p:IsA("BasePart") then p.CanCollide = false end
+    for _, p in ipairs(_noclipParts) do
+        if p.Parent then p.CanCollide = false end
     end
 end)
 
@@ -374,11 +384,12 @@ local _aimMode  = "Legacy"
 local _rayParams = RaycastParams.new()
 _rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
+local _rayFilter = {nil, nil}
 local function _isVisible(targetPart)
     local origin = workspace.CurrentCamera.CFrame.Position
-    local filter = {targetPart.Parent}
-    if plr.Character then table.insert(filter, plr.Character) end
-    _rayParams.FilterDescendantsInstances = filter
+    _rayFilter[1] = targetPart.Parent
+    _rayFilter[2] = plr.Character
+    _rayParams.FilterDescendantsInstances = _rayFilter
     return workspace:Raycast(origin, targetPart.Position - origin, _rayParams) == nil
 end
 
@@ -1143,8 +1154,16 @@ SettingsRGB:AddButton({
 if _autoLoad then pcall(loadConfig) end
 
 -- ═════════════════════════════════════════════════════════════════════════════
---  ESP RENDERING LOOP
+--  ESP RENDERING  (ScreenGui — renders below Obsidian menu via DisplayOrder)
 -- ═════════════════════════════════════════════════════════════════════════════
+
+local _espGui = Instance.new("ScreenGui")
+_espGui.Name           = "_astroESP"
+_espGui.ResetOnSpawn   = false
+_espGui.IgnoreGuiInset = true
+_espGui.DisplayOrder   = 1
+_espGui.Parent         = game.CoreGui
+
 local SKL_R15 = {
     {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
     {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
@@ -1157,89 +1176,183 @@ local SKL_R6 = {
     {"Torso","Left Leg"},{"Torso","Right Leg"},
 }
 
-local function newLine(color, thick)
-    local l = Drawing.new("Line")
-    l.Color = color or Color3.fromRGB(255, 50, 50)
-    l.Thickness = thick or 1.5
-    l.Visible = false
-    return l
+local PROBE_NAMES = {
+    "Head","HumanoidRootPart","LeftFoot","RightFoot","LeftHand","RightHand",
+    "LeftLowerLeg","RightLowerLeg","LeftLowerArm","RightLowerArm",
+    "Left Leg","Right Leg","Left Arm","Right Arm","Torso",
+}
+
+-- ── ScreenGui helpers ─────────────────────────────────────────────────────────
+local function _newContainer()
+    local f = Instance.new("Frame")
+    f.Size = UDim2.fromScale(1, 1)
+    f.BackgroundTransparency = 1
+    f.BorderSizePixel = 0
+    f.Parent = _espGui
+    return f
 end
-local function newText(size, color)
-    local t = Drawing.new("Text")
-    t.Size = size or 13
-    t.Color = color or Color3.fromRGB(255, 255, 255)
-    t.Outline = true
-    t.Center = true
-    t.Visible = false
+
+local function _newBoxFrames(parent)
+    local t = {}
+    for i = 1, 4 do
+        local f = Instance.new("Frame")
+        f.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        f.BorderSizePixel  = 0
+        f.Visible          = false
+        f.Parent           = parent
+        t[i] = f
+    end
     return t
 end
 
-local function getESPData(espUid)
-    if not _espD[espUid] then
-        _espD[espUid] = {
-            box      = Drawing.new("Square"),
-            hpBg     = newLine(Color3.fromRGB(0, 0, 0), 3),
-            hpBar    = newLine(Color3.fromRGB(0, 255, 0), 3),
-            nameT    = newText(13, Color3.fromRGB(255, 255, 255)),
-            distT    = newText(11, Color3.fromRGB(160, 210, 255)),
-            weapT    = newText(11, Color3.fromRGB(255, 210, 80)),
-            sklLines = {},
-        }
-        local b = _espD[espUid].box
-        b.Filled    = false
-        b.Thickness = 1.5
-        b.Color     = Color3.fromRGB(255, 50, 50)
-        b.Visible   = false
+local function _applyBox(t, x0, y0, x1, y1, col)
+    local w, h, tk = x1-x0, y1-y0, 2
+    for _, f in ipairs(t) do f.BackgroundColor3 = col; f.Visible = true end
+    t[1].Position=UDim2.new(0,x0,    0,y0   ); t[1].Size=UDim2.new(0,w, 0,tk)
+    t[2].Position=UDim2.new(0,x0,    0,y1-tk); t[2].Size=UDim2.new(0,w, 0,tk)
+    t[3].Position=UDim2.new(0,x0,    0,y0   ); t[3].Size=UDim2.new(0,tk,0,h )
+    t[4].Position=UDim2.new(0,x1-tk, 0,y0   ); t[4].Size=UDim2.new(0,tk,0,h )
+end
+
+local function _newLineFrame(parent)
+    local f = Instance.new("Frame")
+    f.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    f.BorderSizePixel  = 0
+    f.AnchorPoint      = Vector2.new(0.5, 0.5)
+    f.Visible          = false
+    f.Parent           = parent
+    return f
+end
+
+local function _applyLine(f, ax, ay, bx, by, col)
+    local dx, dy = bx-ax, by-ay
+    local len = math.sqrt(dx*dx + dy*dy)
+    if len < 1 then f.Visible = false; return end
+    f.BackgroundColor3 = col
+    f.Size     = UDim2.new(0, len, 0, 1)
+    f.Position = UDim2.new(0, (ax+bx)*0.5, 0, (ay+by)*0.5)
+    f.Rotation = math.deg(math.atan2(dy, dx))
+    f.Visible  = true
+end
+
+local function _newLbl(parent, sz, col)
+    local t = Instance.new("TextLabel")
+    t.BackgroundTransparency = 1
+    t.Font                   = Enum.Font.GothamBold
+    t.TextSize               = sz  or 13
+    t.TextColor3             = col or Color3.fromRGB(255, 255, 255)
+    t.TextStrokeTransparency = 0.5
+    t.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+    t.AnchorPoint            = Vector2.new(0.5, 0.5)
+    t.Size                   = UDim2.new(0, 300, 0, 20)
+    t.Visible                = false
+    t.Parent                 = parent
+    return t
+end
+
+local function _newHpBar(parent)
+    local bg = Instance.new("Frame")
+    bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    bg.BorderSizePixel  = 0
+    bg.Visible          = false
+    bg.Parent           = parent
+    local fill = Instance.new("Frame")
+    fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    fill.BorderSizePixel  = 0
+    fill.AnchorPoint      = Vector2.new(0, 1)
+    fill.Position         = UDim2.new(0, 0, 1, 0)
+    fill.Size             = UDim2.new(1, 0, 1, 0)
+    fill.Parent           = bg
+    return bg, fill
+end
+
+-- ── Part cache: built once on CharacterAdded, avoids per-frame FindFirstChild ─
+local _espPartCache = {}
+
+local function _buildPartCache(userId, char)
+    local pts = {}
+    local needed = {}
+    for _, n in ipairs(PROBE_NAMES)   do needed[n] = true end
+    for _, c in ipairs(SKL_R15)       do needed[c[1]] = true; needed[c[2]] = true end
+    for _, c in ipairs(SKL_R6)        do needed[c[1]] = true; needed[c[2]] = true end
+    for n in pairs(needed) do
+        local p = char:FindFirstChild(n)
+        if p then pts[n] = p end
     end
-    return _espD[espUid]
+    _espPartCache[userId] = {char = char, parts = pts}
+end
+
+local function _connectPartCache(p)
+    if p.Character then _buildPartCache(p.UserId, p.Character) end
+    p.CharacterAdded:Connect(function(char)
+        task.wait(0.1)
+        _buildPartCache(p.UserId, char)
+    end)
+end
+for _, p in ipairs(game:GetService("Players"):GetPlayers()) do _connectPartCache(p) end
+game:GetService("Players").PlayerAdded:Connect(_connectPartCache)
+
+-- ── ESP data/update ───────────────────────────────────────────────────────────
+local function getESPData(uid)
+    if not _espD[uid] then
+        local c = _newContainer()
+        local hpBg, hpFill = _newHpBar(c)
+        _espD[uid] = {
+            container = c,
+            boxF      = _newBoxFrames(c),
+            hpBg      = hpBg,
+            hpFill    = hpFill,
+            nameT     = _newLbl(c, 13, Color3.fromRGB(255, 255, 255)),
+            distT     = _newLbl(c, 11, Color3.fromRGB(160, 210, 255)),
+            weapT     = _newLbl(c, 11, Color3.fromRGB(255, 210, 80)),
+            sklLines  = {},
+        }
+    end
+    return _espD[uid]
 end
 
 local function hideAll(d)
-    d.box.Visible   = false
+    for _, f in ipairs(d.boxF) do f.Visible = false end
     d.hpBg.Visible  = false
-    d.hpBar.Visible = false
     d.nameT.Visible = false
     d.distT.Visible = false
     d.weapT.Visible = false
-    for _, l in ipairs(d.sklLines) do l.Visible = false end
+    for _, f in ipairs(d.sklLines) do f.Visible = false end
 end
 
-local function cleanESP(espUid)
-    local d = _espD[espUid]
+local function cleanESP(uid)
+    local d = _espD[uid]
     if not d then return end
-    pcall(function() d.box:Remove()   end)
-    pcall(function() d.hpBg:Remove()  end)
-    pcall(function() d.hpBar:Remove() end)
-    pcall(function() d.nameT:Remove() end)
-    pcall(function() d.distT:Remove() end)
-    pcall(function() d.weapT:Remove() end)
-    for _, l in ipairs(d.sklLines) do pcall(function() l:Remove() end) end
-    _espD[espUid] = nil
+    pcall(function() d.container:Destroy() end)
+    _espD[uid]          = nil
+    _espPartCache[uid]  = nil
 end
 
 local function updateESP(p)
-    local char = p.Character or workspace:FindFirstChild(p.Name)
-    local d = getESPData(p.UserId)
+    local d      = getESPData(p.UserId)
+    local cached = _espPartCache[p.UserId]
+    local char   = p.Character or workspace:FindFirstChild(p.Name)
     if not char then hideAll(d); return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not cached or cached.char ~= char then
+        _buildPartCache(p.UserId, char)
+        cached = _espPartCache[p.UserId]
+    end
+    local pts = cached.parts
+
+    local hrp = pts["HumanoidRootPart"]
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then hideAll(d); return end
     if _espTeamCheck and plr.Team and p.Team and p.Team == plr.Team then hideAll(d); return end
 
-    local cam = workspace.CurrentCamera
-    local vis = not _espVisCheck or _isVisible(hrp)
+    local cam      = workspace.CurrentCamera
+    local vis      = not _espVisCheck or _isVisible(hrp)
     local espColor = vis and _espVisColor or _espNoVisColor
 
-    local probeNames = {
-        "Head","HumanoidRootPart","LeftFoot","RightFoot","LeftHand","RightHand",
-        "LeftLowerLeg","RightLowerLeg","LeftLowerArm","RightLowerArm",
-        "Left Leg","Right Leg","Left Arm","Right Arm","Torso",
-    }
     local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
     local hit = false
-    for _, pn in ipairs(probeNames) do
-        local part = char:FindFirstChild(pn)
-        if part then
+    for _, name in ipairs(PROBE_NAMES) do
+        local part = pts[name]
+        if part and part.Parent then
             local sp, on = cam:WorldToViewportPoint(part.Position)
             if on then
                 hit = true
@@ -1252,51 +1365,48 @@ local function updateESP(p)
     end
     if not hit then hideAll(d); return end
 
-    local pad = 4
-    minX, minY, maxX, maxY = minX-pad, minY-pad, maxX+pad, maxY+pad
-    local cx = (minX+maxX)/2
+    minX -= 4; minY -= 4; maxX += 4; maxY += 4
+    local cx = (minX + maxX) * 0.5
 
     if _esp.box then
-        d.box.Position = Vector2.new(minX, minY)
-        d.box.Size     = Vector2.new(maxX-minX, maxY-minY)
-        d.box.Color    = espColor
-        d.box.Visible  = true
+        _applyBox(d.boxF, minX, minY, maxX, maxY, espColor)
     else
-        d.box.Visible = false
+        for _, f in ipairs(d.boxF) do f.Visible = false end
     end
 
     if _esp.health then
         local ratio = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
         local r = math.clamp(math.floor(255*(1-ratio)*2), 0, 255)
         local g = math.clamp(math.floor(255*ratio*2),     0, 255)
-        local barX = minX - 5
-        d.hpBg.From    = Vector2.new(barX, minY)
-        d.hpBg.To      = Vector2.new(barX, maxY)
-        d.hpBg.Visible = true
-        d.hpBar.Color   = Color3.fromRGB(r, g, 0)
-        d.hpBar.From    = Vector2.new(barX, maxY)
-        d.hpBar.To      = Vector2.new(barX, maxY - (maxY-minY)*ratio)
-        d.hpBar.Visible = true
+        d.hpBg.Position = UDim2.new(0, minX-7, 0, minY)
+        d.hpBg.Size     = UDim2.new(0, 4, 0, maxY-minY)
+        d.hpBg.Visible  = true
+        d.hpFill.BackgroundColor3 = Color3.fromRGB(r, g, 0)
+        d.hpFill.Size     = UDim2.new(1, 0, ratio, 0)
+        d.hpFill.Position = UDim2.new(0, 0, 1-ratio, 0)
     else
-        d.hpBg.Visible  = false
-        d.hpBar.Visible = false
+        d.hpBg.Visible = false
     end
 
-    local textY = minY - 15
+    local textY = minY - 10
     if _esp.name then
+        d.nameT.Position = UDim2.new(0, cx, 0, textY)
         d.nameT.Text     = p.DisplayName
-        d.nameT.Position = Vector2.new(cx, textY)
         d.nameT.Visible  = true
-        textY = textY - 13
+        textY -= 14
     else
         d.nameT.Visible = false
     end
 
-    if _esp.distance and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        local dist = math.floor((plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
-        d.distT.Text     = dist .. "m"
-        d.distT.Position = Vector2.new(cx, textY)
-        d.distT.Visible  = true
+    if _esp.distance then
+        local myHRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+        if myHRP then
+            d.distT.Text     = math.floor((myHRP.Position - hrp.Position).Magnitude) .. "m"
+            d.distT.Position = UDim2.new(0, cx, 0, textY)
+            d.distT.Visible  = true
+        else
+            d.distT.Visible = false
+        end
     else
         d.distT.Visible = false
     end
@@ -1304,52 +1414,43 @@ local function updateESP(p)
     if _esp.weapon then
         local tool = char:FindFirstChildOfClass("Tool")
         d.weapT.Text     = tool and tool.Name or ""
-        d.weapT.Position = Vector2.new(cx, maxY + 2)
+        d.weapT.Position = UDim2.new(0, cx, 0, maxY + 10)
         d.weapT.Visible  = d.weapT.Text ~= ""
     else
         d.weapT.Visible = false
     end
 
     if _esp.skeleton then
-        local isR15 = char:FindFirstChild("UpperTorso") ~= nil
+        local isR15 = pts["UpperTorso"] ~= nil
         local conns = isR15 and SKL_R15 or SKL_R6
         while #d.sklLines < #conns do
-            table.insert(d.sklLines, newLine(Color3.fromRGB(255, 255, 255), 1))
+            table.insert(d.sklLines, _newLineFrame(d.container))
         end
         local camPos  = cam.CFrame.Position
         local camLook = cam.CFrame.LookVector
         for i, c in ipairs(conns) do
-            local p0 = char:FindFirstChild(c[1])
-            local p1 = char:FindFirstChild(c[2])
-            local ln = d.sklLines[i]
-            if p0 and p1 then
-                local inFront0 = (p0.Position - camPos):Dot(camLook) > 0
-                local inFront1 = (p1.Position - camPos):Dot(camLook) > 0
-                if inFront0 and inFront1 then
+            local p0 = pts[c[1]]
+            local p1 = pts[c[2]]
+            local lf = d.sklLines[i]
+            if p0 and p1 and p0.Parent and p1.Parent then
+                if (p0.Position-camPos):Dot(camLook) > 0 and (p1.Position-camPos):Dot(camLook) > 0 then
                     local s0 = cam:WorldToViewportPoint(p0.Position)
                     local s1 = cam:WorldToViewportPoint(p1.Position)
-                    ln.From    = Vector2.new(s0.X, s0.Y)
-                    ln.To      = Vector2.new(s1.X, s1.Y)
-                    ln.Color   = espColor
-                    ln.Visible = true
+                    _applyLine(lf, s0.X, s0.Y, s1.X, s1.Y, espColor)
                 else
-                    ln.Visible = false
+                    lf.Visible = false
                 end
             else
-                ln.Visible = false
+                lf.Visible = false
             end
         end
         for i = #conns+1, #d.sklLines do d.sklLines[i].Visible = false end
     else
-        for _, l in ipairs(d.sklLines) do l.Visible = false end
+        for _, f in ipairs(d.sklLines) do f.Visible = false end
     end
 end
 
 RunService.RenderStepped:Connect(function()
-    if _menuOpen then
-        for _, d in pairs(_espD) do hideAll(d) end
-        return
-    end
     if not (_esp.box or _esp.skeleton or _esp.name or _esp.distance or _esp.weapon or _esp.health) then return end
     for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
         if p ~= plr then updateESP(p) end
@@ -1677,7 +1778,8 @@ getgenv()._astroUnload = function()
     _esp.distance = false
     _esp.weapon   = false
     _esp.health   = false
-    for espUid in pairs(_espD) do cleanESP(espUid) end
+    for uid in pairs(_espD) do cleanESP(uid) end
+    pcall(function() _espGui:Destroy() end)
 
     pcall(function() Library:Unload() end)
 end
