@@ -19,6 +19,7 @@ local Window = Library:CreateWindow({
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
     Size          = UDim2.fromOffset(820, 640),
+    GlobalSearch  = true,
 })
 
 local Tabs = {
