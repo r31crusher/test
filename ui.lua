@@ -29,6 +29,13 @@ local Tabs = {
 local _uidCtr = 0
 local function uid(p) _uidCtr += 1; return p .. tostring(_uidCtr) end
 
+-- ── Keybind overlay registry (populated after each AddKeyPicker call) ─────────
+local _kbRegistry = {}  -- {label, kp, getActive, mode}
+local _kbPosX, _kbPosY = 10, nil  -- nil Y = computed from viewport on first frame
+local function _kbRegister(label, kp, getActive, mode)
+    table.insert(_kbRegistry, {label=label, kp=kp, getActive=getActive, mode=mode})
+end
+
 -- ── Forward-declare toggle objects needed by Home Quick Actions ───────────────
 local _setSpeedBoost_obj, _flyTog, _noclipTog, _aimbotTog, _setBoxEsp_obj
 
@@ -205,7 +212,7 @@ _flyTog = movL:AddToggle(uid("tog"), {
 })
 local setFly = function(v) _flyTog:SetValue(v) end
 
-_flyTog:AddKeyPicker({
+local _flyKP = _flyTog:AddKeyPicker({
     Text            = "Fly Key",
     Default         = "F",
     Mode            = "Toggle",
@@ -214,6 +221,7 @@ _flyTog:AddKeyPicker({
         if v ~= nil then setFly(v) end
     end,
 })
+_kbRegister("Fly", _flyKP, function() return _flyTog.Value end, "Toggle")
 
 local _setFlySpeed_obj = movL:AddSlider(uid("sld"), {
     Text     = "Fly Speed",
@@ -249,7 +257,7 @@ _noclipTog = movR:AddToggle(uid("tog"), {
 })
 local setNoclip = function(v) _noclipTog:SetValue(v) end
 
-_noclipTog:AddKeyPicker({
+local _noclipKP = _noclipTog:AddKeyPicker({
     Text            = "Noclip Key",
     Default         = "V",
     Mode            = "Toggle",
@@ -262,6 +270,7 @@ _noclipTog:AddKeyPicker({
         end
     end,
 })
+_kbRegister("Noclip", _noclipKP, function() return _noclipTog.Value end, "Toggle")
 
 plr.CharacterAdded:Connect(function()
     _noclipParts = {}
@@ -460,7 +469,7 @@ _aimbotTog = cmbL:AddToggle(uid("tog"), {
 })
 local _setAimbot = function(v) _aimbotTog:SetValue(v) end
 
-_aimbotTog:AddKeyPicker({
+local _aimbotKP = _aimbotTog:AddKeyPicker({
     Text            = "Aimbot Key",
     Default         = "E",
     Mode            = "Hold",
@@ -471,6 +480,7 @@ _aimbotTog:AddKeyPicker({
         end
     end,
 })
+_kbRegister("Aimbot", _aimbotKP, function() return _aimbotTog.Value end, "Hold")
 
 cmbL:AddDropdown(uid("dd"), {
     Text     = "Aim Mode",
@@ -1018,6 +1028,125 @@ local function _writeMeta(tbl)
     writefile(META_FILE, HttpService:JSONEncode(tbl))
 end
 
+-- ═════════════════════════════════════════════════════════════════════════════
+--  KEYBIND OVERLAY  (draggable ScreenGui, renders above ESP, below menu)
+-- ═════════════════════════════════════════════════════════════════════════════
+local _kbGui = Instance.new("ScreenGui")
+_kbGui.Name           = "._astroKB"
+_kbGui.ResetOnSpawn   = false
+_kbGui.IgnoreGuiInset = true
+_kbGui.DisplayOrder   = 2
+_kbGui.Parent         = game.CoreGui
+
+local _kbFrame = Instance.new("Frame")
+_kbFrame.BackgroundColor3       = Color3.fromRGB(10, 10, 10)
+_kbFrame.BackgroundTransparency = 0.25
+_kbFrame.BorderSizePixel        = 0
+_kbFrame.Size                   = UDim2.fromOffset(175, 20)
+_kbFrame.Parent                 = _kbGui
+Instance.new("UICorner", _kbFrame).CornerRadius = UDim.new(0, 5)
+
+local _kbPad = Instance.new("UIPadding", _kbFrame)
+_kbPad.PaddingLeft   = UDim.new(0, 7)
+_kbPad.PaddingRight  = UDim.new(0, 7)
+_kbPad.PaddingTop    = UDim.new(0, 4)
+_kbPad.PaddingBottom = UDim.new(0, 4)
+
+local _kbLayout = Instance.new("UIListLayout", _kbFrame)
+_kbLayout.FillDirection = Enum.FillDirection.Vertical
+_kbLayout.SortOrder     = Enum.SortOrder.LayoutOrder
+_kbLayout.Padding       = UDim.new(0, 2)
+
+local _kbTitle = Instance.new("TextLabel", _kbFrame)
+_kbTitle.Size                 = UDim2.new(1, 0, 0, 13)
+_kbTitle.BackgroundTransparency = 1
+_kbTitle.Text                 = "KEYBINDS"
+_kbTitle.TextColor3           = Color3.fromRGB(120, 120, 120)
+_kbTitle.TextSize             = 10
+_kbTitle.Font                 = Enum.Font.GothamBold
+_kbTitle.TextXAlignment       = Enum.TextXAlignment.Left
+_kbTitle.LayoutOrder          = 0
+
+local _kbRows = {}
+
+local function _getKeyName(kp)
+    local ok, v = pcall(function() return kp.Value end)
+    if not ok then return "?" end
+    local s = tostring(v)
+    return s:match("Enum%.KeyCode%.(.+)") or s:match("%.(%w+)$") or s
+end
+
+-- Update loop: refresh text/colors and auto-size frame
+task.spawn(function()
+    RunService.RenderStepped:Wait()
+    -- Apply saved or default position (middle-left)
+    local vp = workspace.CurrentCamera.ViewportSize
+    _kbFrame.Position = UDim2.fromOffset(_kbPosX, _kbPosY or math.floor(vp.Y * 0.5 - 40))
+
+    while _kbGui.Parent do
+        -- Grow row labels table if needed
+        while #_kbRows < #_kbRegistry do
+            local r = Instance.new("TextLabel", _kbFrame)
+            r.Size                  = UDim2.new(1, 0, 0, 14)
+            r.BackgroundTransparency = 1
+            r.TextSize              = 11
+            r.Font                  = Enum.Font.Gotham
+            r.TextXAlignment        = Enum.TextXAlignment.Left
+            r.TextTruncate          = Enum.TextTruncate.AtEnd
+            r.LayoutOrder           = #_kbRows + 1
+            table.insert(_kbRows, r)
+        end
+
+        for i, entry in ipairs(_kbRegistry) do
+            local key    = _getKeyName(entry.kp)
+            local active = pcall(entry.getActive) and entry.getActive()
+            local mode   = entry.mode == "Hold" and "(Hold)" or "(Toggle)"
+            local row    = _kbRows[i]
+            row.Text       = "[" .. key .. "]  " .. entry.label .. "  " .. mode
+            row.TextColor3 = active
+                and Color3.fromRGB(85, 225, 85)
+                or  Color3.fromRGB(140, 140, 140)
+            row.Visible = true
+        end
+        for i = #_kbRegistry + 1, #_kbRows do _kbRows[i].Visible = false end
+
+        -- Auto-size height: padding(4) + title(13) + gap(2) + rows*(14+2) + padding(4)
+        local rCount = #_kbRegistry
+        _kbFrame.Size = UDim2.fromOffset(175, 4 + 13 + (rCount > 0 and 2 + rCount * 16 or 0) + 4)
+
+        task.wait(0.15)
+    end
+end)
+
+-- Dragging — saves position to config on mouse-up
+do
+    local UIS = game:GetService("UserInputService")
+    local dragging, dragStart, frameStart = false, nil, nil
+
+    _kbFrame.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging   = true
+            dragStart  = inp.Position
+            frameStart = _kbFrame.AbsolutePosition
+        end
+    end)
+    UIS.InputChanged:Connect(function(inp)
+        if not dragging or inp.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        local d  = inp.Position - dragStart
+        local vp = workspace.CurrentCamera.ViewportSize
+        local nx = math.clamp(frameStart.X + d.X, 0, vp.X - _kbFrame.AbsoluteSize.X)
+        local ny = math.clamp(frameStart.Y + d.Y, 0, vp.Y - _kbFrame.AbsoluteSize.Y)
+        _kbFrame.Position = UDim2.fromOffset(nx, ny)
+        _kbPosX, _kbPosY = nx, ny
+    end)
+    UIS.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 and dragging then
+            dragging = false
+            pcall(saveConfig)
+        end
+    end)
+end
+
 local function saveConfig()
     _cfgEnsureDirs()
     local data = {
@@ -1044,6 +1173,8 @@ local function saveConfig()
         espVisCheck       = _espVisCheck,
         espVisColorName   = _espVisColorName,
         espNoVisColorName = _espNoVisColorName,
+        kbPosX            = _kbPosX,
+        kbPosY            = _kbPosY,
     }
     writefile(CFG_FILE, HttpService:JSONEncode(data))
 end
@@ -1087,6 +1218,10 @@ local function loadConfig()
         _espNoVisColorName = data.espNoVisColorName
         _espNoVisColor = _espColorMap[data.espNoVisColorName] or _espNoVisColor
     end
+
+    if data.kbPosX then _kbPosX = data.kbPosX end
+    if data.kbPosY then _kbPosY = data.kbPosY end
+    pcall(function() _kbFrame.Position = UDim2.fromOffset(_kbPosX, _kbPosY) end)
 
     return true
 end
@@ -1850,6 +1985,7 @@ getgenv()._astroUnload = function()
     _esp.health   = false
     for uid in pairs(_espD) do cleanESP(uid) end
     pcall(function() _espGui:Destroy() end)
+    pcall(function() _kbGui:Destroy()  end)
 
     pcall(function() Library:Unload() end)
 end
