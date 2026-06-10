@@ -367,6 +367,29 @@ return function(section)
 
 
 
+    -- ── Auto Collect Coins ────────────────────────────────────────────────────
+    getgenv()._mm2_coins = false
+    elements:Toggle("Auto Collect Coins", section, function(v)
+        getgenv()._mm2_coins = v
+        if not v then return end
+        task.spawn(function()
+            while getgenv()._mm2_coins do
+                local char = player.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    for _, obj in workspace:GetDescendants() do
+                        if not getgenv()._mm2_coins then break end
+                        if obj:IsA("BasePart") and obj.Name:lower():find("coin") then
+                            pcall(firetouchinterest, obj, hrp, 0)
+                            pcall(firetouchinterest, obj, hrp, 1)
+                        end
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end)
+
     -- ── Unload ────────────────────────────────────────────────────────────────
     section.AncestorRemoving:Connect(function()
         getgenv()._mm2_silentaim   = false
@@ -374,6 +397,7 @@ return function(section)
         getgenv()._mm2_wallcheck   = false
         getgenv()._mm2_esp         = false
         getgenv()._mm2_rolereveal  = false
+        getgenv()._mm2_coins       = false
 
         WeaponService.GetMouseTargetCFrame = origGetTarget
 
