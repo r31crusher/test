@@ -31,7 +31,7 @@ local Window = Library:CreateWindow({
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
     Size          = UDim2.fromOffset(820, 640),
-    Icon          = _logoAsset and {Url = _logoAsset, ImageRectOffset = Vector2.new(0, 0), ImageRectSize = Vector2.new(0, 0)} or nil,
+    Icon          = _logoAsset or nil,
     IconSize      = UDim2.fromOffset(28, 28),
 })
 
