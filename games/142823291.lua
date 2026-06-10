@@ -375,27 +375,20 @@ return function(section)
         if not v then return end
         task.spawn(function()
             local collected = 0
-            while getgenv()._mm2_coins and collected < 30 do
-                local char = player.Character
-                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    for _, coin in CollectionService:GetTagged("CoinVisual") do
-                        if not getgenv()._mm2_coins or collected >= 30 then break end
-                        local server = coin.Parent
-                        if server and server:IsA("BasePart") and server.Parent then
-                            local target = server.Position + Vector3.new(0, 3, 0)
-                            hrp.Anchored = true
-                            task.wait(0.05)
-                            hrp.CFrame = CFrame.new(target)
-                            task.wait(0.1)
-                            hrp.Anchored = false
-                            collected += 1
-                            task.wait(1.5)
-                        end
-                    end
+            local char = player.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then getgenv()._mm2_coins = false return end
+
+            for _, coin in CollectionService:GetTagged("CoinVisual") do
+                if not getgenv()._mm2_coins or collected >= 30 then break end
+                local server = coin.Parent
+                if server and server:IsA("BasePart") and server.Parent then
+                    hrp.CFrame = CFrame.new(server.Position + Vector3.new(0, 5, 0))
+                    collected += 1
+                    task.wait(2)
                 end
-                task.wait(0.5)
             end
+
             getgenv()._mm2_coins = false
         end)
     end)
