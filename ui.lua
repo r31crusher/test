@@ -1254,6 +1254,7 @@ local function _newHpBar(parent)
     local bg = Instance.new("Frame")
     bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     bg.BorderSizePixel  = 0
+    bg.ClipsDescendants = true
     bg.Visible          = false
     bg.Parent           = parent
     local fill = Instance.new("Frame")
@@ -1348,25 +1349,25 @@ local function updateESP(p)
     local vis      = not _espVisCheck or _isVisible(hrp)
     local espColor = vis and _espVisColor or _espNoVisColor
 
-    local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
-    local hit = false
-    for _, name in ipairs(PROBE_NAMES) do
-        local part = pts[name]
-        if part and part.Parent then
-            local sp, on = cam:WorldToViewportPoint(part.Position)
-            if on then
-                hit = true
-                if sp.X < minX then minX = sp.X end
-                if sp.Y < minY then minY = sp.Y end
-                if sp.X > maxX then maxX = sp.X end
-                if sp.Y > maxY then maxY = sp.Y end
-            end
-        end
-    end
-    if not hit then hideAll(d); return end
+    local head = pts["Head"]
+    if not head or not head.Parent then hideAll(d); return end
 
-    minX -= 4; minY -= 4; maxX += 4; maxY += 4
-    local cx = (minX + maxX) * 0.5
+    -- Compute box bounds from head-top and feet positions — works for both R6 and R15.
+    -- Part-center probing gives a wrong box for R6 because block parts are large and sparse.
+    local headTop = head.Position + Vector3.new(0, head.Size.Y * 0.5, 0)
+    local feetPos = hrp.Position  - Vector3.new(0, hum.HipHeight,     0)
+
+    local spHead, onHead = cam:WorldToViewportPoint(headTop)
+    local spFeet, onFeet = cam:WorldToViewportPoint(feetPos)
+    if not onHead and not onFeet then hideAll(d); return end
+
+    local spHrp = cam:WorldToViewportPoint(hrp.Position)
+    local cx    = spHrp.X
+    local minY  = math.min(spHead.Y, spFeet.Y) - 4
+    local maxY  = math.max(spHead.Y, spFeet.Y) + 4
+    local halfW = (maxY - minY) * 0.22
+    local minX  = cx - halfW
+    local maxX  = cx + halfW
 
     if _esp.box then
         _applyBox(d.boxF, minX, minY, maxX, maxY, espColor)
@@ -1383,7 +1384,7 @@ local function updateESP(p)
         d.hpBg.Visible  = true
         d.hpFill.BackgroundColor3 = Color3.fromRGB(r, g, 0)
         d.hpFill.Size     = UDim2.new(1, 0, ratio, 0)
-        d.hpFill.Position = UDim2.new(0, 0, 1-ratio, 0)
+        d.hpFill.Position = UDim2.new(0, 0, 1, 0)
     else
         d.hpBg.Visible = false
     end
@@ -1421,30 +1422,60 @@ local function updateESP(p)
     end
 
     if _esp.skeleton then
-        local isR15 = pts["UpperTorso"] ~= nil
-        local conns = isR15 and SKL_R15 or SKL_R6
-        while #d.sklLines < #conns do
+        local isR15  = pts["UpperTorso"] ~= nil
+        local camPos = cam.CFrame.Position
+        local camLook= cam.CFrame.LookVector
+
+        local segs   -- list of {worldPos, worldPos} pairs
+        if isR15 then
+            segs = {}
+            for _, c in ipairs(SKL_R15) do
+                local p0, p1 = pts[c[1]], pts[c[2]]
+                if p0 and p1 and p0.Parent and p1.Parent then
+                    table.insert(segs, {p0.Position, p1.Position})
+                else
+                    table.insert(segs, false)
+                end
+            end
+        else
+            -- R6: split torso into shoulder/hip so arms connect high and legs connect low.
+            -- Connecting everything from Torso center makes an X (arms cross legs diagonally).
+            local torso    = pts["Torso"]
+            local headPt   = pts["Head"]
+            local leftArm  = pts["Left Arm"]
+            local rightArm = pts["Right Arm"]
+            local leftLeg  = pts["Left Leg"]
+            local rightLeg = pts["Right Leg"]
+            local shoulder, hip
+            if torso and torso.Parent then
+                local h = torso.Size.Y * 0.5 - 0.1
+                shoulder = torso.Position + Vector3.new(0,  h, 0)
+                hip      = torso.Position + Vector3.new(0, -h, 0)
+            end
+            segs = {
+                headPt   and shoulder and {headPt.Position,   shoulder} or false,
+                shoulder and hip      and {shoulder,           hip}      or false,
+                leftArm  and shoulder and {shoulder,  leftArm.Position}  or false,
+                rightArm and shoulder and {shoulder, rightArm.Position}  or false,
+                leftLeg  and hip      and {hip,       leftLeg.Position}  or false,
+                rightLeg and hip      and {hip,      rightLeg.Position}  or false,
+            }
+        end
+
+        while #d.sklLines < #segs do
             table.insert(d.sklLines, _newLineFrame(d.container))
         end
-        local camPos  = cam.CFrame.Position
-        local camLook = cam.CFrame.LookVector
-        for i, c in ipairs(conns) do
-            local p0 = pts[c[1]]
-            local p1 = pts[c[2]]
+        for i, seg in ipairs(segs) do
             local lf = d.sklLines[i]
-            if p0 and p1 and p0.Parent and p1.Parent then
-                if (p0.Position-camPos):Dot(camLook) > 0 and (p1.Position-camPos):Dot(camLook) > 0 then
-                    local s0 = cam:WorldToViewportPoint(p0.Position)
-                    local s1 = cam:WorldToViewportPoint(p1.Position)
-                    _applyLine(lf, s0.X, s0.Y, s1.X, s1.Y, espColor)
-                else
-                    lf.Visible = false
-                end
+            if seg and (seg[1]-camPos):Dot(camLook) > 0 and (seg[2]-camPos):Dot(camLook) > 0 then
+                local s0 = cam:WorldToViewportPoint(seg[1])
+                local s1 = cam:WorldToViewportPoint(seg[2])
+                _applyLine(lf, s0.X, s0.Y, s1.X, s1.Y, espColor)
             else
                 lf.Visible = false
             end
         end
-        for i = #conns+1, #d.sklLines do d.sklLines[i].Visible = false end
+        for i = #segs+1, #d.sklLines do d.sklLines[i].Visible = false end
     else
         for _, f in ipairs(d.sklLines) do f.Visible = false end
     end
@@ -1481,22 +1512,150 @@ end
 -- ═════════════════════════════════════════════════════════════════════════════
 do
     local Players = game:GetService("Players")
-    local PlayersCountGB = Tabs.Players:AddRightGroupbox("Server")
-    local _countLbl = PlayersCountGB:AddLabel("0 players online")
 
-    local _playerBoxes   = {}
-    local _playerCleanups = {}
-    local _trollId = 0
+    local PlayersLeft  = Tabs.Players:AddLeftGroupbox("Players")
+    local PlayersRight = Tabs.Players:AddRightGroupbox("Selected Player")
 
-    local function _makePlayerBox(p)
-        local isActive = true
-        local displayName = p.DisplayName
-        local nameStr = displayName .. (displayName ~= p.Name and ("  (@" .. p.Name .. ")") or "")
-        local gb = Tabs.Players:AddLeftGroupbox(nameStr)
+    -- ── Left: searchable dropdown ─────────────────────────────────────────────
+    local _countLbl = PlayersLeft:AddLabel("0 players online")
 
-        local infoLbl = gb:AddLabel("HP: --  |  Dist: --")
+    local _selectedPlayer = nil
+    local _trollId        = 0
+
+    local function getOtherNames()
+        local names = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= plr then table.insert(names, p.Name) end
+        end
+        table.sort(names)
+        return names
+    end
+
+    local _playerDD = PlayersLeft:AddDropdown(uid("dd"), {
+        Text       = "Select Player",
+        Values     = getOtherNames(),
+        Default    = nil,
+        AllowNull  = true,
+        Searchable = true,
+        Callback   = function(v)
+            _selectedPlayer = v and Players:FindFirstChild(v) or nil
+        end,
+    })
+
+    -- ── Right: live info + actions ────────────────────────────────────────────
+    local _infoLbl = PlayersRight:AddLabel("No player selected")
+
+    PlayersRight:AddButton({Text = "Teleport To", Func = function()
+        local p = _selectedPlayer; if not p then return end
+        local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+        local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
+        if myHRP and tgtHRP then myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0) end
+    end})
+
+    PlayersRight:AddButton({Text = "Spectate", Func = function()
+        local p = _selectedPlayer; if not p then return end
+        local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            workspace.CurrentCamera.CameraSubject = hum
+            workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
+        end
+    end})
+
+    PlayersRight:AddButton({Text = "Fling", Func = function()
+        local p = _selectedPlayer; if not p then return end
+        local myChar  = plr.Character
+        local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local tgtChar = p.Character
+        local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
+        local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+        if not myHRP or not tgtHRP or not tgtHum then return end
+
+        local savedCF = myHRP.CFrame
+        local myHum   = myChar:FindFirstChildOfClass("Humanoid")
+        local angle, offIdx = 0, 1
+        local offsets = {
+            CFrame.new( 0,     1.5,  0   ),
+            CFrame.new( 0,    -1.5,  0   ),
+            CFrame.new( 2.25,  1.5, -2.25),
+            CFrame.new(-2.25, -1.5,  2.25),
+        }
+        if myHum then
+            myHum.Health = myHum.MaxHealth
+            myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        end
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(16384, -16384, 16384)
+        bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+        bv.P = 9e8; bv.Parent = myHRP
         task.spawn(function()
-            while isActive do
+            local iters = 0
+            while iters < 120 and tgtHRP.Parent do
+                local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
+                if vel > 500 then break end
+                if vel < 50 then angle = (angle + 100) % 360 end
+                offIdx = offIdx % #offsets + 1
+                local moveOff = tgtHum.MoveDirection * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
+                myHRP.CFrame = tgtHRP.CFrame * CFrame.Angles(math.pi, 0, 0)
+                    * offsets[offIdx] * CFrame.Angles(math.rad(angle), 0, 0) + moveOff
+                iters += 1; RunService.Heartbeat:Wait()
+            end
+            bv:Destroy(); task.wait(0.1)
+            if myHRP and myHRP.Parent then
+                myHRP.CFrame = savedCF
+                myHRP.AssemblyLinearVelocity  = Vector3.zero
+                myHRP.AssemblyAngularVelocity = Vector3.zero
+            end
+            if myHum then
+                myHum.Health = myHum.MaxHealth
+                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                myHum.PlatformStand = false
+            end
+        end)
+    end})
+
+    PlayersRight:AddLabel("─────────────────────────")
+
+    for _, action in ipairs({"Standon", "Orbit", "Merge", "Fan", "Stop"}) do
+        local _action = action
+        PlayersRight:AddButton({
+            Text = _action,
+            Func = function()
+                _trollId += 1
+                if _action == "Stop" then return end
+                local id = _trollId
+                task.spawn(function()
+                    while _trollId == id do
+                        local p    = _selectedPlayer
+                        local myHRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                        local tChar = p and p.Character
+                        local tHRP  = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                        local tHead = tChar and tChar:FindFirstChild("Head")
+                        if myHRP then
+                            if _action == "Standon" and tHead then
+                                myHRP.CFrame = CFrame.new(tHead.Position + Vector3.new(0, 3.5, 0))
+                            elseif _action == "Orbit" and tHRP then
+                                local spin = (os.clock() * 270) % 360
+                                myHRP.CFrame = tHRP.CFrame * CFrame.Angles(0, math.rad(spin), 0) * CFrame.new(0, 0, 5)
+                            elseif _action == "Merge" and tHRP then
+                                myHRP.CFrame = tHRP.CFrame
+                            elseif _action == "Fan" and tHRP then
+                                myHRP.CFrame = tHRP.CFrame * CFrame.new(0, 3, 0)
+                                    * CFrame.Angles(-math.pi/2, 0, 0)
+                                    * CFrame.Angles(0, 0, os.clock() * math.pi * 3)
+                            end
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end)
+            end,
+        })
+    end
+
+    -- ── Live HP / distance label ──────────────────────────────────────────────
+    task.spawn(function()
+        while true do
+            local p = _selectedPlayer
+            if p and p.Parent then
                 local char  = p.Character
                 local hum   = char and char:FindFirstChildOfClass("Humanoid")
                 local hrp   = char and char:FindFirstChild("HumanoidRootPart")
@@ -1504,153 +1663,42 @@ do
                 if hum and hrp and myHrp then
                     local hp   = math.floor(hum.Health)
                     local dist = math.floor((hrp.Position - myHrp.Position).Magnitude)
-                    pcall(function() infoLbl:SetText("HP: " .. hp .. "  |  Dist: " .. dist .. "m") end)
-                elseif not char then
-                    pcall(function() infoLbl:SetText("(not spawned)") end)
-                end
-                task.wait(0.5)
-            end
-        end)
-
-        gb:AddButton({Text = "TP",   Func = function()
-            local myHRP  = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-            local tgtHRP = p.Character   and p.Character:FindFirstChild("HumanoidRootPart")
-            if myHRP and tgtHRP then
-                myHRP.CFrame = tgtHRP.CFrame + Vector3.new(3, 0, 0)
-            end
-        end})
-        gb:AddButton({Text = "Spec", Func = function()
-            local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                workspace.CurrentCamera.CameraSubject = hum
-                workspace.CurrentCamera.CameraType    = Enum.CameraType.Follow
-            end
-        end})
-        gb:AddButton({Text = "Fling", Func = function()
-            local myChar  = plr.Character
-            local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            local tgtChar = p.Character
-            local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-            local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
-            if not myHRP or not tgtHRP or not tgtHum then return end
-
-            local savedCF = myHRP.CFrame
-            local myHum   = myChar:FindFirstChildOfClass("Humanoid")
-            local angle   = 0
-            local offIdx  = 1
-            local offsets = {
-                CFrame.new( 0,     1.5,  0   ),
-                CFrame.new( 0,    -1.5,  0   ),
-                CFrame.new( 2.25,  1.5, -2.25),
-                CFrame.new(-2.25, -1.5,  2.25),
-            }
-
-            if myHum then
-                myHum.Health = myHum.MaxHealth
-                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            end
-
-            local bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(16384, -16384, 16384)
-            bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
-            bv.P        = 9e8
-            bv.Parent   = myHRP
-
-            task.spawn(function()
-                local iters = 0
-                while iters < 120 and tgtHRP.Parent do
-                    local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
-                    if vel > 500 then break end
-                    if vel < 50 then angle = (angle + 100) % 360 end
-                    offIdx = offIdx % #offsets + 1
-                    local moveOff = tgtHum.MoveDirection
-                        * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
-                    myHRP.CFrame = tgtHRP.CFrame
-                        * CFrame.Angles(math.pi, 0, 0)
-                        * offsets[offIdx]
-                        * CFrame.Angles(math.rad(angle), 0, 0)
-                        + moveOff
-                    iters += 1
-                    RunService.Heartbeat:Wait()
-                end
-                bv:Destroy()
-                task.wait(0.1)
-                if myHRP and myHRP.Parent then
-                    myHRP.CFrame = savedCF
-                    myHRP.AssemblyLinearVelocity  = Vector3.zero
-                    myHRP.AssemblyAngularVelocity = Vector3.zero
-                end
-                if myHum then
-                    myHum.Health = myHum.MaxHealth
-                    myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-                    myHum.PlatformStand = false
-                end
-            end)
-        end})
-
-        gb:AddLabel("─────────────────────────")
-        for _, action in ipairs({"Standon", "Orbit", "Merge", "Fan", "Stop"}) do
-            local _action = action
-            gb:AddButton({
-                Text = _action,
-                Func = function()
-                    _trollId += 1
-                    if _action == "Stop" then return end
-                    local id = _trollId
-                    task.spawn(function()
-                        while _trollId == id do
-                            local myHRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-                            local tChar = p.Character
-                            local tHRP  = tChar and tChar:FindFirstChild("HumanoidRootPart")
-                            local tHead = tChar and tChar:FindFirstChild("Head")
-                            if myHRP then
-                                if _action == "Standon" and tHead then
-                                    myHRP.CFrame = CFrame.new(tHead.Position + Vector3.new(0, 3.5, 0))
-                                elseif _action == "Orbit" and tHRP then
-                                    local spin = (os.clock() * 270) % 360
-                                    myHRP.CFrame = tHRP.CFrame
-                                        * CFrame.Angles(0, math.rad(spin), 0)
-                                        * CFrame.new(0, 0, 5)
-                                elseif _action == "Merge" and tHRP then
-                                    myHRP.CFrame = tHRP.CFrame
-                                elseif _action == "Fan" and tHRP then
-                                    myHRP.CFrame = tHRP.CFrame
-                                        * CFrame.new(0, 3, 0)
-                                        * CFrame.Angles(-math.pi/2, 0, 0)
-                                        * CFrame.Angles(0, 0, os.clock() * math.pi * 3)
-                                end
-                            end
-                            RunService.Heartbeat:Wait()
-                        end
+                    pcall(function()
+                        _infoLbl:SetText(p.DisplayName .. "  |  HP: " .. hp .. "  |  Dist: " .. dist .. "m")
                     end)
-                end,
-            })
+                else
+                    pcall(function() _infoLbl:SetText(p.DisplayName .. "  |  (not spawned)") end)
+                end
+            else
+                if p and not p.Parent then
+                    _selectedPlayer = nil
+                    pcall(function() _playerDD:SetValue(nil) end)
+                end
+                pcall(function() _infoLbl:SetText("No player selected") end)
+            end
+            task.wait(0.5)
         end
+    end)
 
-        return gb, function() isActive = false end
-    end
-
-    local function rebuild()
-        for _, cleanup in ipairs(_playerCleanups) do cleanup() end
-        for _, gb in ipairs(_playerBoxes) do pcall(function() gb:Destroy() end) end
-        _playerBoxes   = {}
-        _playerCleanups = {}
-
-        local all   = Players:GetPlayers()
-        local count = #all
+    -- ── Dynamic join / leave ──────────────────────────────────────────────────
+    local function updateList()
+        local names = getOtherNames()
+        local count = #names
         _countLbl:SetText(count .. " player" .. (count == 1 and "" or "s") .. " online")
-
-        table.sort(all, function(a, b) return a.Name < b.Name end)
-        for _, p in ipairs(all) do
-            local gb, cleanup = _makePlayerBox(p)
-            table.insert(_playerBoxes, gb)
-            table.insert(_playerCleanups, cleanup)
-        end
+        _playerDD:SetValues(names)
     end
 
-    rebuild()
-    Players.PlayerAdded:Connect(rebuild)
-    Players.PlayerRemoving:Connect(function() task.wait(); rebuild() end)
+    Players.PlayerAdded:Connect(function() task.wait(0.1); updateList() end)
+    Players.PlayerRemoving:Connect(function(p)
+        if _selectedPlayer == p then
+            _selectedPlayer = nil
+            pcall(function() _playerDD:SetValue(nil) end)
+        end
+        task.wait(); updateList()
+    end)
+
+    updateList()
+
 end
 
 -- ═════════════════════════════════════════════════════════════════════════════
