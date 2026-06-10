@@ -1,4 +1,4 @@
--- ── Astro – ui.lua ────────────────────────────────────────────────────────────
+
 local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,12 +8,29 @@ local plr              = game:GetService("Players").LocalPlayer
 local repo    = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 
+Library.Scheme.BackgroundColor = Color3.fromRGB(6,  6,  10)
+Library.Scheme.MainColor       = Color3.fromRGB(12, 12, 18)
+Library.Scheme.AccentColor     = Color3.fromRGB(220, 220, 240)
+Library.Scheme.OutlineColor    = Color3.fromRGB(28, 28, 40)
+Library.Scheme.FontColor       = Color3.new(1, 1, 1)
+
+local _logoAsset
+pcall(function()
+    local logoUrl = "https://raw.githubusercontent.com/r31crusher/test/main/assets/astro.jpg"
+    if not isfile("_astro_logo.jpg") then
+        writefile("_astro_logo.jpg", game:HttpGet(logoUrl, true))
+    end
+    _logoAsset = getcustomasset("_astro_logo.jpg")
+end)
+
 local Window = Library:CreateWindow({
     Title         = "Astro",
     Footer        = "v2.0  |  Insert to toggle",
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
     Size          = UDim2.fromOffset(820, 640),
+    Icon     = _logoAsset and { Url = _logoAsset, ImageRectOffset = Vector2.new(0, 0), ImageRectSize = Vector2.new(0, 0) } or nil,
+    IconSize = UDim2.fromOffset(28, 28),
 })
 
 local Tabs = {
@@ -29,32 +46,25 @@ local Tabs = {
 local _uidCtr = 0
 local function uid(p) _uidCtr += 1; return p .. tostring(_uidCtr) end
 
--- ── Keybind overlay registry (populated after each AddKeyPicker call) ─────────
-local _kbRegistry = {}  -- {label, kp, getActive, mode}
-local _kbPosX, _kbPosY = 10, nil  -- nil Y = computed from viewport on first frame
+local _kbRegistry = {}
+local _kbPosX, _kbPosY = 10, nil
 local function _kbRegister(label, kp, getActive, mode)
     table.insert(_kbRegistry, {label=label, kp=kp, getActive=getActive, mode=mode})
 end
 
--- ── Forward-declare toggle objects needed by Home Quick Actions ───────────────
 local _setSpeedBoost_obj, _flyTog, _noclipTog, _aimbotTog, _setBoxEsp_obj
 
--- ── elements adapter ──────────────────────────────────────────────────────────
 local GameGB       = Tabs.Game:AddLeftGroupbox("Game")
 local GameRGB      = Tabs.Game:AddRightGroupbox("Info")
 local _makeAdapter = loadstring(game:HttpGet(getgitpath("src") .. "elements.lua"))()
 getgenv()._astroElements = _makeAdapter(GameGB)
 local _gameSection = GameGB.Container or GameGB.Content or GameGB[1] or GameGB
 
--- ── Session stats ─────────────────────────────────────────────────────────────
 local _sessionStart  = tick()
 local _featuresUsed  = 0
 local _playersJoined = 0
 game:GetService("Players").PlayerAdded:Connect(function() _playersJoined += 1 end)
 
--- ═════════════════════════════════════════════════════════════════════════════
---  HOME TAB
--- ═════════════════════════════════════════════════════════════════════════════
 local HomeLogoGB  = Tabs.Home:AddLeftGroupbox("Astro")
 local HomeQAGB    = Tabs.Home:AddRightGroupbox("Quick Actions")
 local HomeStatsGB = Tabs.Home:AddRightGroupbox("Session")
@@ -103,9 +113,6 @@ task.spawn(function()
     end
 end)
 
--- ═════════════════════════════════════════════════════════════════════════════
---  UNIVERSAL GROUPBOXES  (two full-height columns, no sub-tabs)
--- ═════════════════════════════════════════════════════════════════════════════
 local UnivL = Tabs.Universal:AddLeftGroupbox("Movement & Combat")
 local UnivR = Tabs.Universal:AddRightGroupbox("ESP & Visual")
 
@@ -117,9 +124,6 @@ local espL  = UnivR
 local espR  = UnivR
 local visL  = UnivR
 
--- ═════════════════════════════════════════════════════════════════════════════
---  MOVEMENT
--- ═════════════════════════════════════════════════════════════════════════════
 UnivL:AddLabel("── Speed ─────────────────────────────────")
 local _walkSpeed   = 50
 local _walkEnabled = false
@@ -160,7 +164,7 @@ plr.CharacterAdded:Connect(function(char)
 end)
 
 UnivL:AddLabel("── Fly ───────────────────────────────────")
--- ── Fly ───────────────────────────────────────────────────────────────────────
+
 local _flyBV, _flyBG
 local _flySpeed = 50
 getgenv()._astroFlying = false
@@ -236,7 +240,7 @@ local _setFlySpeed_obj = movL:AddSlider(uid("sld"), {
 local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
 
 UnivL:AddLabel("── Misc ──────────────────────────────────")
--- ── Noclip ────────────────────────────────────────────────────────────────────
+
 getgenv()._astroNoclip = false
 local _noclipParts = {}
 
@@ -291,7 +295,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ── Infinite Jump ─────────────────────────────────────────────────────────────
 getgenv()._astroInfJump = false
 local _setInfJump_obj = movR:AddToggle(uid("tog"), {
     Text     = "Infinite Jump",
@@ -308,7 +311,6 @@ UserInputService.JumpRequest:Connect(function()
     if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
 end)
 
--- ── Anti-Fall ─────────────────────────────────────────────────────────────────
 getgenv()._astroAntiFall = false
 local _afLastSafe = nil
 
@@ -336,7 +338,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ── Anti-AFK ──────────────────────────────────────────────────────────────────
 getgenv()._astroAntiAfk = false
 local _setAntiAfk_obj = movR:AddToggle(uid("tog"), {
     Text     = "Anti-AFK",
@@ -361,7 +362,6 @@ local _setAntiAfk_obj = movR:AddToggle(uid("tog"), {
 })
 local _setAntiAfk = function(v) _setAntiAfk_obj:SetValue(v) end
 
--- ── Fullbright ────────────────────────────────────────────────────────────────
 local _fbOrig
 local _fullbrightOn = false
 local _setFullbright_obj = movR:AddToggle(uid("tog"), {
@@ -386,15 +386,11 @@ local _setFullbright_obj = movR:AddToggle(uid("tog"), {
 })
 local _setFullbright = function(v) _setFullbright_obj:SetValue(v) end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  COMBAT
--- ═════════════════════════════════════════════════════════════════════════════
 UnivL:AddLabel("── Aimbot ────────────────────────────────")
 local _aimFOV   = 200
 local _aimSpeed = 8
 local _aimMode  = "Legacy"
 
--- Shared raycast params
 local _rayParams = RaycastParams.new()
 _rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -459,7 +455,6 @@ local function _installSilentHook()
     if ok then _silentHookOrig = orig end
 end
 
--- ── Aimbot (cmbL) ─────────────────────────────────────────────────────────────
 getgenv()._aimEnabled  = false
 getgenv()._astroAiming = false
 _aimbotTog = cmbL:AddToggle(uid("tog"), {
@@ -546,7 +541,7 @@ RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function
 end)
 
 UnivL:AddLabel("── Utilities ─────────────────────────────")
--- ── Spinbot (cmbR) ────────────────────────────────────────────────────────────
+
 getgenv()._astroSpinbot = false
 cmbR:AddToggle(uid("tog"), {
     Text     = "Spinbot",
@@ -571,7 +566,6 @@ cmbR:AddToggle(uid("tog"), {
     end,
 })
 
--- ── Desync (cmbR) ─────────────────────────────────────────────────────────────
 getgenv()._astroDesync = false
 cmbR:AddToggle(uid("tog"), {
     Text     = "Desync",
@@ -596,7 +590,6 @@ cmbR:AddToggle(uid("tog"), {
     end,
 })
 
--- ── HitBoxes (cmbR) ───────────────────────────────────────────────────────────
 getgenv()._astroHitboxes = false
 local _hitboxSize      = 8
 local _hitboxOrigSizes = {}
@@ -664,7 +657,6 @@ game:GetService("Players").PlayerAdded:Connect(function(p)
     end)
 end)
 
--- ── Bullet Tracers (cmbR) ─────────────────────────────────────────────────────
 getgenv()._astroTracers = false
 
 local function _drawTracer(origin, hitPos)
@@ -717,9 +709,6 @@ cmbR:AddToggle(uid("tog"), {
     end,
 })
 
--- ═════════════════════════════════════════════════════════════════════════════
---  ESP
--- ═════════════════════════════════════════════════════════════════════════════
 UnivR:AddLabel("── ESP Overlays ──────────────────────────")
 local _esp = {box=false, skeleton=false, name=false, distance=false, weapon=false, health=false}
 local _espD = {}
@@ -785,9 +774,6 @@ espR:AddDropdown(uid("dd"), {
     Callback = function(v) _espNoVisColorName = v; _espNoVisColor = _espColorMap[v] end,
 })
 
--- ═════════════════════════════════════════════════════════════════════════════
---  VISUAL
--- ═════════════════════════════════════════════════════════════════════════════
 UnivR:AddLabel("── Visual ────────────────────────────────")
 local _hitSoundObj = Instance.new("Sound")
 _hitSoundObj.SoundId = "rbxassetid://2766953031"
@@ -869,7 +855,6 @@ game:GetService("Players").PlayerAdded:Connect(function(p)
 end)
 game:GetService("Players").PlayerRemoving:Connect(function(p) _unwatchDmg(p) end)
 
--- Crosshair
 getgenv()._astroCrosshair = false
 local _chLines  = {}
 local _chRender = nil
@@ -904,7 +889,6 @@ local function _destroyCrosshair()
     _chLines = {}
 end
 
--- Viewmodel
 getgenv()._astroViewmodel = false
 local _vmGui, _vmRender, _vmLastCF, _vmPrevTool
 local _vmSpringX = {pos = 0, vel = 0}
@@ -1009,9 +993,6 @@ visL:AddToggle(uid("tog"), {
     end,
 })
 
--- ═════════════════════════════════════════════════════════════════════════════
---  SETTINGS / Config
--- ═════════════════════════════════════════════════════════════════════════════
 local SettingsGB  = Tabs.Settings:AddLeftGroupbox("Config")
 local SettingsRGB = Tabs.Settings:AddRightGroupbox("Actions")
 
@@ -1034,9 +1015,6 @@ local function _writeMeta(tbl)
     writefile(META_FILE, HttpService:JSONEncode(tbl))
 end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  KEYBIND OVERLAY  (draggable ScreenGui, renders above ESP, below menu)
--- ═════════════════════════════════════════════════════════════════════════════
 local _kbGui = Instance.new("ScreenGui")
 _kbGui.Name           = "._astroKB"
 _kbGui.ResetOnSpawn   = false
@@ -1045,8 +1023,8 @@ _kbGui.DisplayOrder   = 2
 _kbGui.Parent         = game.CoreGui
 
 local _kbFrame = Instance.new("Frame")
-_kbFrame.BackgroundColor3       = Color3.fromRGB(10, 10, 10)
-_kbFrame.BackgroundTransparency = 0.25
+_kbFrame.BackgroundColor3       = Color3.fromRGB(6, 6, 10)
+_kbFrame.BackgroundTransparency = 0.15
 _kbFrame.BorderSizePixel        = 0
 _kbFrame.Size                   = UDim2.fromOffset(175, 20)
 _kbFrame.Parent                 = _kbGui
@@ -1067,7 +1045,7 @@ local _kbTitle = Instance.new("TextLabel", _kbFrame)
 _kbTitle.Size                 = UDim2.new(1, 0, 0, 13)
 _kbTitle.BackgroundTransparency = 1
 _kbTitle.Text                 = "KEYBINDS"
-_kbTitle.TextColor3           = Color3.fromRGB(120, 120, 120)
+_kbTitle.TextColor3           = Color3.fromRGB(180, 180, 200)
 _kbTitle.TextSize             = 10
 _kbTitle.Font                 = Enum.Font.GothamBold
 _kbTitle.TextXAlignment       = Enum.TextXAlignment.Left
@@ -1076,20 +1054,19 @@ _kbTitle.LayoutOrder          = 0
 local _kbRows = {}
 
 local function _getKeyName(kp)
-    -- kp.Value is a plain string ("F", "MB1", "None", etc.)
+
     local ok, v = pcall(function() return kp.Value end)
     return (ok and v and tostring(v)) or "?"
 end
 
--- Update loop: refresh text/colors and auto-size frame
 task.spawn(function()
     RunService.RenderStepped:Wait()
-    -- Apply saved or default position (middle-left)
+
     local vp = workspace.CurrentCamera.ViewportSize
     _kbFrame.Position = UDim2.fromOffset(_kbPosX, _kbPosY or math.floor(vp.Y * 0.5 - 40))
 
     while _kbGui.Parent do
-        -- Grow row labels table if needed
+
         while #_kbRows < #_kbRegistry do
             local r = Instance.new("TextLabel", _kbFrame)
             r.Size                  = UDim2.new(1, 0, 0, 14)
@@ -1104,7 +1081,7 @@ task.spawn(function()
 
         for i, entry in ipairs(_kbRegistry) do
             local key  = _getKeyName(entry.kp)
-            -- Read mode live from the KeyPicker object so menu changes reflect instantly
+
             local modeOk, modeVal = pcall(function() return entry.kp.Mode end)
             local mode = "(" .. (modeOk and modeVal or entry.mode) .. ")"
             local activeOk, active = pcall(entry.getActive)
@@ -1112,13 +1089,12 @@ task.spawn(function()
             local row = _kbRows[i]
             row.Text       = "[" .. key .. "]  " .. entry.label .. "  " .. mode
             row.TextColor3 = active
-                and Color3.fromRGB(85, 225, 85)
-                or  Color3.fromRGB(140, 140, 140)
+                and Color3.fromRGB(220, 220, 240)
+                or  Color3.fromRGB(80, 80, 100)
             row.Visible = true
         end
         for i = #_kbRegistry + 1, #_kbRows do _kbRows[i].Visible = false end
 
-        -- Auto-size height: padding(4) + title(13) + gap(2) + rows*(14+2) + padding(4)
         local rCount = #_kbRegistry
         _kbFrame.Size = UDim2.fromOffset(175, 4 + 13 + (rCount > 0 and 2 + rCount * 16 or 0) + 4)
 
@@ -1126,7 +1102,6 @@ task.spawn(function()
     end
 end)
 
--- Dragging — saves position to config on mouse-up
 do
     local UIS = game:GetService("UserInputService")
     local dragging, dragStart, frameStart = false, nil, nil
@@ -1154,6 +1129,70 @@ do
         end
     end)
 end
+
+local _starsGui = Instance.new("ScreenGui")
+_starsGui.Name           = "._astroStars"
+_starsGui.ResetOnSpawn   = false
+_starsGui.IgnoreGuiInset = true
+_starsGui.DisplayOrder   = 997
+_starsGui.Parent         = game.CoreGui
+
+local TweenService = game:GetService("TweenService")
+
+local function _spawnStar()
+    local vp     = workspace.CurrentCamera.ViewportSize
+    local length = math.random(90, 220)
+    local angle  = math.random(22, 38)
+    local rad    = math.rad(angle)
+    local speed  = math.random(350, 700)
+
+    local star = Instance.new("Frame")
+    star.Size              = UDim2.fromOffset(length, math.random(1, 2))
+    star.BackgroundColor3  = Color3.fromRGB(220, 220, 240)
+    star.BorderSizePixel   = 0
+    star.Rotation          = angle
+    star.AnchorPoint       = Vector2.new(0, 0.5)
+    star.BackgroundTransparency = 1
+    star.Parent            = _starsGui
+
+    local grad = Instance.new("UIGradient")
+    grad.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.25, 0.05),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    grad.Parent = star
+
+    local sx, sy
+    if math.random() < 0.6 then
+        sx = math.random(-length, math.floor(vp.X + length))
+        sy = -length
+    else
+        sx = -length
+        sy = math.random(-length, math.floor(vp.Y))
+    end
+    star.Position = UDim2.fromOffset(sx, sy)
+
+    local dist = vp.X + vp.Y + length * 2
+    local tw = TweenService:Create(star,
+        TweenInfo.new(dist / speed, Enum.EasingStyle.Linear),
+        { Position = UDim2.fromOffset(sx + dist * math.cos(rad), sy + dist * math.sin(rad)) }
+    )
+    tw:Play()
+    tw.Completed:Connect(function() star:Destroy() end)
+end
+
+task.spawn(function()
+
+    for _ = 1, 4 do
+        _spawnStar()
+        task.wait(math.random(1, 4) * 0.15)
+    end
+    while _starsGui.Parent do
+        _spawnStar()
+        task.wait(math.random(4, 14) * 0.1)
+    end
+end)
 
 local function saveConfig()
     _cfgEnsureDirs()
@@ -1297,10 +1336,6 @@ SettingsRGB:AddButton({
 
 if _autoLoad then pcall(loadConfig) end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  ESP RENDERING  (ScreenGui — renders below Obsidian menu via DisplayOrder)
--- ═════════════════════════════════════════════════════════════════════════════
-
 local _espGui = Instance.new("ScreenGui")
 _espGui.Name           = "_astroESP"
 _espGui.ResetOnSpawn   = false
@@ -1326,7 +1361,6 @@ local PROBE_NAMES = {
     "Left Leg","Right Leg","Left Arm","Right Arm","Torso",
 }
 
--- ── ScreenGui helpers ─────────────────────────────────────────────────────────
 local function _newContainer()
     local f = Instance.new("Frame")
     f.Size = UDim2.fromScale(1, 1)
@@ -1411,7 +1445,6 @@ local function _newHpBar(parent)
     return bg, fill
 end
 
--- ── Part cache: built once on CharacterAdded, avoids per-frame FindFirstChild ─
 local _espPartCache = {}
 
 local function _buildPartCache(userId, char)
@@ -1437,7 +1470,6 @@ end
 for _, p in ipairs(game:GetService("Players"):GetPlayers()) do _connectPartCache(p) end
 game:GetService("Players").PlayerAdded:Connect(_connectPartCache)
 
--- ── ESP data/update ───────────────────────────────────────────────────────────
 local function getESPData(uid)
     if not _espD[uid] then
         local c = _newContainer()
@@ -1493,15 +1525,12 @@ local function updateESP(p)
     local vis      = not _espVisCheck or _isVisible(hrp)
     local espColor = vis and _espVisColor or _espNoVisColor
 
-    -- Head: fall back to direct FindFirstChild if cache was built before Head replicated
     local head = pts["Head"]
     if not head or not head.Parent then
         head = char:FindFirstChild("Head")
         if head then pts["Head"] = head else hideAll(d); return end
     end
 
-    -- Feet: use the bottom of the lowest available foot/leg part for accuracy.
-    -- hum.HipHeight alone undershoots by ~0.5 stud on both R6 and R15.
     local footPart = pts["LeftFoot"] or pts["RightFoot"] or pts["Left Leg"] or pts["Right Leg"]
     local headTop  = head.Position + Vector3.new(0, head.Size.Y * 0.5, 0)
     local feetPos
@@ -1519,7 +1548,7 @@ local function updateESP(p)
     local cx    = spHrp.X
     local minY  = math.min(spHead.Y, spFeet.Y) - 4
     local maxY  = math.max(spHead.Y, spFeet.Y) + 4
-    local halfW = (maxY - minY) * 0.28   -- 0.56 total width:height — standard humanoid proportion
+    local halfW = (maxY - minY) * 0.28
     local minX  = cx - halfW
     local maxX  = cx + halfW
 
@@ -1576,12 +1605,12 @@ local function updateESP(p)
     end
 
     if _esp.skeleton then
-        -- Use live char lookup for rig detection — cache may be stale if built mid-load
+
         local isR15  = char:FindFirstChild("UpperTorso") ~= nil
         local camPos = cam.CFrame.Position
         local camLook= cam.CFrame.LookVector
 
-        local segs   -- list of {worldPos, worldPos} pairs
+        local segs
         if isR15 then
             segs = {}
             for _, c in ipairs(SKL_R15) do
@@ -1594,8 +1623,7 @@ local function updateESP(p)
                 end
             end
         else
-            -- R6: split torso into shoulder/hip so arms connect high and legs connect low.
-            -- Connecting everything from Torso center makes an X (arms cross legs diagonally).
+
             local torso    = pts["Torso"] or char:FindFirstChild("Torso")
             local headPt   = pts["Head"]  or char:FindFirstChild("Head")
             local leftArm  = pts["Left Arm"]  or char:FindFirstChild("Left Arm")
@@ -1603,7 +1631,6 @@ local function updateESP(p)
             local leftLeg  = pts["Left Leg"]  or char:FindFirstChild("Left Leg")
             local rightLeg = pts["Right Leg"] or char:FindFirstChild("Right Leg")
 
-            -- Fall back to HRP as spine center if Torso is missing (non-standard R6 rig)
             local spineRef = torso or hrp
             local shoulder, hip
             if spineRef and spineRef.Parent then
@@ -1651,9 +1678,6 @@ game:GetService("Players").PlayerRemoving:Connect(function(p)
     cleanESP(p.UserId)
 end)
 
--- ═════════════════════════════════════════════════════════════════════════════
---  CREDITS TAB
--- ═════════════════════════════════════════════════════════════════════════════
 local CreditsGB = Tabs.Credits:AddLeftGroupbox("Credits")
 local ok3, credSrc = pcall(game.HttpGet, game, getgitpath("src") .. "credits.json")
 if ok3 and credSrc then
@@ -1666,16 +1690,12 @@ if ok3 and credSrc then
     end
 end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  PLAYERS TAB
--- ═════════════════════════════════════════════════════════════════════════════
 do
     local Players = game:GetService("Players")
 
     local PlayersLeft  = Tabs.Players:AddLeftGroupbox("Players")
     local PlayersRight = Tabs.Players:AddRightGroupbox("Selected Player")
 
-    -- ── Left: searchable dropdown ─────────────────────────────────────────────
     local _countLbl = PlayersLeft:AddLabel("0 players online")
 
     local _selectedPlayer = nil
@@ -1701,7 +1721,6 @@ do
         end,
     })
 
-    -- ── Right: live info + actions ────────────────────────────────────────────
     local _nameLbl  = PlayersRight:AddLabel("No player selected")
     local _statsLbl = PlayersRight:AddLabel("")
 
@@ -1811,12 +1830,11 @@ do
         })
     end
 
-    -- ── Live HP / distance labels ─────────────────────────────────────────────
     task.spawn(function()
         while true do
             local p = _selectedPlayer
             if p and p.Parent then
-                -- Truncate long display names so the right column doesn't overflow
+
                 local dname = p.DisplayName
                 if #dname > 20 then dname = dname:sub(1, 18) .. ".." end
                 local nameStr = dname .. (p.DisplayName ~= p.Name and ("  (@" .. p.Name .. ")") or "")
@@ -1845,7 +1863,6 @@ do
         end
     end)
 
-    -- ── Dynamic join / leave ──────────────────────────────────────────────────
     local function updateList()
         local names = getOtherNames()
         local count = #names
@@ -1866,9 +1883,6 @@ do
 
 end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  GAME TAB — load module
--- ═════════════════════════════════════════════════════════════════════════════
 GameRGB:AddLabel("PlaceId:  " .. tostring(game.PlaceId))
 GameRGB:AddButton({Text = "Copy PlaceId", Func = function()
     pcall(function() setclipboard(tostring(game.PlaceId)) end)
@@ -1888,9 +1902,6 @@ else
     end})
 end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  GAMESLIST TAB
--- ═════════════════════════════════════════════════════════════════════════════
 local GameslistGB  = Tabs.Gameslist:AddLeftGroupbox("Teleport")
 local GameslistRGB = Tabs.Gameslist:AddRightGroupbox("Info")
 
@@ -1922,9 +1933,6 @@ if ok2 and listSrc then
     end
 end
 
--- ═════════════════════════════════════════════════════════════════════════════
---  UNLOAD
--- ═════════════════════════════════════════════════════════════════════════════
 getgenv()._astroUnload = function()
     getgenv()._astroFlying       = false
     getgenv()._astroNoclip       = false
@@ -1993,7 +2001,8 @@ getgenv()._astroUnload = function()
     _esp.health   = false
     for uid in pairs(_espD) do cleanESP(uid) end
     pcall(function() _espGui:Destroy() end)
-    pcall(function() _kbGui:Destroy()  end)
+    pcall(function() _kbGui:Destroy()    end)
+    pcall(function() _starsGui:Destroy() end)
 
     pcall(function() Library:Unload() end)
 end
