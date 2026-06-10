@@ -399,10 +399,10 @@ return function(section)
                     local server = coin.Parent
                     if server and server:IsA("BasePart") and server.Parent then
                         hrp.CFrame = CFrame.new(floorBelow(server.Position))
-                        task.wait(0.1)
+                        task.wait(0.2)
                         pcall(firetouchinterest, server, hrp, 0)
                         pcall(firetouchinterest, server, hrp, 1)
-                        task.wait(0.5)
+                        task.wait(1.5)
                     end
                 end
                 task.wait(1)
