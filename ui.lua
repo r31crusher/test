@@ -291,6 +291,37 @@ local _setFlySpeed = function(v) _setFlySpeed_obj:SetValue(v) end
 
 UnivL:AddLabel("── Misc ──────────────────────────────────")
 
+getgenv()._astroWalkFling = false
+movL:AddToggle(uid("tog"), {
+    Text     = "Walk Fling",
+    Default  = false,
+    Callback = function(v)
+        getgenv()._astroWalkFling = v
+        if not v then return end
+        task.spawn(function()
+            local movel = 0.1
+            while getgenv()._astroWalkFling do
+                RunService.Heartbeat:Wait()
+                local char = plr.Character
+                local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+                if char and char.Parent and root and root.Parent then
+                    local vel = root.Velocity
+                    root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                    RunService.RenderStepped:Wait()
+                    if root and root.Parent then root.Velocity = vel end
+                    RunService.Stepped:Wait()
+                    if root and root.Parent then
+                        root.Velocity = vel + Vector3.new(0, movel, 0)
+                        movel = movel * -1
+                    end
+                else
+                    RunService.Heartbeat:Wait()
+                end
+            end
+        end)
+    end,
+})
+
 getgenv()._astroNoclip = false
 local _noclipParts = {}
 
