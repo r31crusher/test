@@ -380,9 +380,10 @@ return function(section)
                 if hrp then
                     for _, coin in CollectionService:GetTagged("CoinVisual") do
                         if not getgenv()._mm2_coins then break end
-                        if not coin:GetAttribute("Collected") and coin.Parent then
-                            pcall(firetouchinterest, coin, hrp, 0)
-                            pcall(firetouchinterest, coin, hrp, 1)
+                        local server = coin.Parent
+                        if not coin:GetAttribute("Collected") and server and server:IsA("BasePart") then
+                            pcall(firetouchinterest, server, hrp, 0)
+                            pcall(firetouchinterest, server, hrp, 1)
                         end
                     end
                 end
