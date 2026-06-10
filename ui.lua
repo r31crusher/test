@@ -212,7 +212,7 @@ _flyTog = movL:AddToggle(uid("tog"), {
 })
 local setFly = function(v) _flyTog:SetValue(v) end
 
-local _flyKP = _flyTog:AddKeyPicker({
+local _flyKP = _flyTog:AddKeyPicker(uid("kp"), {
     Text            = "Fly Key",
     Default         = "F",
     Mode            = "Toggle",
@@ -257,7 +257,7 @@ _noclipTog = movR:AddToggle(uid("tog"), {
 })
 local setNoclip = function(v) _noclipTog:SetValue(v) end
 
-local _noclipKP = _noclipTog:AddKeyPicker({
+local _noclipKP = _noclipTog:AddKeyPicker(uid("kp"), {
     Text            = "Noclip Key",
     Default         = "V",
     Mode            = "Toggle",
@@ -469,7 +469,7 @@ _aimbotTog = cmbL:AddToggle(uid("tog"), {
 })
 local _setAimbot = function(v) _aimbotTog:SetValue(v) end
 
-local _aimbotKP = _aimbotTog:AddKeyPicker({
+local _aimbotKP = _aimbotTog:AddKeyPicker(uid("kp"), {
     Text            = "Aimbot Key",
     Default         = "E",
     Mode            = "Hold",
