@@ -402,7 +402,7 @@ return function(section)
                         task.wait(0.2)
                         pcall(firetouchinterest, server, hrp, 0)
                         pcall(firetouchinterest, server, hrp, 1)
-                        task.wait(1.5)
+                        task.wait(2)
                     end
                 end
                 task.wait(1)
