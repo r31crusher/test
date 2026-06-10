@@ -381,10 +381,11 @@ return function(section)
                 if hrp then
                     for _, coin in CollectionService:GetTagged("CoinVisual") do
                         if not getgenv()._mm2_coins or collected >= 30 then break end
-                        if not coin:GetAttribute("Collected") and coin.Parent and coin.Parent:IsA("BasePart") then
-                            hrp.CFrame = coin.Parent.CFrame
+                        local server = coin.Parent
+                        if server and server:IsA("BasePart") and server.Parent then
+                            hrp.CFrame = CFrame.new(server.Position + Vector3.new(0, 3, 0))
                             collected += 1
-                            task.wait(0.1)
+                            task.wait(0.3)
                         end
                     end
                 end
