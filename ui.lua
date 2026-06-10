@@ -14,25 +14,12 @@ Library.Scheme.AccentColor     = Color3.fromRGB(220, 220, 240)
 Library.Scheme.OutlineColor    = Color3.fromRGB(28, 28, 40)
 Library.Scheme.FontColor       = Color3.new(1, 1, 1)
 
-local _logoAsset
-if type(isfile) == "function" and type(writefile) == "function" and type(getcustomasset) == "function" then
-    pcall(function()
-        if not isfile("_astro_logo.jpg") then
-            writefile("_astro_logo.jpg", game:HttpGet(
-                "https://raw.githubusercontent.com/r31crusher/test/main/assets/astro.jpg", true))
-        end
-        _logoAsset = getcustomasset("_astro_logo.jpg")
-    end)
-end
-
 local Window = Library:CreateWindow({
     Title         = "Astro",
     Footer        = "v2.0  |  Insert to toggle",
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
     Size          = UDim2.fromOffset(820, 640),
-    Icon     = _logoAsset and {Url = _logoAsset, ImageRectOffset = Vector2.new(0,0), ImageRectSize = Vector2.new(0,0)} or nil,
-    IconSize = UDim2.fromOffset(28, 28),
 })
 
 local Tabs = {
