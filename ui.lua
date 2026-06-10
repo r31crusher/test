@@ -1691,7 +1691,7 @@ do
     local function getOtherNames()
         local names = {}
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= plr then table.insert(names, p.Name) end
+            if p ~= plr then table.insert(names, p.DisplayName) end
         end
         table.sort(names)
         return names
@@ -1704,7 +1704,11 @@ do
         AllowNull  = true,
         Searchable = true,
         Callback   = function(v)
-            _selectedPlayer = v and Players:FindFirstChild(v) or nil
+            if not v then _selectedPlayer = nil; return end
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.DisplayName == v then _selectedPlayer = p; return end
+            end
+            _selectedPlayer = nil
         end,
     })
 
@@ -1729,52 +1733,53 @@ do
 
     PlayersRight:AddButton({Text = "Fling", Func = function()
         local p = _selectedPlayer; if not p then return end
-        local myChar  = plr.Character
-        local myHRP   = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        local tgtChar = p.Character
-        local tgtHRP  = tgtChar and tgtChar:FindFirstChild("HumanoidRootPart")
-        local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
-        if not myHRP or not tgtHRP or not tgtHum then return end
+        local myChar = plr.Character
+        local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local tgtHRP = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+        if not myHRP or not tgtHRP then return end
 
-        local savedCF = myHRP.CFrame
         local myHum   = myChar:FindFirstChildOfClass("Humanoid")
-        local angle, offIdx = 0, 1
-        local offsets = {
-            CFrame.new( 0,     1.5,  0   ),
-            CFrame.new( 0,    -1.5,  0   ),
-            CFrame.new( 2.25,  1.5, -2.25),
-            CFrame.new(-2.25, -1.5,  2.25),
-        }
+        local savedCF = myHRP.CFrame
+
         if myHum then
-            myHum.Health = myHum.MaxHealth
+            myHum.PlatformStand = true
             myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
         end
+
         local bv = Instance.new("BodyVelocity")
-        bv.Velocity = Vector3.new(16384, -16384, 16384)
-        bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
-        bv.P = 9e8; bv.Parent = myHRP
+        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+        bv.P        = 1e9
+        bv.Velocity = Vector3.new(0, 1e6, 0)
+        bv.Parent   = myHRP
+
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        bg.P         = 1e9
+        bg.CFrame    = myHRP.CFrame
+        bg.Parent    = myHRP
+
         task.spawn(function()
-            local iters = 0
-            while iters < 120 and tgtHRP.Parent do
-                local vel = tgtHRP.AssemblyLinearVelocity.Magnitude
-                if vel > 500 then break end
-                if vel < 50 then angle = (angle + 100) % 360 end
-                offIdx = offIdx % #offsets + 1
-                local moveOff = tgtHum.MoveDirection * (tgtHRP.AssemblyLinearVelocity.Magnitude / 1.25)
-                myHRP.CFrame = tgtHRP.CFrame * CFrame.Angles(math.pi, 0, 0)
-                    * offsets[offIdx] * CFrame.Angles(math.rad(angle), 0, 0) + moveOff
-                iters += 1; RunService.Heartbeat:Wait()
+            local t0 = os.clock()
+            while os.clock() - t0 < 0.8 and tgtHRP.Parent do
+                local a  = os.clock() * 50
+                local s, c = math.sin(a), math.cos(a)
+                myHRP.CFrame = CFrame.new(tgtHRP.Position + Vector3.new(s * 0.1, 0, c * 0.1))
+                bv.Velocity  = Vector3.new(s * 1e6, 1e6, c * 1e6)
+                RunService.Heartbeat:Wait()
             end
-            bv:Destroy(); task.wait(0.1)
+
+            bv:Destroy(); bg:Destroy()
+            task.wait(0.25)
+
             if myHRP and myHRP.Parent then
-                myHRP.CFrame = savedCF
+                myHRP.CFrame                  = savedCF
                 myHRP.AssemblyLinearVelocity  = Vector3.zero
                 myHRP.AssemblyAngularVelocity = Vector3.zero
             end
             if myHum then
-                myHum.Health = myHum.MaxHealth
-                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
                 myHum.PlatformStand = false
+                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                myHum.Health = myHum.MaxHealth
             end
         end)
     end})
