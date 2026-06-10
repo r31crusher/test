@@ -1734,54 +1734,96 @@ do
     PlayersRight:AddButton({Text = "Fling", Func = function()
         local p = _selectedPlayer; if not p then return end
         local myChar = plr.Character
-        local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        local tgtHRP = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-        if not myHRP or not tgtHRP then return end
+        local myHum  = myChar and myChar:FindFirstChildOfClass("Humanoid")
+        local myHRP  = myHum and myHum.RootPart
+        local tgtChar = p.Character
+        local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+        local tgtHRP  = tgtHum and tgtHum.RootPart
+        local tgtHead = tgtChar and (tgtChar:FindFirstChild("Head") or tgtChar:FindFirstChild("UpperTorso"))
+        if not myChar or not myHum or not myHRP then return end
+        if not tgtChar or (not tgtHRP and not tgtHead) then return end
 
-        local myHum   = myChar:FindFirstChildOfClass("Humanoid")
-        local savedCF = myHRP.CFrame
+        local savedCF        = myHRP.CFrame
+        local orgFallHeight  = workspace.FallenPartsDestroyHeight
 
-        if myHum then
-            myHum.PlatformStand = true
-            myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        local function fpos(base, pos, ang)
+            local cf = CFrame.new(base.Position) * pos * ang
+            myHRP.CFrame = cf
+            myChar:SetPrimaryPartCFrame(cf)
+            myHRP.Velocity    = Vector3.new(9e7, 9e7 * 10, 9e7)
+            myHRP.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
         end
 
+        local function sfbase(base)
+            local deadline = tick() + 2
+            local angle    = 0
+            repeat
+                if not myHRP or not tgtHum then break end
+                if base.Velocity.Magnitude < 50 then
+                    angle += 100
+                    local md = tgtHum.MoveDirection * (base.Velocity.Magnitude / 1.25)
+                    fpos(base, CFrame.new( 0,     1.5,  0   ) + md, CFrame.Angles(math.rad(angle), 0, 0)) task.wait()
+                    fpos(base, CFrame.new( 0,    -1.5,  0   ) + md, CFrame.Angles(math.rad(angle), 0, 0)) task.wait()
+                    fpos(base, CFrame.new( 2.25,  1.5, -2.25) + md, CFrame.Angles(math.rad(angle), 0, 0)) task.wait()
+                    fpos(base, CFrame.new(-2.25, -1.5,  2.25) + md, CFrame.Angles(math.rad(angle), 0, 0)) task.wait()
+                    fpos(base, CFrame.new( 0,     1.5,  0   ) + tgtHum.MoveDirection, CFrame.Angles(math.rad(angle), 0, 0)) task.wait()
+                    fpos(base, CFrame.new( 0,    -1.5,  0   ) + tgtHum.MoveDirection, CFrame.Angles(math.rad(angle), 0, 0)) task.wait()
+                else
+                    local ws = tgtHum.WalkSpeed
+                    local rv = tgtHRP and (tgtHRP.Velocity.Magnitude / 1.25) or ws
+                    fpos(base, CFrame.new(0,  1.5,  ws), CFrame.Angles(math.rad(90),  0, 0)) task.wait()
+                    fpos(base, CFrame.new(0, -1.5, -ws), CFrame.Angles(0, 0, 0))             task.wait()
+                    fpos(base, CFrame.new(0,  1.5,  ws), CFrame.Angles(math.rad(90),  0, 0)) task.wait()
+                    fpos(base, CFrame.new(0,  1.5,  rv), CFrame.Angles(math.rad(90),  0, 0)) task.wait()
+                    fpos(base, CFrame.new(0, -1.5, -rv), CFrame.Angles(0, 0, 0))             task.wait()
+                    fpos(base, CFrame.new(0,  1.5,  rv), CFrame.Angles(math.rad(90),  0, 0)) task.wait()
+                    fpos(base, CFrame.new(0, -1.5,  0 ), CFrame.Angles(math.rad(90),  0, 0)) task.wait()
+                    fpos(base, CFrame.new(0, -1.5,  0 ), CFrame.Angles(0, 0, 0))             task.wait()
+                    fpos(base, CFrame.new(0, -1.5,  0 ), CFrame.Angles(math.rad(-90), 0, 0)) task.wait()
+                    fpos(base, CFrame.new(0, -1.5,  0 ), CFrame.Angles(0, 0, 0))             task.wait()
+                end
+            until base.Velocity.Magnitude > 500
+                or base.Parent ~= tgtChar
+                or p.Parent ~= game:GetService("Players")
+                or tgtHum.Sit
+                or myHum.Health <= 0
+                or tick() > deadline
+        end
+
+        workspace.FallenPartsDestroyHeight = 0 / 0
+
         local bv = Instance.new("BodyVelocity")
-        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-        bv.P        = 1e9
-        bv.Velocity = Vector3.new(0, 1e6, 0)
+        bv.Velocity = Vector3.new(9e8, 9e8, 9e8)
+        bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
         bv.Parent   = myHRP
 
-        local bg = Instance.new("BodyGyro")
-        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-        bg.P         = 1e9
-        bg.CFrame    = myHRP.CFrame
-        bg.Parent    = myHRP
+        myHum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
-        task.spawn(function()
-            local t0 = os.clock()
-            while os.clock() - t0 < 0.8 and tgtHRP.Parent do
-                local a  = os.clock() * 50
-                local s, c = math.sin(a), math.cos(a)
-                myHRP.CFrame = CFrame.new(tgtHRP.Position + Vector3.new(s * 0.1, 0, c * 0.1))
-                bv.Velocity  = Vector3.new(s * 1e6, 1e6, c * 1e6)
-                RunService.Heartbeat:Wait()
-            end
+        local base = tgtHRP or tgtHead
+        if tgtHRP and tgtHead then
+            base = ((tgtHRP.Position - tgtHead.Position).Magnitude > 5) and tgtHead or tgtHRP
+        end
+        if base then sfbase(base) end
 
-            bv:Destroy(); bg:Destroy()
-            task.wait(0.25)
+        bv:Destroy()
+        myHum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+        workspace.CurrentCamera.CameraSubject = myHum
 
-            if myHRP and myHRP.Parent then
-                myHRP.CFrame                  = savedCF
-                myHRP.AssemblyLinearVelocity  = Vector3.zero
-                myHRP.AssemblyAngularVelocity = Vector3.zero
+        repeat
+            local restoreCF = savedCF * CFrame.new(0, 0.5, 0)
+            myHRP.CFrame = restoreCF
+            myChar:SetPrimaryPartCFrame(restoreCF)
+            myHum:ChangeState("GettingUp")
+            for _, part in myChar:GetChildren() do
+                if part:IsA("BasePart") then
+                    part.Velocity    = Vector3.zero
+                    part.RotVelocity = Vector3.zero
+                end
             end
-            if myHum then
-                myHum.PlatformStand = false
-                myHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-                myHum.Health = myHum.MaxHealth
-            end
-        end)
+            task.wait()
+        until (myHRP.Position - savedCF.p).Magnitude < 25
+
+        workspace.FallenPartsDestroyHeight = orgFallHeight
     end})
 
     PlayersRight:AddLabel("─────────────────────────")
