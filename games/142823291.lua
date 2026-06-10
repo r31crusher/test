@@ -377,29 +377,38 @@ return function(section)
         return result and (result.Position + Vector3.new(0, 3, 0)) or (pos + Vector3.new(0, 3, 0))
     end
 
+    local CoinCollected = GameplayR:WaitForChild("CoinCollected")
+
     getgenv()._mm2_coins = false
     elements:Toggle("Auto Collect Coins", section, function(v)
         getgenv()._mm2_coins = v
         if not v then return end
         task.spawn(function()
-            local collected = 0
+            local pouched = 0
             local char = player.Character
             local hrp  = char and char:FindFirstChild("HumanoidRootPart")
             if not hrp then getgenv()._mm2_coins = false return end
 
-            for _, coin in CollectionService:GetTagged("CoinVisual") do
-                if not getgenv()._mm2_coins or collected >= 30 then break end
-                local server = coin.Parent
-                if server and server:IsA("BasePart") and server.Parent then
-                    hrp.CFrame = CFrame.new(floorBelow(server.Position))
-                    task.wait(0.2)
-                    pcall(firetouchinterest, server, hrp, 0)
-                    pcall(firetouchinterest, server, hrp, 1)
-                    collected += 1
-                    task.wait(2)
+            local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
+                if type(count) == "number" then pouched = count end
+            end)
+
+            while getgenv()._mm2_coins and pouched < 40 do
+                for _, coin in CollectionService:GetTagged("CoinVisual") do
+                    if not getgenv()._mm2_coins or pouched >= 40 then break end
+                    local server = coin.Parent
+                    if server and server:IsA("BasePart") and server.Parent then
+                        hrp.CFrame = CFrame.new(floorBelow(server.Position))
+                        task.wait(0.1)
+                        pcall(firetouchinterest, server, hrp, 0)
+                        pcall(firetouchinterest, server, hrp, 1)
+                        task.wait(0.5)
+                    end
                 end
+                task.wait(1)
             end
 
+            countConn:Disconnect()
             getgenv()._mm2_coins = false
         end)
     end)
