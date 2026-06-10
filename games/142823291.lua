@@ -368,7 +368,14 @@ return function(section)
 
 
     local CollectionService = game:GetService("CollectionService")
-    local GetCoin = GameplayR:WaitForChild("GetCoin")
+
+    local function floorBelow(pos)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = { player.Character }
+        local result = workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -30, 0), params)
+        return result and (result.Position + Vector3.new(0, 3, 0)) or (pos + Vector3.new(0, 3, 0))
+    end
 
     getgenv()._mm2_coins = false
     elements:Toggle("Auto Collect Coins", section, function(v)
@@ -376,20 +383,23 @@ return function(section)
         if not v then return end
         task.spawn(function()
             local collected = 0
-            while getgenv()._mm2_coins and collected < 30 do
-                for _, coin in CollectionService:GetTagged("CoinVisual") do
-                    if not getgenv()._mm2_coins or collected >= 30 then break end
-                    if not coin:GetAttribute("Collected") then
-                        local coinId = coin:GetAttribute("CoinID")
-                        if coinId then
-                            pcall(function() GetCoin:FireServer(coinId) end)
-                            collected += 1
-                            task.wait(0.1)
-                        end
-                    end
+            local char = player.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then getgenv()._mm2_coins = false return end
+
+            for _, coin in CollectionService:GetTagged("CoinVisual") do
+                if not getgenv()._mm2_coins or collected >= 30 then break end
+                local server = coin.Parent
+                if server and server:IsA("BasePart") and server.Parent then
+                    hrp.CFrame = CFrame.new(floorBelow(server.Position))
+                    task.wait(0.2)
+                    pcall(firetouchinterest, server, hrp, 0)
+                    pcall(firetouchinterest, server, hrp, 1)
+                    collected += 1
+                    task.wait(2)
                 end
-                task.wait(1)
             end
+
             getgenv()._mm2_coins = false
         end)
     end)
