@@ -1070,10 +1070,9 @@ _kbTitle.LayoutOrder          = 0
 local _kbRows = {}
 
 local function _getKeyName(kp)
+    -- kp.Value is a plain string ("F", "MB1", "None", etc.)
     local ok, v = pcall(function() return kp.Value end)
-    if not ok then return "?" end
-    local s = tostring(v)
-    return s:match("Enum%.KeyCode%.(.+)") or s:match("%.(%w+)$") or s
+    return (ok and v and tostring(v)) or "?"
 end
 
 -- Update loop: refresh text/colors and auto-size frame
@@ -1098,10 +1097,13 @@ task.spawn(function()
         end
 
         for i, entry in ipairs(_kbRegistry) do
-            local key    = _getKeyName(entry.kp)
-            local active = pcall(entry.getActive) and entry.getActive()
-            local mode   = entry.mode == "Hold" and "(Hold)" or "(Toggle)"
-            local row    = _kbRows[i]
+            local key  = _getKeyName(entry.kp)
+            -- Read mode live from the KeyPicker object so menu changes reflect instantly
+            local modeOk, modeVal = pcall(function() return entry.kp.Mode end)
+            local mode = "(" .. (modeOk and modeVal or entry.mode) .. ")"
+            local activeOk, active = pcall(entry.getActive)
+            active = activeOk and active or false
+            local row = _kbRows[i]
             row.Text       = "[" .. key .. "]  " .. entry.label .. "  " .. mode
             row.TextColor3 = active
                 and Color3.fromRGB(85, 225, 85)
