@@ -1722,7 +1722,9 @@ do
     local function getOtherNames()
         local names = {}
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= plr then table.insert(names, p.DisplayName) end
+            if p ~= plr then
+                table.insert(names, p.DisplayName .. " (@" .. p.Name .. ")")
+            end
         end
         table.sort(names)
         return names
@@ -1736,10 +1738,8 @@ do
         Searchable = true,
         Callback   = function(v)
             if not v then _selectedPlayer = nil; return end
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p.DisplayName == v then _selectedPlayer = p; return end
-            end
-            _selectedPlayer = nil
+            local username = v:match("@([^%)]+)")
+            _selectedPlayer = username and Players:FindFirstChild(username) or nil
         end,
     })
 
