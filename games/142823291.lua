@@ -378,14 +378,22 @@ return function(section)
             while getgenv()._mm2_coins and collected < 30 do
                 local char = player.Character
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then
+                local hum  = char and char:FindFirstChildOfClass("Humanoid")
+                if hrp and hum then
                     for _, coin in CollectionService:GetTagged("CoinVisual") do
                         if not getgenv()._mm2_coins or collected >= 30 then break end
                         local server = coin.Parent
                         if server and server:IsA("BasePart") and server.Parent then
-                            hrp.CFrame = CFrame.new(server.Position + Vector3.new(0, 3, 0))
+                            hum:MoveTo(server.Position)
+                            local done = false
+                            local conn = hum.MoveToFinished:Connect(function() done = true end)
+                            local deadline = tick() + 6
+                            while not done and tick() < deadline and getgenv()._mm2_coins do
+                                task.wait(0.1)
+                            end
+                            conn:Disconnect()
                             collected += 1
-                            task.wait(0.8)
+                            task.wait(0.2)
                         end
                     end
                 end
