@@ -555,11 +555,7 @@ _aimbotTog:AddKeyPicker(_aimbotKPIdx, {
     Default         = "E",
     Mode            = "Hold",
     SyncToggleState = false,
-    Callback = function(v)
-        if getgenv()._aimEnabled then
-            getgenv()._astroAiming = v
-        end
-    end,
+    Callback = function() end,
 })
 local _aimbotKP = Library.Options and Library.Options[_aimbotKPIdx]
 _kbRegister("Aimbot", _aimbotKP, function() return _aimbotTog.Value end, "Hold")
@@ -610,8 +606,23 @@ local _setAimVisCheck_obj = cmbL:AddToggle(uid("tog"), {
 })
 local _setAimVisCheck = function(v) _setAimVisCheck_obj:SetValue(v) end
 
+local function _isAimKeyHeld()
+    if not getgenv()._aimEnabled then return false end
+    if not _aimbotKP then return false end
+    local ok, held = pcall(function()
+        local key = _aimbotKP.Value
+        if not key or key == "None" then return false end
+        local kc = Enum.KeyCode[key]
+        if kc then return UserInputService:IsKeyDown(kc) end
+        local uik = Enum.UserInputType[key]
+        if uik then return UserInputService:IsMouseButtonPressed(uik) end
+        return false
+    end)
+    return ok and held
+end
+
 RunService:BindToRenderStep("AstroAim", Enum.RenderPriority.Last.Value, function()
-    if not getgenv()._astroAiming then return end
+    if not _isAimKeyHeld() then return end
     local target = getAimTarget()
     if not target then return end
     if _aimMode == "Legacy" then
