@@ -374,21 +374,23 @@ return function(section)
         getgenv()._mm2_coins = v
         if not v then return end
         task.spawn(function()
-            while getgenv()._mm2_coins do
+            local collected = 0
+            while getgenv()._mm2_coins and collected < 30 do
                 local char = player.Character
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp then
                     for _, coin in CollectionService:GetTagged("CoinVisual") do
-                        if not getgenv()._mm2_coins then break end
-                        local server = coin.Parent
-                        if not coin:GetAttribute("Collected") and server and server:IsA("BasePart") then
-                            pcall(firetouchinterest, server, hrp, 0)
-                            pcall(firetouchinterest, server, hrp, 1)
+                        if not getgenv()._mm2_coins or collected >= 30 then break end
+                        if not coin:GetAttribute("Collected") and coin.Parent and coin.Parent:IsA("BasePart") then
+                            hrp.CFrame = coin.Parent.CFrame
+                            collected += 1
+                            task.wait(0.1)
                         end
                     end
                 end
                 task.wait(0.5)
             end
+            getgenv()._mm2_coins = false
         end)
     end)
 
