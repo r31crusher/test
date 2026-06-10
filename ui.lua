@@ -5,7 +5,8 @@ local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
 local plr              = game:GetService("Players").LocalPlayer
 
-local Library = loadstring(game:HttpGet(getgitpath("src") .. "Library.lua"))()
+local repo    = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 
 Library.Scheme.BackgroundColor = Color3.fromRGB(9,  11, 17)
 Library.Scheme.MainColor       = Color3.fromRGB(16, 19, 26)
