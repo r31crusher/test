@@ -384,16 +384,13 @@ return function(section)
                         local server = coin.Parent
                         if server and server:IsA("BasePart") and server.Parent then
                             local target = server.Position + Vector3.new(0, 3, 0)
-                            local origin = hrp.Position
-                            local dist   = (target - origin).Magnitude
-                            local steps  = math.max(1, math.ceil(dist / 30))
-                            for i = 1, steps do
-                                if not getgenv()._mm2_coins then break end
-                                hrp.CFrame = CFrame.new(origin:Lerp(target, i / steps))
-                                task.wait(0.1)
-                            end
+                            hrp.Anchored = true
+                            task.wait(0.05)
+                            hrp.CFrame = CFrame.new(target)
+                            task.wait(0.1)
+                            hrp.Anchored = false
                             collected += 1
-                            task.wait(1)
+                            task.wait(1.5)
                         end
                     end
                 end
