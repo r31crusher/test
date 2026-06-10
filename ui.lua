@@ -5,25 +5,13 @@ local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
 local plr              = game:GetService("Players").LocalPlayer
 
-local repo    = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
-local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local Library = loadstring(game:HttpGet(getgitpath("src") .. "Library.lua"))()
 
-Library.Scheme.BackgroundColor = Color3.fromRGB(6,  6,  10)
-Library.Scheme.MainColor       = Color3.fromRGB(12, 12, 18)
-Library.Scheme.AccentColor     = Color3.fromRGB(220, 220, 240)
-Library.Scheme.OutlineColor    = Color3.fromRGB(28, 28, 40)
+Library.Scheme.BackgroundColor = Color3.fromRGB(9,  11, 17)
+Library.Scheme.MainColor       = Color3.fromRGB(16, 19, 26)
+Library.Scheme.AccentColor     = Color3.fromRGB(210, 215, 240)
+Library.Scheme.OutlineColor    = Color3.fromRGB(26, 31, 48)
 Library.Scheme.FontColor       = Color3.new(1, 1, 1)
-
-local _logoAsset
-if type(isfile) == "function" and type(writefile) == "function" and type(getcustomasset) == "function" then
-    pcall(function()
-        if not isfile("_astro_logo.jpg") then
-            writefile("_astro_logo.jpg", game:HttpGet(
-                "https://raw.githubusercontent.com/r31crusher/test/main/assets/astro.jpg", true))
-        end
-        _logoAsset = getcustomasset("_astro_logo.jpg")
-    end)
-end
 
 local Window = Library:CreateWindow({
     Title         = "Astro",
@@ -31,8 +19,6 @@ local Window = Library:CreateWindow({
     ToggleKeybind = Enum.KeyCode.Insert,
     AutoShow      = true,
     Size          = UDim2.fromOffset(820, 640),
-    Icon          = _logoAsset or nil,
-    IconSize      = UDim2.fromOffset(28, 28),
 })
 
 local Tabs = {
@@ -44,6 +30,67 @@ local Tabs = {
     Settings  = Window:AddTab("Settings",  "settings"),
     Credits   = Window:AddTab("Credits",   "heart"),
 }
+
+task.defer(function()
+    local _tabOrder = {
+        Tabs.Home, Tabs.Universal, Tabs.Game,
+        Tabs.Players, Tabs.Gameslist, Tabs.Settings, Tabs.Credits,
+    }
+    local _accentMap = {}
+    for i, tabObj in ipairs(_tabOrder) do
+        local info = Library.TabButtons and Library.TabButtons[i]
+        if not info or not info.Label then continue end
+        local btn = info.Label.Parent
+        if not btn then continue end
+
+        local glow = Instance.new("Frame")
+        glow.Size                 = UDim2.new(0, 6, 0.55, 0)
+        glow.AnchorPoint          = Vector2.new(0, 0.5)
+        glow.Position             = UDim2.new(0, 0, 0.5, 0)
+        glow.BackgroundColor3     = Color3.fromRGB(210, 215, 240)
+        glow.BackgroundTransparency = 0.82
+        glow.BorderSizePixel      = 0
+        glow.ZIndex               = (btn.ZIndex or 1) + 1
+        glow.Visible              = false
+        glow.Parent               = btn
+        local gc = Instance.new("UICorner")
+        gc.CornerRadius           = UDim.new(0, 3)
+        gc.Parent                 = glow
+
+        local line = Instance.new("Frame")
+        line.Size                 = UDim2.new(0, 2, 0.55, 0)
+        line.AnchorPoint          = Vector2.new(0, 0.5)
+        line.Position             = UDim2.new(0, 0, 0.5, 0)
+        line.BackgroundColor3     = Color3.fromRGB(210, 215, 240)
+        line.BorderSizePixel      = 0
+        line.ZIndex               = (btn.ZIndex or 1) + 2
+        line.Visible              = false
+        line.Parent               = btn
+        local lc = Instance.new("UICorner")
+        lc.CornerRadius           = UDim.new(0, 1)
+        lc.Parent                 = line
+
+        _accentMap[tabObj] = {line = line, glow = glow}
+    end
+
+    local function _refreshAccents()
+        for t, parts in pairs(_accentMap) do
+            local on = (Library.ActiveTab == t)
+            parts.line.Visible = on
+            parts.glow.Visible = on
+        end
+    end
+
+    for tabObj in pairs(_accentMap) do
+        local orig = tabObj.Show
+        tabObj.Show = function(...)
+            orig(...)
+            _refreshAccents()
+        end
+    end
+
+    _refreshAccents()
+end)
 
 local _uidCtr = 0
 local function uid(p) _uidCtr += 1; return p .. tostring(_uidCtr) end
