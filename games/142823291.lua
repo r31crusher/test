@@ -385,7 +385,7 @@ return function(section)
                         if server and server:IsA("BasePart") and server.Parent then
                             hrp.CFrame = CFrame.new(server.Position + Vector3.new(0, 3, 0))
                             collected += 1
-                            task.wait(0.3)
+                            task.wait(0.8)
                         end
                     end
                 end
