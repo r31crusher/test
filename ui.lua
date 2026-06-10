@@ -212,7 +212,8 @@ _flyTog = movL:AddToggle(uid("tog"), {
 })
 local setFly = function(v) _flyTog:SetValue(v) end
 
-local _flyKP = _flyTog:AddKeyPicker(uid("kp"), {
+local _flyKPIdx = uid("kp")
+_flyTog:AddKeyPicker(_flyKPIdx, {
     Text            = "Fly Key",
     Default         = "F",
     Mode            = "Toggle",
@@ -221,6 +222,7 @@ local _flyKP = _flyTog:AddKeyPicker(uid("kp"), {
         if v ~= nil then setFly(v) end
     end,
 })
+local _flyKP = Library.Options[_flyKPIdx]
 _kbRegister("Fly", _flyKP, function() return _flyTog.Value end, "Toggle")
 
 local _setFlySpeed_obj = movL:AddSlider(uid("sld"), {
@@ -257,7 +259,8 @@ _noclipTog = movR:AddToggle(uid("tog"), {
 })
 local setNoclip = function(v) _noclipTog:SetValue(v) end
 
-local _noclipKP = _noclipTog:AddKeyPicker(uid("kp"), {
+local _noclipKPIdx = uid("kp")
+_noclipTog:AddKeyPicker(_noclipKPIdx, {
     Text            = "Noclip Key",
     Default         = "V",
     Mode            = "Toggle",
@@ -270,6 +273,7 @@ local _noclipKP = _noclipTog:AddKeyPicker(uid("kp"), {
         end
     end,
 })
+local _noclipKP = Library.Options[_noclipKPIdx]
 _kbRegister("Noclip", _noclipKP, function() return _noclipTog.Value end, "Toggle")
 
 plr.CharacterAdded:Connect(function()
@@ -469,7 +473,8 @@ _aimbotTog = cmbL:AddToggle(uid("tog"), {
 })
 local _setAimbot = function(v) _aimbotTog:SetValue(v) end
 
-local _aimbotKP = _aimbotTog:AddKeyPicker(uid("kp"), {
+local _aimbotKPIdx = uid("kp")
+_aimbotTog:AddKeyPicker(_aimbotKPIdx, {
     Text            = "Aimbot Key",
     Default         = "E",
     Mode            = "Hold",
@@ -480,6 +485,7 @@ local _aimbotKP = _aimbotTog:AddKeyPicker(uid("kp"), {
         end
     end,
 })
+local _aimbotKP = Library.Options[_aimbotKPIdx]
 _kbRegister("Aimbot", _aimbotKP, function() return _aimbotTog.Value end, "Hold")
 
 cmbL:AddDropdown(uid("dd"), {
