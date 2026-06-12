@@ -1,12 +1,43 @@
 return function(section)
-    local elements    = getgenv()._astroElements
-    local Players     = game:GetService("Players")
-    local RunSvc      = game:GetService("RunService")
-    local RS          = game:GetService("ReplicatedStorage")
-    local StarterGui  = game:GetService("StarterGui")
-    local lp          = Players.LocalPlayer
+    local elements   = getgenv()._astroElements
+    local Players    = game:GetService("Players")
+    local RunSvc     = game:GetService("RunService")
+    local RS         = game:GetService("ReplicatedStorage")
+    local lp         = Players.LocalPlayer
 
     local _conns = {}
+
+    local function notify(text)
+        local sg = Instance.new("ScreenGui")
+        sg.Name = "_astroAcNotif"
+        sg.ResetOnSpawn = false
+        sg.IgnoreGuiInset = true
+        sg.Parent = game.CoreGui
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 300, 0, 50)
+        frame.Position = UDim2.new(0.5, -150, 0, 80)
+        frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        frame.BackgroundTransparency = 0.2
+        frame.BorderSizePixel = 0
+        frame.Parent = sg
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, 0, 1, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = Color3.fromRGB(255, 70, 70)
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 14
+        lbl.Parent = frame
+
+        task.delay(5, function() sg:Destroy() end)
+    end
+
+    table.insert(_conns, RS:WaitForChild("CheatWarningEvent").OnClientEvent:Connect(function()
+        notify("Anticheat triggered!")
+    end))
 
     local _speedActive = false
     local _speedVal    = 1000
@@ -14,9 +45,7 @@ return function(section)
     local function zeroVelocity()
         local char = lp.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-        end
+        if hrp then hrp.AssemblyLinearVelocity = Vector3.zero end
     end
 
     elements:Toggle("Speed Override", section, function(v)
@@ -46,16 +75,6 @@ return function(section)
         end
     end))
 
-    table.insert(_conns, RS:WaitForChild("CheatWarningEvent").OnClientEvent:Connect(function()
-        pcall(function()
-            StarterGui:SetCore("SendNotification", {
-                Title    = "Anticheat",
-                Text     = "Cheat detected by server!",
-                Duration = 5,
-            })
-        end)
-    end))
-
     local _autoWinActive = false
 
     local function applyNoclip()
@@ -64,6 +83,17 @@ return function(section)
         for _, p in char:GetDescendants() do
             if p:IsA("BasePart") then p.CanCollide = false end
         end
+    end
+
+    local function walkTo(hum, hrp, pos)
+        local THRESH = 5
+        local timeout = os.clock() + 15
+        while _autoWinActive and os.clock() < timeout do
+            if (pos - hrp.Position).Magnitude < THRESH then return true end
+            hum:MoveTo(pos)
+            task.wait(0.1)
+        end
+        return false
     end
 
     local function collectWinBlocks()
@@ -82,34 +112,51 @@ return function(section)
         _autoWinActive = v
         if not v then return end
         task.spawn(function()
+            local checkpointsFolder = workspace:FindFirstChild("Checkpoints")
             local blocks = collectWinBlocks()
-            if #blocks == 0 then
-                _autoWinActive = false
-                return
-            end
+            if #blocks == 0 then _autoWinActive = false return end
+
             local idx = 1
             while _autoWinActive and idx <= #blocks do
                 local char = lp.Character
                 local hum  = char and char:FindFirstChildOfClass("Humanoid")
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if hum and hrp and hum.Health > 0 then
-                    applyNoclip()
-                    hum.WalkSpeed = _speedVal
-                    local entry = blocks[idx]
-                    if not entry.part.Parent then
-                        idx += 1
-                    else
-                        local dist = (entry.part.Position - hrp.Position).Magnitude
-                        if dist < 5 then
-                            idx += 1
-                            task.wait(1.5)
-                        else
-                            hum:MoveTo(entry.part.Position)
-                        end
+                if not (hum and hrp and hum.Health > 0) then task.wait(0.1) continue end
+
+                applyNoclip()
+                hum.WalkSpeed = _speedVal
+
+                local entry = blocks[idx]
+                if not entry.part.Parent then idx += 1 continue end
+
+                -- touch the stage checkpoint that precedes this win block
+                -- WinBlock N lives at the border of Stage(N+1), so checkpoint "Stage{N+1}" gates it
+                if checkpointsFolder then
+                    local cpName = "Stage" .. (entry.num + 1)
+                    local cp = checkpointsFolder:FindFirstChild(cpName)
+                    if cp and cp:IsA("BasePart") then
+                        walkTo(hum, hrp, cp.Position)
+                        task.wait(0.5)
                     end
                 end
-                task.wait(0.1)
+
+                if not _autoWinActive then break end
+
+                char = lp.Character
+                hum  = char and char:FindFirstChildOfClass("Humanoid")
+                hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if not (hum and hrp) then task.wait(0.1) continue end
+
+                applyNoclip()
+                hum.WalkSpeed = _speedVal
+
+                local reached = walkTo(hum, hrp, entry.part.Position)
+                if reached then
+                    idx += 1
+                    task.wait(1.5)
+                end
             end
+
             _autoWinActive = false
         end)
     end)
