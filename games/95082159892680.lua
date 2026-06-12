@@ -85,17 +85,6 @@ return function(section)
         end
     end
 
-    local function walkTo(hum, hrp, pos)
-        local THRESH = 5
-        local timeout = os.clock() + 15
-        while _autoWinActive and os.clock() < timeout do
-            if (pos - hrp.Position).Magnitude < THRESH then return true end
-            hum:MoveTo(pos)
-            task.wait(0.1)
-        end
-        return false
-    end
-
     local function collectWinBlocks()
         local found = {}
         for _, d in workspace:GetDescendants() do
@@ -112,7 +101,6 @@ return function(section)
         _autoWinActive = v
         if not v then return end
         task.spawn(function()
-            local checkpointsFolder = workspace:FindFirstChild("Checkpoints")
             local blocks = collectWinBlocks()
             if #blocks == 0 then _autoWinActive = false return end
 
@@ -123,38 +111,24 @@ return function(section)
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                 if not (hum and hrp and hum.Health > 0) then task.wait(0.1) continue end
 
-                applyNoclip()
-                hum.WalkSpeed = _speedVal
-
                 local entry = blocks[idx]
                 if not entry.part.Parent then idx += 1 continue end
 
-                -- touch the stage checkpoint that precedes this win block
-                -- WinBlock N lives at the border of Stage(N+1), so checkpoint "Stage{N+1}" gates it
-                if checkpointsFolder then
-                    local cpName = "Stage" .. (entry.num + 1)
-                    local cp = checkpointsFolder:FindFirstChild(cpName)
-                    if cp and cp:IsA("BasePart") then
-                        walkTo(hum, hrp, cp.Position)
-                        task.wait(0.5)
-                    end
-                end
-
-                if not _autoWinActive then break end
-
-                char = lp.Character
-                hum  = char and char:FindFirstChildOfClass("Humanoid")
-                hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if not (hum and hrp) then task.wait(0.1) continue end
-
                 applyNoclip()
                 hum.WalkSpeed = _speedVal
 
-                local reached = walkTo(hum, hrp, entry.part.Position)
-                if reached then
+                local dist = (entry.part.Position - hrp.Position).Magnitude
+                if dist < 3 then
                     idx += 1
                     task.wait(1.5)
+                elseif dist <= 10 then
+                    hum.WalkSpeed = 16
+                    hum:MoveTo(entry.part.Position)
+                else
+                    hum:MoveTo(entry.part.Position)
                 end
+
+                task.wait(0.1)
             end
 
             _autoWinActive = false
