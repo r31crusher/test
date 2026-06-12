@@ -90,17 +90,24 @@ return function(section)
     end
 
     local function watchBall(ball)
-        if ball:GetAttribute("realBall") == false then return end
-        if ball:GetAttribute("target") == player.Name then
-            startTracker(ball)
-        end
-        _ballAttrConns[ball] = ball:GetAttributeChangedSignal("target"):Connect(function()
-            if not _autoParry then return end
+        -- defer so attributes have time to replicate before we read them
+        task.defer(function()
+            if not ball or not ball.Parent then return end
+            if ball:GetAttribute("realBall") == false then return end
+
             if ball:GetAttribute("target") == player.Name then
                 startTracker(ball)
-            else
-                stopTracker(ball)
             end
+
+            _ballAttrConns[ball] = ball:GetAttributeChangedSignal("target"):Connect(function()
+                if not _autoParry then return end
+                if ball:GetAttribute("realBall") == false then return end
+                if ball:GetAttribute("target") == player.Name then
+                    startTracker(ball)
+                else
+                    stopTracker(ball)
+                end
+            end)
         end)
     end
 
