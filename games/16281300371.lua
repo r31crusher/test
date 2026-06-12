@@ -9,33 +9,49 @@ return function(section)
     local player    = Players.LocalPlayer
 
     local Remotes      = RS:WaitForChild("Remotes")
-    local ParrySuccess = Remotes:WaitForChild("ParrySuccess")
+    local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
+
+    -- ── Capture real parry args via namecall hook ─────────────────────────────
+    -- PRY (the obfuscated VM) sends a BAC hash + camera/player data.
+    -- We hook __namecall so whenever the game fires ParryAttempt legitimately
+    -- (player presses block key), we capture those exact args.
+    -- Auto-parry then replays them so the payload is identical to a real parry.
+
+    local _cachedArgs = nil
+
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local _origNamecall = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
+        if getnamecallmethod() == "FireServer" and self == ParryAttempt then
+            _cachedArgs = { ... }
+        end
+        return _origNamecall(self, ...)
+    end)
+    setreadonly(mt, true)
 
     -- ── Auto Parry ────────────────────────────────────────────────────────────
-    -- ParryAttempt:FireServer() with no args is rejected by the server.
-    -- The PRY module (obfuscated VM) sends a BAC_HASH and camera/player data
-    -- that the server validates. The in-game BlockButton GUI uses the same PRY
-    -- path (SwordsController u90 → PRY). We trigger it via firesignal so the
-    -- game's own code fires the remote with proper args.
+    local _autoParry = false
+    local _lastParry = 0
+    local COOLDOWN   = 0.4
+    local PARRY_DIST  = 10     -- studs; inside legitimate server range (~15 studs)
 
-    local _autoParry  = false
-    local _lastParry  = 0
-    local _parryCount = 0
-    local _successCount = 0
-    local COOLDOWN    = 0.35   -- seconds between trigger calls
-    local PARRY_DIST  = 13     -- studs; close enough to pass server range check
+    -- human reaction time jitter: 60–180 ms
+    local function humanDelay()
+        return math.random(60, 180) / 1000
+    end
 
     local _heartbeat
 
     local function doParry()
-        -- use the game's own BlockButton so PRY runs with correct hash/args
-        local btns = CS:GetTagged("BlockButton")
-        if btns[1] then
-            firesignal(btns[1].Activated)
-            _parryCount += 1
-            return true
+        if _cachedArgs then
+            ParryAttempt:FireServer(table.unpack(_cachedArgs))
+        else
+            local btns = CS:GetTagged("BlockButton")
+            if btns[1] then
+                firesignal(btns[1].Activated)
+            end
         end
-        return false
     end
 
     local function startAutoParry()
@@ -47,6 +63,7 @@ return function(section)
             if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
+            if char.Parent ~= workspace.Alive then return end
 
             local now = os.clock()
             if now - _lastParry < COOLDOWN then return end
@@ -60,7 +77,7 @@ return function(section)
 
                 if (ballPos - hrp.Position).Magnitude <= PARRY_DIST then
                     _lastParry = now
-                    doParry()
+                    task.delay(humanDelay(), doParry)
                     break
                 end
             end
@@ -74,30 +91,17 @@ return function(section)
         end
     end
 
-    local _successConn = ParrySuccess.OnClientEvent:Connect(function()
-        if _autoParry then _successCount += 1 end
-    end)
-
     -- ── UI ────────────────────────────────────────────────────────────────────
     elements:Toggle("Auto Parry", section, function(state)
         _autoParry = state
         if state then
-            _parryCount   = 0
-            _successCount = 0
             startAutoParry()
         else
             stopAutoParry()
         end
     end)
 
-    elements:Slider("Parry Distance (studs)", section, 5, 30, PARRY_DIST, function(val)
+    elements:Slider("Parry Distance (studs)", section, 5, 20, PARRY_DIST, function(val)
         PARRY_DIST = val
-    end)
-
-    elements:Button("Print Parry Stats", section, function()
-        print(("[BladeBall] BlockButton found: %s | attempts: %d | accepts: %d"):format(
-            tostring(CS:GetTagged("BlockButton")[1] ~= nil),
-            _parryCount, _successCount
-        ))
     end)
 end
