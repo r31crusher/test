@@ -368,49 +368,103 @@ return function(section)
 
 
     local CollectionService = game:GetService("CollectionService")
+    local CoinCollected     = GameplayR:WaitForChild("CoinCollected")
 
-    local function floorBelow(pos, coinModel)
-        local params = RaycastParams.new()
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances = { player.Character, coinModel }
-        local result = workspace:Raycast(pos + Vector3.new(0, 20, 0), Vector3.new(0, -60, 0), params)
-        return result and (result.Position + Vector3.new(0, 3, 0)) or pos
-    end
-
-    local CoinCollected = GameplayR:WaitForChild("CoinCollected")
+    local COIN_SPEED = 60
+    local COIN_REACH = 4
 
     getgenv()._mm2_coins = false
-    elements:Toggle("Auto Collect Coins", section, function(v)
-        getgenv()._mm2_coins = v
-        if not v then return end
-        task.spawn(function()
-            local pouched = 0
-            local char = player.Character
-            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then getgenv()._mm2_coins = false return end
 
-            local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
-                if type(count) == "number" then pouched = count end
-            end)
+    local function setCoinNoclip(char, on)
+        if not char then return end
+        for _, part in char:GetDescendants() do
+            if part:IsA("BasePart") then part.CanCollide = not on end
+        end
+    end
 
-            while getgenv()._mm2_coins and pouched < 40 do
-                for _, coin in CollectionService:GetTagged("CoinVisual") do
-                    if not getgenv()._mm2_coins or pouched >= 40 then break end
-                    local server = coin.Parent
-                    if server and server:IsA("BasePart") and server.Parent then
-                        hrp.CFrame = CFrame.new(floorBelow(server.Position, server.Parent))
-                        task.wait(0.2)
+    local function getNearestCoins(hrp)
+        local list = {}
+        for _, coin in CollectionService:GetTagged("CoinVisual") do
+            local server = coin.Parent
+            if server and server:IsA("BasePart") and server.Parent then
+                table.insert(list, server)
+            end
+        end
+        local pos = hrp.Position
+        table.sort(list, function(a, b)
+            return (a.Position - pos).Magnitude < (b.Position - pos).Magnitude
+        end)
+        return list
+    end
+
+    local function coinFarmLoop()
+        local char = player.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum then getgenv()._mm2_coins = false return end
+
+        local pouched = 0
+        local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
+            if type(count) == "number" then pouched = count end
+        end)
+
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bv.Velocity = Vector3.zero
+
+        local bg = Instance.new("BodyGyro", hrp)
+        bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+        bg.P = 9e4
+        bg.D = 1e3
+
+        local savedWalk = hum.WalkSpeed
+        hum.WalkSpeed = 0
+        setCoinNoclip(char, true)
+
+        while getgenv()._mm2_coins and pouched < 40 do
+            local coins = getNearestCoins(hrp)
+            if #coins == 0 then task.wait(1) break end
+
+            for _, server in coins do
+                if not getgenv()._mm2_coins or pouched >= 40 then break end
+                if not server or not server.Parent then continue end
+
+                local deadline = os.clock() + 6
+                while getgenv()._mm2_coins and os.clock() < deadline do
+                    if not server or not server.Parent then break end
+                    local diff = server.Position - hrp.Position
+                    if diff.Magnitude <= COIN_REACH then
                         pcall(firetouchinterest, server, hrp, 0)
                         pcall(firetouchinterest, server, hrp, 1)
-                        task.wait(2)
+                        bv.Velocity = Vector3.zero
+                        task.wait(0.1)
+                        break
                     end
+                    bv.Velocity = diff.Unit * COIN_SPEED
+                    bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
+                    RunSvc.Heartbeat:Wait()
                 end
-                task.wait(1)
+                bv.Velocity = Vector3.zero
             end
 
-            countConn:Disconnect()
-            getgenv()._mm2_coins = false
-        end)
+            task.wait(0.5)
+        end
+
+        bv:Destroy()
+        bg:Destroy()
+        setCoinNoclip(char, false)
+        pcall(function() hum.WalkSpeed = savedWalk end)
+        countConn:Disconnect()
+        getgenv()._mm2_coins = false
+    end
+
+    elements:Toggle("Auto Collect Coins", section, function(v)
+        getgenv()._mm2_coins = v
+        if v then task.spawn(coinFarmLoop) end
+    end)
+
+    elements:Slider("Coin Farm Speed", section, 20, 150, COIN_SPEED, function(v)
+        COIN_SPEED = v
     end)
 
     -- ── Unload ────────────────────────────────────────────────────────────────
@@ -421,6 +475,7 @@ return function(section)
         getgenv()._mm2_esp         = false
         getgenv()._mm2_rolereveal  = false
         getgenv()._mm2_coins       = false
+        setCoinNoclip(player.Character, false)
 
         WeaponService.GetMouseTargetCFrame = origGetTarget
 
