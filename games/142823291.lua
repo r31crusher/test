@@ -369,12 +369,12 @@ return function(section)
 
     local CollectionService = game:GetService("CollectionService")
 
-    local function floorBelow(pos)
+    local function floorBelow(pos, coinModel)
         local params = RaycastParams.new()
         params.FilterType = Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances = { player.Character }
-        local result = workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -30, 0), params)
-        return result and (result.Position + Vector3.new(0, 3, 0)) or (pos + Vector3.new(0, 3, 0))
+        params.FilterDescendantsInstances = { player.Character, coinModel }
+        local result = workspace:Raycast(pos + Vector3.new(0, 20, 0), Vector3.new(0, -60, 0), params)
+        return result and (result.Position + Vector3.new(0, 3, 0)) or pos
     end
 
     local CoinCollected = GameplayR:WaitForChild("CoinCollected")
@@ -398,7 +398,7 @@ return function(section)
                     if not getgenv()._mm2_coins or pouched >= 40 then break end
                     local server = coin.Parent
                     if server and server:IsA("BasePart") and server.Parent then
-                        hrp.CFrame = CFrame.new(floorBelow(server.Position))
+                        hrp.CFrame = CFrame.new(floorBelow(server.Position, server.Parent))
                         task.wait(0.2)
                         pcall(firetouchinterest, server, hrp, 0)
                         pcall(firetouchinterest, server, hrp, 1)
