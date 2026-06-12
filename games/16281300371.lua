@@ -5,30 +5,40 @@ return function(section)
     local Players   = game:GetService("Players")
     local RS        = game:GetService("ReplicatedStorage")
     local RunSvc    = game:GetService("RunService")
+    local CS        = game:GetService("CollectionService")
     local player    = Players.LocalPlayer
 
     local Remotes      = RS:WaitForChild("Remotes")
     local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
-    -- training server uses workspace.TrainingBalls; regular uses workspace.Balls
-    local BallsFolder = game.PlaceId == 15234596844
-        and workspace:WaitForChild("TrainingBalls")
-        or  workspace:WaitForChild("Balls")
+    -- workspace.TrainingBalls is a lobby-mode folder inside the main game.
+    -- The separate training server (15234596844) is a full game server that
+    -- uses workspace.Balls just like the main server.
+    local BallsFolder = workspace:WaitForChild("Balls")
+
+    -- ── Neutralise the executor-detection check inside the game's parry fn ────
+    -- SwordsController.u67 calls PluginManager():CreatePlugin():Deactivate()
+    -- inside an xpcall. In a normal game this errors (caught silently). In an
+    -- executor PluginManager may succeed, behaving differently and flagging BAC.
+    -- Override it to always error so the xpcall path is identical to a normal client.
+    if typeof(PluginManager) ~= "nil" then
+        getgenv().PluginManager = function()
+            error("not in studio")
+        end
+    end
 
     -- ── Auto Parry ────────────────────────────────────────────────────────────
     local _autoParry = false
     local _lastParry = 0
     local COOLDOWN   = 0.4
-    local PARRY_DIST = 15
+    local PARRY_DIST = 12
 
     local _heartbeat
 
     local function doParry()
-        local hash = _G.BAC_HASH
-        if hash then
-            ParryAttempt:FireServer(hash)
-        else
-            ParryAttempt:FireServer()
+        local btns = CS:GetTagged("BlockButton")
+        if btns[1] then
+            firesignal(btns[1].Activated)
         end
     end
 
@@ -41,10 +51,7 @@ return function(section)
             if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
-
-            -- training: character sits in workspace.Dead while practising
-            local parent = char.Parent
-            if parent ~= workspace.Alive and parent ~= workspace:FindFirstChild("Dead") then return end
+            if char.Parent ~= workspace.Alive then return end
 
             local now = os.clock()
             if now - _lastParry < COOLDOWN then return end
