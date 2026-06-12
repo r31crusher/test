@@ -370,7 +370,7 @@ return function(section)
     local CollectionService = game:GetService("CollectionService")
     local CoinCollected     = GameplayR:WaitForChild("CoinCollected")
 
-    local COIN_SPEED = 60
+    local COIN_SPEED = 16
     local COIN_REACH = 5
 
     getgenv()._mm2_coins = false
@@ -425,8 +425,7 @@ return function(section)
                 bv.Velocity = Vector3.zero
                 return
             end
-            local speed = math.min(COIN_SPEED, diff.Magnitude * 10)
-            bv.Velocity = diff.Unit * speed
+            bv.Velocity = diff.Unit * COIN_SPEED
             bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
         end)
 
@@ -464,7 +463,7 @@ return function(section)
         if v then task.spawn(coinFarmLoop) end
     end)
 
-    elements:Slider("Coin Farm Speed", section, 20, 150, COIN_SPEED, function(v)
+    elements:Slider("Coin Farm Speed", section, 8, 40, COIN_SPEED, function(v)
         COIN_SPEED = v
     end)
 
