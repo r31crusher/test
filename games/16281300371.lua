@@ -14,7 +14,6 @@ return function(section)
         getgenv().PluginManager = function() error("not in studio") end
     end
 
-    -- Resolve the player's block keybind from Replion for VIM fallback
     local function resolveBlockKey()
         local ok, Replion = pcall(require, RS.Packages:WaitForChild("Replion"))
         if not ok then return Enum.KeyCode.F end
@@ -28,10 +27,8 @@ return function(section)
 
     local BLOCK_KEY = resolveBlockKey()
 
-    -- ── Auto Parry ────────────────────────────────────────────────────────────
-
     local _autoParry  = false
-    local PARRY_DIST  = 35
+    local PARRY_DIST  = 50
     local PARRY_DELAY = 0
     local PARRY_HIT   = 100
 
@@ -69,6 +66,8 @@ return function(section)
 
     local function startTracker(ball)
         stopTracker(ball)
+        doParry()
+        local lastFire = os.clock()
         _ballTrackers[ball] = RunSvc.Heartbeat:Connect(function()
             if not _autoParry then return end
             if ball:GetAttribute("target") ~= player.Name then
@@ -82,8 +81,10 @@ return function(section)
             if char.Parent ~= workspace.Alive then return end
             local ok, pos = pcall(function() return ball.Position end)
             if not ok then stopTracker(ball) return end
-            if (pos - hrp.Position).Magnitude <= PARRY_DIST then
-                stopTracker(ball)
+            local dist = (pos - hrp.Position).Magnitude
+            local now  = os.clock()
+            if dist <= PARRY_DIST and now - lastFire >= 0.08 then
+                lastFire = now
                 doParry()
             end
         end)
@@ -131,8 +132,6 @@ return function(section)
         for ball in table.clone(_ballAttrConns) do unwatchBall(ball) end
     end
 
-    -- ── Ball ESP ──────────────────────────────────────────────────────────────
-
     local _espHighlights = {}
     local _espAdded      = nil
     local _espRemoved    = nil
@@ -164,10 +163,12 @@ return function(section)
 
     local function startESP()
         for _, ball in BallsFolder:GetChildren() do
-            if ball:GetAttribute("realBall") ~= false then addHighlight(ball) end
+            addHighlight(ball)
         end
         _espAdded   = BallsFolder.ChildAdded:Connect(function(ball)
-            if ball:GetAttribute("realBall") ~= false then addHighlight(ball) end
+            task.defer(function()
+                if ball and ball.Parent then addHighlight(ball) end
+            end)
         end)
         _espRemoved = BallsFolder.ChildRemoved:Connect(removeHighlight)
     end
@@ -179,13 +180,12 @@ return function(section)
         table.clear(_espHighlights)
     end
 
-    -- ── UI ────────────────────────────────────────────────────────────────────
     elements:Toggle("Auto Parry", section, function(state)
         _autoParry = state
         if state then startAutoParry() else stopAutoParry() end
     end)
 
-    elements:Slider("Parry Distance (studs)", section, 10, 50, PARRY_DIST, function(val)
+    elements:Slider("Parry Distance (studs)", section, 10, 70, PARRY_DIST, function(val)
         PARRY_DIST = val
     end)
 
