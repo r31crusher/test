@@ -28,7 +28,7 @@ return function(section)
     local BLOCK_KEY = resolveBlockKey()
 
     local _autoParry  = false
-    local PARRY_DIST  = 50
+    local PARRY_DIST  = 35
     local PARRY_DELAY = 0
     local PARRY_HIT   = 100
 
@@ -66,8 +66,6 @@ return function(section)
 
     local function startTracker(ball)
         stopTracker(ball)
-        doParry()
-        local lastFire = os.clock()
         _ballTrackers[ball] = RunSvc.Heartbeat:Connect(function()
             if not _autoParry then return end
             if ball:GetAttribute("target") ~= player.Name then
@@ -81,10 +79,8 @@ return function(section)
             if char.Parent ~= workspace.Alive then return end
             local ok, pos = pcall(function() return ball.Position end)
             if not ok then stopTracker(ball) return end
-            local dist = (pos - hrp.Position).Magnitude
-            local now  = os.clock()
-            if dist <= PARRY_DIST and now - lastFire >= 0.08 then
-                lastFire = now
+            if (pos - hrp.Position).Magnitude <= PARRY_DIST then
+                stopTracker(ball)
                 doParry()
             end
         end)
@@ -185,7 +181,7 @@ return function(section)
         if state then startAutoParry() else stopAutoParry() end
     end)
 
-    elements:Slider("Parry Distance (studs)", section, 10, 70, PARRY_DIST, function(val)
+    elements:Slider("Parry Distance (studs)", section, 10, 50, PARRY_DIST, function(val)
         PARRY_DIST = val
     end)
 
