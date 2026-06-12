@@ -447,7 +447,6 @@ return function(section)
 
             pcall(firetouchinterest, server, hrp, 0)
             pcall(firetouchinterest, server, hrp, 1)
-            task.wait(0.1)
         end
 
         countConn:Disconnect()
