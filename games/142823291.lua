@@ -371,22 +371,24 @@ return function(section)
     local CoinCollected     = GameplayR:WaitForChild("CoinCollected")
 
     local COIN_SPEED = 60
-    local COIN_REACH = 4
+    local COIN_REACH = 5
 
     getgenv()._mm2_coins = false
 
+    -- only noclip non-HRP parts so Humanoid locomotion still works
     local function setCoinNoclip(char, on)
         if not char then return end
         for _, part in char:GetDescendants() do
-            if part:IsA("BasePart") then part.CanCollide = not on end
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = not on
+            end
         end
     end
 
     local function getNearestCoin(hrp)
         local best, bestDist = nil, math.huge
-        for _, coin in CollectionService:GetTagged("CoinVisual") do
-            local server = coin.Parent
-            if server and server:IsA("BasePart") and server.Parent then
+        for _, server in CollectionService:GetTagged("ServerCoinPart") do
+            if server and server.Parent then
                 local d = (server.Position - hrp.Position).Magnitude
                 if d < bestDist then best, bestDist = server, d end
             end
@@ -395,41 +397,29 @@ return function(section)
     end
 
     local function coinFarmLoop()
-        local char = player.Character
-        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then getgenv()._mm2_coins = false return end
-
-        local pouched    = 0
-        local countConn  = CoinCollected.OnClientEvent:Connect(function(_, count)
+        local pouched   = 0
+        local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
             if type(count) == "number" then pouched = count end
         end)
 
-        local savedSpeed = hum.WalkSpeed
-        hum.WalkSpeed    = COIN_SPEED
-
-        -- BodyPosition on Y only: fights gravity so noclip doesn't make us fall
-        local bp = Instance.new("BodyPosition", hrp)
-        bp.MaxForce = Vector3.new(0, 4e4, 0)
-        bp.D        = 1000
-        bp.P        = 10000
-        bp.Position = hrp.Position
-
-        setCoinNoclip(char, true)
-
         while getgenv()._mm2_coins and pouched < 40 do
-            local server = getNearestCoin(hrp)
-            if not server then task.wait(1) break end
+            local char = player.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            local hum  = char and char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum or hum.Health <= 0 then task.wait(1) continue end
 
-            -- lock Y to coin height and walk straight to it
-            bp.Position = Vector3.new(hrp.Position.X, server.Position.Y, hrp.Position.Z)
+            local server = getNearestCoin(hrp)
+            if not server then task.wait(1) continue end
+
+            local savedSpeed = hum.WalkSpeed
+            hum.WalkSpeed    = COIN_SPEED
+            setCoinNoclip(char, true)
+
             hum:MoveTo(server.Position)
 
             local deadline = os.clock() + 8
             while getgenv()._mm2_coins and os.clock() < deadline do
                 if not server or not server.Parent then break end
-                -- keep Y locked as we approach
-                bp.Position = Vector3.new(hrp.Position.X, server.Position.Y, hrp.Position.Z)
                 if (hrp.Position - server.Position).Magnitude <= COIN_REACH then
                     pcall(firetouchinterest, server, hrp, 0)
                     pcall(firetouchinterest, server, hrp, 1)
@@ -438,12 +428,11 @@ return function(section)
                 RunSvc.Heartbeat:Wait()
             end
 
-            task.wait(0.05)
+            setCoinNoclip(char, false)
+            hum.WalkSpeed = savedSpeed
+            task.wait(0.1)
         end
 
-        bp:Destroy()
-        setCoinNoclip(char, false)
-        hum.WalkSpeed = savedSpeed
         countConn:Disconnect()
         getgenv()._mm2_coins = false
     end
@@ -455,9 +444,6 @@ return function(section)
 
     elements:Slider("Coin Farm Speed", section, 20, 150, COIN_SPEED, function(v)
         COIN_SPEED = v
-        local char = player.Character
-        local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if getgenv()._mm2_coins and hum then hum.WalkSpeed = v end
     end)
 
     -- ── Unload ────────────────────────────────────────────────────────────────
