@@ -23,7 +23,7 @@ return function(section)
     local _parryCount = 0
     local _successCount = 0
     local COOLDOWN    = 0.35   -- seconds between trigger calls
-    local PARRY_DIST  = 80     -- studs; fire early to beat server latency
+    local PARRY_DIST  = 13     -- studs; close enough to pass server range check
 
     local _heartbeat
 
@@ -90,7 +90,7 @@ return function(section)
         end
     end)
 
-    elements:Slider("Parry Distance (studs)", section, 10, 150, PARRY_DIST, function(val)
+    elements:Slider("Parry Distance (studs)", section, 5, 30, PARRY_DIST, function(val)
         PARRY_DIST = val
     end)
 
