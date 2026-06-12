@@ -7,20 +7,21 @@ return function(section)
     local RunSvc    = game:GetService("RunService")
     local player    = Players.LocalPlayer
 
-    local Remotes      = RS:WaitForChild("Remotes")
-    local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
+    local Remotes       = RS:WaitForChild("Remotes")
+    local ParryAttempt  = Remotes:WaitForChild("ParryAttempt")
+    local ParrySuccess  = Remotes:WaitForChild("ParrySuccess")
 
     -- ── Auto Parry ────────────────────────────────────────────────────────────
-    -- Balls targeting the local player live in workspace.Balls.
-    -- Each ball has a "target" attribute (player name string).
-    -- Firing ParryAttempt:FireServer() is all the server needs; it validates
-    -- range server-side, so we just need to fire when the ball is close.
-    -- Cooldown mirrors the server-side parry window (~1.5s).
+    -- Each ball in workspace.Balls has a "target" string attribute (player name).
+    -- We fire ParryAttempt:FireServer() once the ball targets us and is within
+    -- range. Distance is generous (default 80 studs) to beat network latency on
+    -- a fast-moving ball. The server validates proximity and cooldown server-side.
 
-    local _autoParry  = false
-    local _lastParry  = 0
-    local COOLDOWN    = 1.5   -- seconds between parry attempts
-    local PARRY_DIST  = 25    -- stud distance threshold to trigger parry
+    local _autoParry = false
+    local _lastParry = 0
+    local _parryCount = 0
+    local COOLDOWN   = 0.3   -- min gap between attempts (server enforces its own)
+    local PARRY_DIST = 80    -- studs; fire this far out to beat latency
 
     local _heartbeat
 
@@ -28,20 +29,31 @@ return function(section)
         if _heartbeat then return end
         _heartbeat = RunSvc.Heartbeat:Connect(function()
             if not _autoParry then return end
+
             local char = player.Character
             if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
-            if char.Parent ~= workspace.Alive then return end
+
+            -- accept both workspace.Alive and workspace.Dead (training mode)
+            local parent = char.Parent
+            if parent ~= workspace.Alive and parent ~= workspace:FindFirstChild("Dead") then return end
 
             local now = os.clock()
             if now - _lastParry < COOLDOWN then return end
 
             for _, ball in workspace.Balls:GetChildren() do
+                -- skip visual clones the client creates (realBall == false)
+                if ball:GetAttribute("realBall") == false then continue end
+
                 if ball:GetAttribute("target") == player.Name then
-                    local dist = (ball.Position - hrp.Position).Magnitude
+                    local ok, pos = pcall(function() return ball.Position end)
+                    if not ok then continue end
+
+                    local dist = (pos - hrp.Position).Magnitude
                     if dist <= PARRY_DIST then
                         _lastParry = now
+                        _parryCount += 1
                         ParryAttempt:FireServer()
                         break
                     end
@@ -57,21 +69,32 @@ return function(section)
         end
     end
 
+    -- confirm server accepted parries
+    local _successCount = 0
+    local _successConn = ParrySuccess.OnClientEvent:Connect(function()
+        if _autoParry then
+            _successCount += 1
+        end
+    end)
+
     -- ── UI ────────────────────────────────────────────────────────────────────
     elements:Toggle("Auto Parry", section, function(state)
         _autoParry = state
         if state then
+            _parryCount  = 0
+            _successCount = 0
             startAutoParry()
         else
             stopAutoParry()
         end
     end)
 
-    local distSlider = elements:Slider("Parry Distance", section, 5, 60, PARRY_DIST, function(val)
+    elements:Slider("Parry Distance (studs)", section, 10, 150, PARRY_DIST, function(val)
         PARRY_DIST = val
     end)
 
-    local coolSlider = elements:Slider("Parry Cooldown (s x10)", section, 5, 30, COOLDOWN * 10, function(val)
-        COOLDOWN = val / 10
+    -- debug button so you can confirm it's alive
+    elements:Button("Print Parry Stats", section, function()
+        print(("[BladeBall] attempts=%d  server_accepts=%d"):format(_parryCount, _successCount))
     end)
 end
