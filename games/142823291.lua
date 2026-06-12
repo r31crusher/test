@@ -370,6 +370,7 @@ return function(section)
     local CollectionService = game:GetService("CollectionService")
     local CoinCollected     = GameplayR:WaitForChild("CoinCollected")
 
+    local PFS        = game:GetService("PathfindingService")
     local COIN_SPEED = 60
     local COIN_REACH = 4
 
@@ -394,6 +395,31 @@ return function(section)
         return best
     end
 
+    local function flyTo(hrp, hum, bp, target)
+        local path = PFS:CreatePath({ AgentCanJump = true, AgentRadius = 2, AgentHeight = 5 })
+        local ok   = pcall(function() path:ComputeAsync(hrp.Position, target) end)
+
+        local waypoints = (ok and path.Status == Enum.PathStatus.Success)
+            and path:GetWaypoints()
+            or  { { Position = target } }
+
+        for _, wp in waypoints do
+            if not getgenv()._mm2_coins then return end
+            local dest = wp.Position
+            bp.Position = Vector3.new(hrp.Position.X, dest.Y, hrp.Position.Z)
+            hum:MoveTo(dest)
+
+            local deadline = os.clock() + 4
+            while getgenv()._mm2_coins and os.clock() < deadline do
+                bp.Position = Vector3.new(hrp.Position.X, dest.Y, hrp.Position.Z)
+                if (Vector3.new(hrp.Position.X, 0, hrp.Position.Z) - Vector3.new(dest.X, 0, dest.Z)).Magnitude < 2 then
+                    break
+                end
+                RunSvc.Heartbeat:Wait()
+            end
+        end
+    end
+
     local function coinFarmLoop()
         local char = player.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
@@ -405,31 +431,34 @@ return function(section)
             if type(count) == "number" then pouched = count end
         end)
 
+        local savedSpeed = hum.WalkSpeed
+        hum.WalkSpeed    = COIN_SPEED
+
+        local bp = Instance.new("BodyPosition", hrp)
+        bp.MaxForce = Vector3.new(0, 4e4, 0)
+        bp.Position = hrp.Position
+        bp.D        = 1000
+        bp.P        = 10000
+
         setCoinNoclip(char, true)
 
         while getgenv()._mm2_coins and pouched < 40 do
             local server = getNearestCoin(hrp)
             if not server then task.wait(1) break end
 
-            local target   = server.Position
-            local deadline = os.clock() + 8
+            flyTo(hrp, hum, bp, server.Position)
 
-            while getgenv()._mm2_coins and os.clock() < deadline do
-                if not server or not server.Parent then break end
-                local diff = target - hrp.Position
-                if diff.Magnitude <= COIN_REACH then
-                    pcall(firetouchinterest, server, hrp, 0)
-                    pcall(firetouchinterest, server, hrp, 1)
-                    task.wait(0.05)
-                    break
-                end
-                local dt   = RunSvc.Heartbeat:Wait()
-                local step = math.min(COIN_SPEED * dt, diff.Magnitude)
-                hrp.CFrame = CFrame.new(hrp.Position + diff.Unit * step)
+            if not getgenv()._mm2_coins then break end
+            if (hrp.Position - server.Position).Magnitude <= COIN_REACH * 3 then
+                pcall(firetouchinterest, server, hrp, 0)
+                pcall(firetouchinterest, server, hrp, 1)
             end
+            task.wait(0.1)
         end
 
+        bp:Destroy()
         setCoinNoclip(char, false)
+        hum.WalkSpeed = savedSpeed
         countConn:Disconnect()
         getgenv()._mm2_coins = false
     end
@@ -441,6 +470,9 @@ return function(section)
 
     elements:Slider("Coin Farm Speed", section, 20, 150, COIN_SPEED, function(v)
         COIN_SPEED = v
+        local char = player.Character
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if getgenv()._mm2_coins and hum then hum.WalkSpeed = v end
     end)
 
     -- ── Unload ────────────────────────────────────────────────────────────────
