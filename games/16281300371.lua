@@ -10,26 +10,18 @@ return function(section)
     local VIM         = game:GetService("VirtualInputManager")
     local BallsFolder = workspace:WaitForChild("Balls")
 
-    -- Neutralise the PluginManager executor-detection check inside u67
     if typeof(PluginManager) ~= "nil" then
         getgenv().PluginManager = function() error("not in studio") end
     end
 
-    -- Read the player's Block keybind from Replion (Settings.Keybinds.Block.PC.Bind1).
-    -- Falls back to the game default "F" if the data isn't ready or isn't a KeyCode.
     local function resolveBlockKey()
         local ok, Replion = pcall(require, RS.Packages:WaitForChild("Replion"))
         if not ok then return Enum.KeyCode.F end
-
-        local ok2, data = pcall(function()
-            return Replion.Client:WaitReplion("Data")
-        end)
+        local ok2, data = pcall(function() return Replion.Client:WaitReplion("Data") end)
         if not ok2 or not data then return Enum.KeyCode.F end
-
         local binds = data:Get({ "Settings", "Keybinds", "Block" })
         local bind1 = binds and binds.PC and binds.PC.Bind1
         if not bind1 or bind1 == "" then return Enum.KeyCode.F end
-
         return Enum.KeyCode[bind1] or Enum.KeyCode.F
     end
 
@@ -37,10 +29,10 @@ return function(section)
 
     -- ── Auto Parry ────────────────────────────────────────────────────────────
 
-    local _autoParry = false
+    local _autoParry  = false
     local PARRY_DIST  = 35
-    local PARRY_DELAY = 0    -- ms, added before firing
-    local PARRY_HIT   = 100  -- % chance to actually fire
+    local PARRY_DELAY = 0
+    local PARRY_HIT   = 100
 
     local function pressBlockKey()
         VIM:SendKeyEvent(true,  BLOCK_KEY, false, game)
@@ -49,54 +41,103 @@ return function(section)
         end)
     end
 
-    local _heartbeat
+    local function doParry()
+        if math.random(1, 100) > PARRY_HIT then return end
+        if PARRY_DELAY > 0 then
+            task.delay(PARRY_DELAY / 1000, pressBlockKey)
+        else
+            pressBlockKey()
+        end
+    end
 
-    local function startAutoParry()
-        if _heartbeat then return end
-        _heartbeat = RunSvc.Heartbeat:Connect(function()
+    -- Per-ball trackers: the moment a ball targets us we spin up a dedicated
+    -- Heartbeat just for that ball so we react the instant it enters range,
+    -- rather than waiting for a global loop to notice it.
+    local _ballTrackers  = {}  -- ball → heartbeat connection
+    local _ballAttrConns = {}  -- ball → attribute signal connection
+    local _addedConn     = nil
+    local _removedConn   = nil
+
+    local function stopTracker(ball)
+        if _ballTrackers[ball] then
+            _ballTrackers[ball]:Disconnect()
+            _ballTrackers[ball] = nil
+        end
+    end
+
+    local function startTracker(ball)
+        stopTracker(ball)
+        _ballTrackers[ball] = RunSvc.Heartbeat:Connect(function()
             if not _autoParry then return end
-
+            -- ball no longer targeting us — stop
+            if ball:GetAttribute("target") ~= player.Name then
+                stopTracker(ball)
+                return
+            end
             local char = player.Character
             if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
             if char.Parent ~= workspace.Alive then return end
-
-            for _, ball in BallsFolder:GetChildren() do
-                if ball:GetAttribute("realBall") == false then continue end
-                if ball:GetAttribute("target") ~= player.Name then continue end
-
-                local ok, ballPos = pcall(function() return ball.Position end)
-                if not ok then continue end
-
-                if (ballPos - hrp.Position).Magnitude <= PARRY_DIST then
-                    if math.random(1, 100) <= PARRY_HIT then
-                        if PARRY_DELAY > 0 then
-                            task.delay(PARRY_DELAY / 1000, pressBlockKey)
-                        else
-                            pressBlockKey()
-                        end
-                    end
-                    break
-                end
+            local ok, pos = pcall(function() return ball.Position end)
+            if not ok then stopTracker(ball) return end
+            if (pos - hrp.Position).Magnitude <= PARRY_DIST then
+                stopTracker(ball)
+                doParry()
             end
         end)
     end
 
-    local function stopAutoParry()
-        if _heartbeat then
-            _heartbeat:Disconnect()
-            _heartbeat = nil
+    local function watchBall(ball)
+        if ball:GetAttribute("realBall") == false then return end
+
+        -- react immediately if already targeting us
+        if ball:GetAttribute("target") == player.Name then
+            startTracker(ball)
         end
+
+        -- react the instant the target flips to us
+        _ballAttrConns[ball] = ball:GetAttributeChangedSignal("target"):Connect(function()
+            if not _autoParry then return end
+            if ball:GetAttribute("target") == player.Name then
+                startTracker(ball)
+            else
+                stopTracker(ball)
+            end
+        end)
+    end
+
+    local function unwatchBall(ball)
+        stopTracker(ball)
+        if _ballAttrConns[ball] then
+            _ballAttrConns[ball]:Disconnect()
+            _ballAttrConns[ball] = nil
+        end
+    end
+
+    local function startAutoParry()
+        for _, ball in BallsFolder:GetChildren() do
+            watchBall(ball)
+        end
+        _addedConn   = BallsFolder.ChildAdded:Connect(watchBall)
+        _removedConn = BallsFolder.ChildRemoved:Connect(unwatchBall)
+    end
+
+    local function stopAutoParry()
+        if _addedConn   then _addedConn:Disconnect();   _addedConn   = nil end
+        if _removedConn then _removedConn:Disconnect(); _removedConn = nil end
+        for ball in table.clone(_ballAttrConns) do unwatchBall(ball) end
     end
 
     -- ── Ball ESP ──────────────────────────────────────────────────────────────
 
-    local _espEnabled  = false
-    local _espHighlights = {}  -- ball → Highlight
+    local _espEnabled    = false
+    local _espHighlights = {}
+    local _espAdded      = nil
+    local _espRemoved    = nil
 
-    local COLOR_TARGET = Color3.fromRGB(255, 50,  50)   -- red   = heading at you
-    local COLOR_OTHER  = Color3.fromRGB(255, 255, 255)  -- white = targeting someone else
+    local COLOR_TARGET = Color3.fromRGB(255, 50,  50)
+    local COLOR_OTHER  = Color3.fromRGB(255, 255, 255)
 
     local function addHighlight(ball)
         if _espHighlights[ball] then return end
@@ -107,8 +148,6 @@ return function(section)
             and COLOR_TARGET or COLOR_OTHER
         hl.Parent = ball
         _espHighlights[ball] = hl
-
-        -- keep colour updated as the target attribute changes
         ball:GetAttributeChangedSignal("target"):Connect(function()
             if _espHighlights[ball] then
                 _espHighlights[ball].OutlineColor = ball:GetAttribute("target") == player.Name
@@ -119,25 +158,15 @@ return function(section)
 
     local function removeHighlight(ball)
         local hl = _espHighlights[ball]
-        if hl then
-            hl:Destroy()
-            _espHighlights[ball] = nil
-        end
+        if hl then hl:Destroy(); _espHighlights[ball] = nil end
     end
-
-    local _espAdded   = nil
-    local _espRemoved = nil
 
     local function startESP()
         for _, ball in BallsFolder:GetChildren() do
-            if ball:GetAttribute("realBall") ~= false then
-                addHighlight(ball)
-            end
+            if ball:GetAttribute("realBall") ~= false then addHighlight(ball) end
         end
-        _espAdded = BallsFolder.ChildAdded:Connect(function(ball)
-            if ball:GetAttribute("realBall") ~= false then
-                addHighlight(ball)
-            end
+        _espAdded   = BallsFolder.ChildAdded:Connect(function(ball)
+            if ball:GetAttribute("realBall") ~= false then addHighlight(ball) end
         end)
         _espRemoved = BallsFolder.ChildRemoved:Connect(removeHighlight)
     end
@@ -145,9 +174,7 @@ return function(section)
     local function stopESP()
         if _espAdded   then _espAdded:Disconnect();   _espAdded   = nil end
         if _espRemoved then _espRemoved:Disconnect(); _espRemoved = nil end
-        for ball, hl in _espHighlights do
-            hl:Destroy()
-        end
+        for ball, hl in _espHighlights do hl:Destroy() end
         table.clear(_espHighlights)
     end
 
