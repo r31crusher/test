@@ -74,9 +74,9 @@ return function(section)
 
                 if (ballPos - hrp.Position).Magnitude <= PARRY_DIST then
                     _lastParry = now
-                    -- human reaction: 80–160 ms random delay; miss ~12% of the time
+                    -- small random delay to avoid perfectly-instant parry detection
                     if math.random() > 0.12 then
-                        task.delay(math.random(80, 160) / 1000, pressBlockKey)
+                        task.delay(math.random(10, 50) / 1000, pressBlockKey)
                     end
                     break
                 end
