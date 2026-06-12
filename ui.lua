@@ -1251,6 +1251,9 @@ local function saveConfig()
         espNoVisColorName = _espNoVisColorName,
         kbPosX            = _kbPosX,
         kbPosY            = _kbPosY,
+        flyKey            = _flyKP    and _flyKP.Value    or nil,
+        noclipKey         = _noclipKP and _noclipKP.Value or nil,
+        aimbotKey         = _aimbotKP and _aimbotKP.Value or nil,
     }
     writefile(CFG_FILE, HttpService:JSONEncode(data))
 end
@@ -1299,6 +1302,10 @@ local function loadConfig()
     if data.kbPosY then _kbPosY = data.kbPosY end
     pcall(function() _kbFrame.Position = UDim2.fromOffset(_kbPosX, _kbPosY) end)
 
+    if data.flyKey    and _flyKP    then pcall(function() _flyKP:SetValue({data.flyKey})    end) end
+    if data.noclipKey and _noclipKP then pcall(function() _noclipKP:SetValue({data.noclipKey}) end) end
+    if data.aimbotKey and _aimbotKP then pcall(function() _aimbotKP:SetValue({data.aimbotKey}) end) end
+
     return true
 end
 
@@ -1323,6 +1330,10 @@ local function silentLoadConfig()
         _espNoVisColorName = data.espNoVisColorName
         _espNoVisColor = _espColorMap[data.espNoVisColorName] or _espNoVisColor
     end
+
+    if data.flyKey    and _flyKP    then pcall(function() _flyKP:SetValue({data.flyKey})    end) end
+    if data.noclipKey and _noclipKP then pcall(function() _noclipKP:SetValue({data.noclipKey}) end) end
+    if data.aimbotKey and _aimbotKP then pcall(function() _aimbotKP:SetValue({data.aimbotKey}) end) end
 
     return true
 end

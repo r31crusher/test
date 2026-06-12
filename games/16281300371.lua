@@ -87,25 +87,32 @@ return function(section)
     end
 
     local function watchBall(ball)
-        -- defer so attributes have time to replicate before we read them
-        task.defer(function()
+        if not ball or not ball.Parent then return end
+        if ball:GetAttribute("realBall") == false then return end
+
+        local function tryStart()
             if not ball or not ball.Parent then return end
             if ball:GetAttribute("realBall") == false then return end
-
             if ball:GetAttribute("target") == player.Name then
                 startTracker(ball)
             end
+        end
 
-            _ballAttrConns[ball] = ball:GetAttributeChangedSignal("target"):Connect(function()
-                if not _autoParry then return end
-                if ball:GetAttribute("realBall") == false then return end
-                if ball:GetAttribute("target") == player.Name then
-                    startTracker(ball)
-                else
-                    stopTracker(ball)
-                end
-            end)
+        -- connect signal first so we never miss a target change
+        _ballAttrConns[ball] = ball:GetAttributeChangedSignal("target"):Connect(function()
+            if not _autoParry then return end
+            if ball:GetAttribute("realBall") == false then return end
+            if ball:GetAttribute("target") == player.Name then
+                startTracker(ball)
+            else
+                stopTracker(ball)
+            end
         end)
+
+        -- check immediately in case attributes already set
+        tryStart()
+        -- deferred check as fallback if attributes hadn't replicated yet
+        task.defer(tryStart)
     end
 
     local function unwatchBall(ball)
