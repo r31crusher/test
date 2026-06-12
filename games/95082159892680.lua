@@ -1,8 +1,10 @@
 return function(section)
-    local elements = getgenv()._astroElements
-    local Players  = game:GetService("Players")
-    local RunSvc   = game:GetService("RunService")
-    local lp       = Players.LocalPlayer
+    local elements    = getgenv()._astroElements
+    local Players     = game:GetService("Players")
+    local RunSvc      = game:GetService("RunService")
+    local RS          = game:GetService("ReplicatedStorage")
+    local StarterGui  = game:GetService("StarterGui")
+    local lp          = Players.LocalPlayer
 
     local _conns = {}
 
@@ -44,8 +46,17 @@ return function(section)
         end
     end))
 
+    table.insert(_conns, RS:WaitForChild("CheatWarningEvent").OnClientEvent:Connect(function()
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title    = "Anticheat",
+                Text     = "Cheat detected by server!",
+                Duration = 5,
+            })
+        end)
+    end))
+
     local _autoWinActive = false
-    local _autoWinSpeed  = 5000
 
     local function applyNoclip()
         local char = lp.Character
@@ -83,7 +94,7 @@ return function(section)
                 local hrp  = char and char:FindFirstChild("HumanoidRootPart")
                 if hum and hrp and hum.Health > 0 then
                     applyNoclip()
-                    hum.WalkSpeed = _autoWinSpeed
+                    hum.WalkSpeed = _speedVal
                     local entry = blocks[idx]
                     if not entry.part.Parent then
                         idx += 1
