@@ -405,25 +405,11 @@ return function(section)
             if type(count) == "number" then pouched = count end
         end)
 
-        local bv = Instance.new("BodyVelocity", hrp)
-        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-        bv.Velocity = Vector3.zero
-
-        local bg = Instance.new("BodyGyro", hrp)
-        bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
-        bg.P         = 9e4
-        bg.D         = 1e3
-        bg.CFrame    = hrp.CFrame
-
         setCoinNoclip(char, true)
 
         while getgenv()._mm2_coins and pouched < 40 do
             local server = getNearestCoin(hrp)
-            if not server then
-                bv.Velocity = Vector3.zero
-                task.wait(1)
-                break
-            end
+            if not server then task.wait(1) break end
 
             local target   = server.Position
             local deadline = os.clock() + 8
@@ -432,21 +418,17 @@ return function(section)
                 if not server or not server.Parent then break end
                 local diff = target - hrp.Position
                 if diff.Magnitude <= COIN_REACH then
-                    bv.Velocity = Vector3.zero
                     pcall(firetouchinterest, server, hrp, 0)
                     pcall(firetouchinterest, server, hrp, 1)
                     task.wait(0.05)
                     break
                 end
-                bv.Velocity = diff.Unit * COIN_SPEED
-                bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
-                RunSvc.Heartbeat:Wait()
+                local dt   = RunSvc.Heartbeat:Wait()
+                local step = math.min(COIN_SPEED * dt, diff.Magnitude)
+                hrp.CFrame = CFrame.new(hrp.Position + diff.Unit * step)
             end
         end
 
-        bv.Velocity = Vector3.zero
-        bv:Destroy()
-        bg:Destroy()
         setCoinNoclip(char, false)
         countConn:Disconnect()
         getgenv()._mm2_coins = false
