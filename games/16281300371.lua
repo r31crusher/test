@@ -14,6 +14,7 @@ return function(section)
         getgenv().PluginManager = function() error("not in studio") end
     end
 
+    -- Resolve the player's block keybind from Replion for VIM fallback
     local function resolveBlockKey()
         local ok, Replion = pcall(require, RS.Packages:WaitForChild("Replion"))
         if not ok then return Enum.KeyCode.F end
@@ -26,6 +27,22 @@ return function(section)
     end
 
     local BLOCK_KEY = resolveBlockKey()
+
+    -- Require the PRY module directly — calling pryFn() fires ParryAttempt:FireServer()
+    -- with the correct BAC hash internally, no VIM input chain needed.
+    -- SwordsController name ends in space + \12 (form feed), so find by pattern.
+    local pryFn = nil
+    local SwordsCtrl = nil
+    for _, c in RS.Controllers:GetChildren() do
+        if c.Name:find("Swords") then SwordsCtrl = c break end
+    end
+    local PRY = SwordsCtrl and SwordsCtrl:FindFirstChild("PRY")
+    if PRY then
+        local ok, fn = pcall(require, PRY)
+        if ok and typeof(fn) == "function" then
+            pryFn = fn
+        end
+    end
 
     -- ── Auto Parry ────────────────────────────────────────────────────────────
 
@@ -41,20 +58,27 @@ return function(section)
         end)
     end
 
-    local function doParry()
-        if math.random(1, 100) > PARRY_HIT then return end
-        if PARRY_DELAY > 0 then
-            task.delay(PARRY_DELAY / 1000, pressBlockKey)
+    local PARRY_METHOD = 1  -- 1 = VIM (input handler), 2 = PRY direct
+
+    local function fireParry()
+        if PARRY_METHOD == 2 and pryFn then
+            pryFn()
         else
             pressBlockKey()
         end
     end
 
-    -- Per-ball trackers: the moment a ball targets us we spin up a dedicated
-    -- Heartbeat just for that ball so we react the instant it enters range,
-    -- rather than waiting for a global loop to notice it.
-    local _ballTrackers  = {}  -- ball → heartbeat connection
-    local _ballAttrConns = {}  -- ball → attribute signal connection
+    local function doParry()
+        if math.random(1, 100) > PARRY_HIT then return end
+        if PARRY_DELAY > 0 then
+            task.delay(PARRY_DELAY / 1000, fireParry)
+        else
+            fireParry()
+        end
+    end
+
+    local _ballTrackers  = {}
+    local _ballAttrConns = {}
     local _addedConn     = nil
     local _removedConn   = nil
 
@@ -69,7 +93,6 @@ return function(section)
         stopTracker(ball)
         _ballTrackers[ball] = RunSvc.Heartbeat:Connect(function()
             if not _autoParry then return end
-            -- ball no longer targeting us — stop
             if ball:GetAttribute("target") ~= player.Name then
                 stopTracker(ball)
                 return
@@ -90,13 +113,9 @@ return function(section)
 
     local function watchBall(ball)
         if ball:GetAttribute("realBall") == false then return end
-
-        -- react immediately if already targeting us
         if ball:GetAttribute("target") == player.Name then
             startTracker(ball)
         end
-
-        -- react the instant the target flips to us
         _ballAttrConns[ball] = ball:GetAttributeChangedSignal("target"):Connect(function()
             if not _autoParry then return end
             if ball:GetAttribute("target") == player.Name then
@@ -116,9 +135,7 @@ return function(section)
     end
 
     local function startAutoParry()
-        for _, ball in BallsFolder:GetChildren() do
-            watchBall(ball)
-        end
+        for _, ball in BallsFolder:GetChildren() do watchBall(ball) end
         _addedConn   = BallsFolder.ChildAdded:Connect(watchBall)
         _removedConn = BallsFolder.ChildRemoved:Connect(unwatchBall)
     end
@@ -131,7 +148,6 @@ return function(section)
 
     -- ── Ball ESP ──────────────────────────────────────────────────────────────
 
-    local _espEnabled    = false
     local _espHighlights = {}
     local _espAdded      = nil
     local _espRemoved    = nil
@@ -196,8 +212,11 @@ return function(section)
         PARRY_HIT = val
     end)
 
+    elements:Toggle("Parry Method V2 (PRY Direct)", section, function(state)
+        PARRY_METHOD = state and 2 or 1
+    end)
+
     elements:Toggle("Ball ESP", section, function(state)
-        _espEnabled = state
         if state then startESP() else stopESP() end
     end)
 end
