@@ -39,8 +39,8 @@ return function(section)
 
     local _autoParry = false
     local _lastParry = 0
-    local COOLDOWN   = 0.5
-    local PARRY_DIST = 28
+    local COOLDOWN   = 0.3
+    local PARRY_DIST = 35
 
     local function pressBlockKey()
         VIM:SendKeyEvent(true,  BLOCK_KEY, false, game)
@@ -74,10 +74,7 @@ return function(section)
 
                 if (ballPos - hrp.Position).Magnitude <= PARRY_DIST then
                     _lastParry = now
-                    -- small random delay to avoid perfectly-instant parry detection
-                    if math.random() > 0.12 then
-                        task.delay(math.random(10, 50) / 1000, pressBlockKey)
-                    end
+                    pressBlockKey()
                     break
                 end
             end
