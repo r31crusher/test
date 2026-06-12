@@ -394,61 +394,67 @@ return function(section)
     end
 
     local function coinFarmLoop()
+        local char = player.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum then getgenv()._mm2_coins = false return end
+
         local pouched   = 0
         local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
             if type(count) == "number" then pouched = count end
         end)
 
+        local target = hrp.Position
+
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bv.Velocity = Vector3.zero
+
+        local bg = Instance.new("BodyGyro", hrp)
+        bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+        bg.P         = 9e4
+        bg.D         = 1e3
+        bg.CFrame    = hrp.CFrame
+
+        setCoinNoclip(char, true)
+
+        RunSvc:BindToRenderStep("CoinFly", Enum.RenderPriority.Character.Value + 1, function()
+            if not hrp or not hrp.Parent then return end
+            local diff = target - hrp.Position
+            if diff.Magnitude < 1 then
+                bv.Velocity = Vector3.zero
+                return
+            end
+            local speed = math.min(COIN_SPEED, diff.Magnitude * 10)
+            bv.Velocity = diff.Unit * speed
+            bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
+        end)
+
         while getgenv()._mm2_coins and pouched < 40 do
-            local char = player.Character
-            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            local hum  = char and char:FindFirstChildOfClass("Humanoid")
-            if not hrp or not hum or hum.Health <= 0 then task.wait(1) continue end
+            if hum.Health <= 0 then task.wait(1) continue end
 
             local server = getNearestCoin(hrp)
             if not server then task.wait(1) continue end
 
-            -- fly setup — same pattern as Astro universal fly
-            local bv = Instance.new("BodyVelocity", hrp)
-            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            bv.Velocity = Vector3.zero
-
-            local bg = Instance.new("BodyGyro", hrp)
-            bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
-            bg.P         = 9e4
-            bg.D         = 1e3
-            bg.CFrame    = hrp.CFrame
-
-            setCoinNoclip(char, true)
-
-            local target = server.Position
-            RunSvc:BindToRenderStep("CoinFly", Enum.RenderPriority.Character.Value + 1, function()
-                if not hrp or not hrp.Parent then return end
-                local diff = target - hrp.Position
-                if diff.Magnitude < COIN_REACH then
-                    bv.Velocity = Vector3.zero
-                    return
-                end
-                bv.Velocity = diff.Unit * COIN_SPEED
-                bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
-            end)
+            target = server.Position
 
             local deadline = os.clock() + 8
             while getgenv()._mm2_coins and os.clock() < deadline do
                 if not server or not server.Parent then break end
-                if (hrp.Position - target).Magnitude <= COIN_REACH then break end
+                if (hrp.Position - target).Magnitude <= COIN_REACH then
+                    pcall(firetouchinterest, server, hrp, 0)
+                    pcall(firetouchinterest, server, hrp, 1)
+                    break
+                end
                 RunSvc.Heartbeat:Wait()
             end
-
-            RunSvc:UnbindFromRenderStep("CoinFly")
-            bv:Destroy()
-            bg:Destroy()
-            setCoinNoclip(char, false)
-
-            pcall(firetouchinterest, server, hrp, 0)
-            pcall(firetouchinterest, server, hrp, 1)
         end
 
+        RunSvc:UnbindFromRenderStep("CoinFly")
+        bv.Velocity = Vector3.zero
+        bv:Destroy()
+        bg:Destroy()
+        setCoinNoclip(char, false)
         countConn:Disconnect()
         getgenv()._mm2_coins = false
     end
