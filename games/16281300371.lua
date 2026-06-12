@@ -5,52 +5,30 @@ return function(section)
     local Players   = game:GetService("Players")
     local RS        = game:GetService("ReplicatedStorage")
     local RunSvc    = game:GetService("RunService")
-    local CS        = game:GetService("CollectionService")
     local player    = Players.LocalPlayer
 
     local Remotes      = RS:WaitForChild("Remotes")
     local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
-    -- ── Capture real parry args via namecall hook ─────────────────────────────
-    -- PRY (the obfuscated VM) sends a BAC hash + camera/player data.
-    -- We hook __namecall so whenever the game fires ParryAttempt legitimately
-    -- (player presses block key), we capture those exact args.
-    -- Auto-parry then replays them so the payload is identical to a real parry.
-
-    local _cachedArgs = nil
-
-    local mt = getrawmetatable(game)
-    setreadonly(mt, false)
-    local _origNamecall = mt.__namecall
-    mt.__namecall = newcclosure(function(self, ...)
-        if getnamecallmethod() == "FireServer" and self == ParryAttempt then
-            _cachedArgs = { ... }
-        end
-        return _origNamecall(self, ...)
-    end)
-    setreadonly(mt, true)
-
     -- ── Auto Parry ────────────────────────────────────────────────────────────
+    -- PRY (the obfuscated anti-cheat VM) stores the server validation hash in
+    -- _G.BAC_HASH on load. We fire ParryAttempt with that hash directly —
+    -- no __namecall hooks (BAC detects those), no firesignal on GUI elements
+    -- (triggers PluginManager check inside the game's parry function).
+
     local _autoParry = false
     local _lastParry = 0
     local COOLDOWN   = 0.4
-    local PARRY_DIST  = 10     -- studs; inside legitimate server range (~15 studs)
-
-    -- human reaction time jitter: 60–180 ms
-    local function humanDelay()
-        return math.random(60, 180) / 1000
-    end
+    local PARRY_DIST = 15
 
     local _heartbeat
 
     local function doParry()
-        if _cachedArgs then
-            ParryAttempt:FireServer(table.unpack(_cachedArgs))
+        local hash = _G.BAC_HASH
+        if hash then
+            ParryAttempt:FireServer(hash)
         else
-            local btns = CS:GetTagged("BlockButton")
-            if btns[1] then
-                firesignal(btns[1].Activated)
-            end
+            ParryAttempt:FireServer()
         end
     end
 
@@ -77,7 +55,7 @@ return function(section)
 
                 if (ballPos - hrp.Position).Magnitude <= PARRY_DIST then
                     _lastParry = now
-                    task.delay(humanDelay(), doParry)
+                    doParry()
                     break
                 end
             end
@@ -101,7 +79,7 @@ return function(section)
         end
     end)
 
-    elements:Slider("Parry Distance (studs)", section, 5, 20, PARRY_DIST, function(val)
+    elements:Slider("Parry Distance (studs)", section, 5, 25, PARRY_DIST, function(val)
         PARRY_DIST = val
     end)
 end
