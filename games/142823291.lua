@@ -382,19 +382,16 @@ return function(section)
         end
     end
 
-    local function getNearestCoins(hrp)
-        local list = {}
+    local function getNearestCoin(hrp)
+        local best, bestDist = nil, math.huge
         for _, coin in CollectionService:GetTagged("CoinVisual") do
             local server = coin.Parent
             if server and server:IsA("BasePart") and server.Parent then
-                table.insert(list, server)
+                local d = (server.Position - hrp.Position).Magnitude
+                if d < bestDist then best, bestDist = server, d end
             end
         end
-        local pos = hrp.Position
-        table.sort(list, function(a, b)
-            return (a.Position - pos).Magnitude < (b.Position - pos).Magnitude
-        end)
-        return list
+        return best
     end
 
     local function coinFarmLoop()
@@ -403,46 +400,54 @@ return function(section)
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if not hrp or not hum then getgenv()._mm2_coins = false return end
 
-        local pouched = 0
+        local pouched   = 0
         local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
             if type(count) == "number" then pouched = count end
         end)
 
-        local savedWalk = hum.WalkSpeed
-        hum.WalkSpeed = 0
-        hum.PlatformStand = true
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bv.Velocity = Vector3.zero
+
+        local bg = Instance.new("BodyGyro", hrp)
+        bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+        bg.P         = 9e4
+        bg.D         = 1e3
+        bg.CFrame    = hrp.CFrame
+
         setCoinNoclip(char, true)
 
         while getgenv()._mm2_coins and pouched < 40 do
-            local coins = getNearestCoins(hrp)
-            if #coins == 0 then task.wait(1) break end
-
-            for _, server in coins do
-                if not getgenv()._mm2_coins or pouched >= 40 then break end
-                if not server or not server.Parent then continue end
-
-                local deadline = os.clock() + 6
-                while getgenv()._mm2_coins and os.clock() < deadline do
-                    if not server or not server.Parent then break end
-                    local diff = server.Position - hrp.Position
-                    if diff.Magnitude <= COIN_REACH then
-                        pcall(firetouchinterest, server, hrp, 0)
-                        pcall(firetouchinterest, server, hrp, 1)
-                        task.wait(0.1)
-                        break
-                    end
-                    local dt   = RunSvc.Heartbeat:Wait()
-                    local step = math.min(COIN_SPEED * dt, diff.Magnitude)
-                    hrp.CFrame = CFrame.new(hrp.Position + diff.Unit * step)
-                end
+            local server = getNearestCoin(hrp)
+            if not server then
+                bv.Velocity = Vector3.zero
+                task.wait(1)
+                break
             end
 
-            task.wait(0.5)
+            local target   = server.Position
+            local deadline = os.clock() + 8
+
+            while getgenv()._mm2_coins and os.clock() < deadline do
+                if not server or not server.Parent then break end
+                local diff = target - hrp.Position
+                if diff.Magnitude <= COIN_REACH then
+                    bv.Velocity = Vector3.zero
+                    pcall(firetouchinterest, server, hrp, 0)
+                    pcall(firetouchinterest, server, hrp, 1)
+                    task.wait(0.05)
+                    break
+                end
+                bv.Velocity = diff.Unit * COIN_SPEED
+                bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
+                RunSvc.Heartbeat:Wait()
+            end
         end
 
+        bv.Velocity = Vector3.zero
+        bv:Destroy()
+        bg:Destroy()
         setCoinNoclip(char, false)
-        hum.PlatformStand = false
-        pcall(function() hum.WalkSpeed = savedWalk end)
         countConn:Disconnect()
         getgenv()._mm2_coins = false
     end
