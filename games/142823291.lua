@@ -375,13 +375,10 @@ return function(section)
 
     getgenv()._mm2_coins = false
 
-    -- only noclip non-HRP parts so Humanoid locomotion still works
     local function setCoinNoclip(char, on)
         if not char then return end
         for _, part in char:GetDescendants() do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanCollide = not on
-            end
+            if part:IsA("BasePart") then part.CanCollide = not on end
         end
     end
 
@@ -411,25 +408,45 @@ return function(section)
             local server = getNearestCoin(hrp)
             if not server then task.wait(1) continue end
 
-            local savedSpeed = hum.WalkSpeed
-            hum.WalkSpeed    = COIN_SPEED
+            -- fly setup — same pattern as Astro universal fly
+            local bv = Instance.new("BodyVelocity", hrp)
+            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            bv.Velocity = Vector3.zero
+
+            local bg = Instance.new("BodyGyro", hrp)
+            bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+            bg.P         = 9e4
+            bg.D         = 1e3
+            bg.CFrame    = hrp.CFrame
+
             setCoinNoclip(char, true)
 
-            hum:MoveTo(server.Position)
+            local target = server.Position
+            RunSvc:BindToRenderStep("CoinFly", Enum.RenderPriority.Character.Value + 1, function()
+                if not hrp or not hrp.Parent then return end
+                local diff = target - hrp.Position
+                if diff.Magnitude < COIN_REACH then
+                    bv.Velocity = Vector3.zero
+                    return
+                end
+                bv.Velocity = diff.Unit * COIN_SPEED
+                bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
+            end)
 
             local deadline = os.clock() + 8
             while getgenv()._mm2_coins and os.clock() < deadline do
                 if not server or not server.Parent then break end
-                if (hrp.Position - server.Position).Magnitude <= COIN_REACH then
-                    pcall(firetouchinterest, server, hrp, 0)
-                    pcall(firetouchinterest, server, hrp, 1)
-                    break
-                end
+                if (hrp.Position - target).Magnitude <= COIN_REACH then break end
                 RunSvc.Heartbeat:Wait()
             end
 
+            RunSvc:UnbindFromRenderStep("CoinFly")
+            bv:Destroy()
+            bg:Destroy()
             setCoinNoclip(char, false)
-            hum.WalkSpeed = savedSpeed
+
+            pcall(firetouchinterest, server, hrp, 0)
+            pcall(firetouchinterest, server, hrp, 1)
             task.wait(0.1)
         end
 
