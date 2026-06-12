@@ -1,4 +1,4 @@
--- Blade Ball (PlaceId 16281300371)
+-- Blade Ball (PlaceId 16281300371 | Training: 15234596844)
 
 return function(section)
     local elements  = getgenv()._astroElements
@@ -10,12 +10,12 @@ return function(section)
     local Remotes      = RS:WaitForChild("Remotes")
     local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
-    -- ── Auto Parry ────────────────────────────────────────────────────────────
-    -- PRY (the obfuscated anti-cheat VM) stores the server validation hash in
-    -- _G.BAC_HASH on load. We fire ParryAttempt with that hash directly —
-    -- no __namecall hooks (BAC detects those), no firesignal on GUI elements
-    -- (triggers PluginManager check inside the game's parry function).
+    -- training server uses workspace.TrainingBalls; regular uses workspace.Balls
+    local BallsFolder = game.PlaceId == 15234596844
+        and workspace:WaitForChild("TrainingBalls")
+        or  workspace:WaitForChild("Balls")
 
+    -- ── Auto Parry ────────────────────────────────────────────────────────────
     local _autoParry = false
     local _lastParry = 0
     local COOLDOWN   = 0.4
@@ -41,12 +41,15 @@ return function(section)
             if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
-            if char.Parent ~= workspace.Alive then return end
+
+            -- training: character sits in workspace.Dead while practising
+            local parent = char.Parent
+            if parent ~= workspace.Alive and parent ~= workspace:FindFirstChild("Dead") then return end
 
             local now = os.clock()
             if now - _lastParry < COOLDOWN then return end
 
-            for _, ball in workspace.Balls:GetChildren() do
+            for _, ball in BallsFolder:GetChildren() do
                 if ball:GetAttribute("realBall") == false then continue end
                 if ball:GetAttribute("target") ~= player.Name then continue end
 
