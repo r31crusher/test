@@ -9,8 +9,22 @@ return function(section)
     local _speedActive = false
     local _speedVal    = 1000
 
+    local function zeroVelocity()
+        local char = lp.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end
+    end
+
     elements:Toggle("Speed Override", section, function(v)
         _speedActive = v
+        if not v then
+            local char = lp.Character
+            local hum  = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = 16 end
+            zeroVelocity()
+        end
     end)
 
     elements:Slider("Speed", section, 100, 50000, 1000, function(v)
@@ -21,8 +35,12 @@ return function(section)
         if not _speedActive then return end
         local char = lp.Character
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.Health > 0 then
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp and hum.Health > 0 then
             hum.WalkSpeed = _speedVal
+            if hum.MoveDirection.Magnitude == 0 then
+                hrp.AssemblyLinearVelocity = Vector3.zero
+            end
         end
     end))
 
