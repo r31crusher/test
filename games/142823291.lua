@@ -408,17 +408,9 @@ return function(section)
             if type(count) == "number" then pouched = count end
         end)
 
-        local bv = Instance.new("BodyVelocity", hrp)
-        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-        bv.Velocity = Vector3.zero
-
-        local bg = Instance.new("BodyGyro", hrp)
-        bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
-        bg.P = 9e4
-        bg.D = 1e3
-
         local savedWalk = hum.WalkSpeed
         hum.WalkSpeed = 0
+        hum.PlatformStand = true
         setCoinNoclip(char, true)
 
         while getgenv()._mm2_coins and pouched < 40 do
@@ -436,23 +428,20 @@ return function(section)
                     if diff.Magnitude <= COIN_REACH then
                         pcall(firetouchinterest, server, hrp, 0)
                         pcall(firetouchinterest, server, hrp, 1)
-                        bv.Velocity = Vector3.zero
                         task.wait(0.1)
                         break
                     end
-                    bv.Velocity = diff.Unit * COIN_SPEED
-                    bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
-                    RunSvc.Heartbeat:Wait()
+                    local dt   = RunSvc.Heartbeat:Wait()
+                    local step = math.min(COIN_SPEED * dt, diff.Magnitude)
+                    hrp.CFrame = CFrame.new(hrp.Position + diff.Unit * step)
                 end
-                bv.Velocity = Vector3.zero
             end
 
             task.wait(0.5)
         end
 
-        bv:Destroy()
-        bg:Destroy()
         setCoinNoclip(char, false)
+        hum.PlatformStand = false
         pcall(function() hum.WalkSpeed = savedWalk end)
         countConn:Disconnect()
         getgenv()._mm2_coins = false
