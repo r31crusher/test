@@ -400,39 +400,14 @@ return function(section)
         end)
 
         local bv, bg, lastChar
-
-        local function setupFly(hrp, char)
-            RunSvc:UnbindFromRenderStep("CoinFly")
-            if bv then bv:Destroy() end
-            if bg then bg:Destroy() end
-            setCoinNoclip(lastChar, false)
-            lastChar = char
-
-            bv = Instance.new("BodyVelocity", hrp)
-            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            bv.Velocity = Vector3.zero
-
-            bg = Instance.new("BodyGyro", hrp)
-            bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
-            bg.P         = 9e4
-            bg.D         = 1e3
-            bg.CFrame    = hrp.CFrame
-
-            setCoinNoclip(char, true)
-        end
-
         local target = Vector3.zero
 
         RunSvc:BindToRenderStep("CoinFly", Enum.RenderPriority.Character.Value + 1, function()
             if not bv or not bv.Parent then return end
-            local hrp = bv.Parent
-            local diff = target - hrp.Position
-            if diff.Magnitude < 1 then
-                bv.Velocity = Vector3.zero
-                return
-            end
+            local diff = target - bv.Parent.Position
+            if diff.Magnitude < 1 then bv.Velocity = Vector3.zero return end
             bv.Velocity = diff.Unit * COIN_SPEED
-            bg.CFrame   = CFrame.new(hrp.Position, hrp.Position + diff)
+            bg.CFrame   = CFrame.new(bv.Parent.Position, bv.Parent.Position + diff)
         end)
 
         while getgenv()._mm2_coins and pouched < 40 do
@@ -446,12 +421,27 @@ return function(section)
             end
 
             if char ~= lastChar then
-                setupFly(hrp, char)
+                if bv then bv:Destroy() end
+                if bg then bg:Destroy() end
+                setCoinNoclip(lastChar, false)
+                lastChar = char
+
+                bv = Instance.new("BodyVelocity", hrp)
+                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                bv.Velocity = Vector3.zero
+
+                bg = Instance.new("BodyGyro", hrp)
+                bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+                bg.P         = 9e4
+                bg.D         = 1e3
+                bg.CFrame    = hrp.CFrame
+
+                setCoinNoclip(char, true)
+                target = hrp.Position
             end
 
             local server = getNearestCoin(hrp)
             if not server then
-                bv.Velocity = Vector3.zero
                 task.wait(0.5)
                 continue
             end
