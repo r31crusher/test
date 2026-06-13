@@ -394,32 +394,38 @@ return function(section)
     end
 
     local function coinFarmLoop()
-        local char = player.Character
-        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then getgenv()._mm2_coins = false return end
-
         local pouched   = 0
         local countConn = CoinCollected.OnClientEvent:Connect(function(_, count)
             if type(count) == "number" then pouched = count end
         end)
 
-        local target = hrp.Position
+        local bv, bg, lastChar
 
-        local bv = Instance.new("BodyVelocity", hrp)
-        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-        bv.Velocity = Vector3.zero
+        local function setupFly(hrp, char)
+            RunSvc:UnbindFromRenderStep("CoinFly")
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+            setCoinNoclip(lastChar, false)
+            lastChar = char
 
-        local bg = Instance.new("BodyGyro", hrp)
-        bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
-        bg.P         = 9e4
-        bg.D         = 1e3
-        bg.CFrame    = hrp.CFrame
+            bv = Instance.new("BodyVelocity", hrp)
+            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            bv.Velocity = Vector3.zero
 
-        setCoinNoclip(char, true)
+            bg = Instance.new("BodyGyro", hrp)
+            bg.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+            bg.P         = 9e4
+            bg.D         = 1e3
+            bg.CFrame    = hrp.CFrame
+
+            setCoinNoclip(char, true)
+        end
+
+        local target = Vector3.zero
 
         RunSvc:BindToRenderStep("CoinFly", Enum.RenderPriority.Character.Value + 1, function()
-            if not hrp or not hrp.Parent then return end
+            if not bv or not bv.Parent then return end
+            local hrp = bv.Parent
             local diff = target - hrp.Position
             if diff.Magnitude < 1 then
                 bv.Velocity = Vector3.zero
@@ -430,10 +436,25 @@ return function(section)
         end)
 
         while getgenv()._mm2_coins and pouched < 40 do
-            if hum.Health <= 0 then task.wait(1) continue end
+            local char = player.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            local hum  = char and char:FindFirstChildOfClass("Humanoid")
+
+            if not hrp or not hum or hum.Health <= 0 then
+                task.wait(1)
+                continue
+            end
+
+            if char ~= lastChar then
+                setupFly(hrp, char)
+            end
 
             local server = getNearestCoin(hrp)
-            if not server then task.wait(1) continue end
+            if not server then
+                bv.Velocity = Vector3.zero
+                task.wait(0.5)
+                continue
+            end
 
             target = server.Position
 
@@ -450,10 +471,9 @@ return function(section)
         end
 
         RunSvc:UnbindFromRenderStep("CoinFly")
-        bv.Velocity = Vector3.zero
-        bv:Destroy()
-        bg:Destroy()
-        setCoinNoclip(char, false)
+        if bv then bv.Velocity = Vector3.zero bv:Destroy() end
+        if bg then bg:Destroy() end
+        setCoinNoclip(lastChar, false)
         countConn:Disconnect()
         getgenv()._mm2_coins = false
     end
