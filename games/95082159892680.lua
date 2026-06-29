@@ -14,9 +14,24 @@ return function(section)
     part.Position = Vector3.new(1, 75, 1090)
     part.Parent = workspace
 
-    elements:Label("Currently supports up to 5 stages.", section)
+    local function waitForTsunamiClear()
+        local npcPiege = workspace:FindFirstChild("NPC & Piege")
+        if not npcPiege then return end
+        while _farming do
+            local tsunami = npcPiege:FindFirstChild("Tsunami1")
+            if not tsunami then break end
+            local startTime  = tsunami:GetAttribute("TsunamiStartTime")
+            local travelTime = (tsunami:GetAttribute("TravelTime") or 6) + 0.5
+            if not startTime then break end
+            local remaining = travelTime - (os.time() - startTime)
+            if remaining <= 0 then break end
+            task.wait(remaining)
+        end
+    end
 
-    elements:Slider("Win Stage", section, 1, 5, 1, function(v)
+    elements:Label("Currently supports up to 6 stages.", section)
+
+    elements:Slider("Win Stage", section, 1, 6, 1, function(v)
         _winStage = math.floor(v)
     end)
 
@@ -77,6 +92,19 @@ return function(section)
                     hum.MoveToFinished:Wait()
                     if _winStage == 5 then
                         hum:MoveTo(workspace.Structure.Stage6.WinBlock5.Position)
+                        hum.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    waitForTsunamiClear()
+                    hum:MoveTo(Vector3.new(0, 77, 1401))
+                    hum.MoveToFinished:Wait()
+                    hum:MoveTo(Vector3.new(-56, 54, 1473))
+                    hum.MoveToFinished:Wait()
+                    hum:MoveTo(Vector3.new(-541, 54, 1470))
+                    hum.MoveToFinished:Wait()
+                    if _winStage == 6 then
+                        hum:MoveTo(workspace.Structure.Stage7.WinBlock6.Position)
                         hum.MoveToFinished:Wait()
                         task.wait(1)
                         return
