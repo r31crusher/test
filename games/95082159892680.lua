@@ -45,15 +45,15 @@ return function(section)
         table.clear(_stage9Bridges)
 
         local PAIRS = {
-            { Vector3.new(-1248, 154, 1468), Vector3.new(-1342, 132, 1466) },
-            { Vector3.new(-1510, 186, 1466), Vector3.new(-1563, 171, 1466) },
-            { Vector3.new(-1627, 171, 1464), Vector3.new(-1740, 140, 1464) },
-            { Vector3.new(-1864, 168, 1465), Vector3.new(-1934, 157, 1465) },
-            { Vector3.new(-2046, 157, 1465), Vector3.new(-2127, 157, 1466) },
-            { Vector3.new(-2183, 176, 1466), Vector3.new(-2244, 164, 1466) },
-            { Vector3.new(-2345, 175, 1466), Vector3.new(-2409, 172, 1466) },
-            { Vector3.new(-2530, 172, 1466), Vector3.new(-2594, 144, 1479) },
-            { Vector3.new(-2788, 158, 1464), Vector3.new(-2853, 133, 1464) },
+            { Vector3.new(-1248, 254, 1468), Vector3.new(-1342, 232, 1466) },
+            { Vector3.new(-1510, 286, 1466), Vector3.new(-1563, 271, 1466) },
+            { Vector3.new(-1627, 271, 1464), Vector3.new(-1740, 240, 1464) },
+            { Vector3.new(-1864, 268, 1465), Vector3.new(-1934, 257, 1465) },
+            { Vector3.new(-2046, 257, 1465), Vector3.new(-2127, 257, 1466) },
+            { Vector3.new(-2183, 276, 1466), Vector3.new(-2244, 264, 1466) },
+            { Vector3.new(-2345, 275, 1466), Vector3.new(-2409, 272, 1466) },
+            { Vector3.new(-2530, 272, 1466), Vector3.new(-2594, 244, 1479) },
+            { Vector3.new(-2788, 258, 1464), Vector3.new(-2853, 233, 1464) },
         }
 
         for _, pair in PAIRS do
