@@ -68,9 +68,9 @@ return function(section)
         conn:Disconnect()
     end
 
-    elements:Label("Currently supports up to 9 stages.", section)
+    elements:Label("Currently supports up to 10 stages.", section)
 
-    elements:Slider("Win Stage", section, 1, 9, 1, function(v)
+    elements:Slider("Win Stage", section, 1, 10, 1, function(v)
         _winStage = math.floor(v)
     end)
 
@@ -90,6 +90,7 @@ return function(section)
         task.spawn(function()
             local CS        = game:GetService("CollectionService")
             local lavaTower = workspace["NPC & Piege"] and workspace["NPC & Piege"]:FindFirstChild("LavaTower")
+            local npc10     = workspace:FindFirstChild("NPC10")
             while _farming do
                 for _, w in CS:GetTagged("CrushWallL") do
                     w.CanCollide = false
@@ -105,6 +106,14 @@ return function(section)
                 if lavaTower then
                     local lc = lavaTower:FindFirstChild("LavaCollide")
                     if lc then lc.CanTouch = false end
+                end
+                if npc10 then
+                    for _, p in npc10:GetDescendants() do
+                        if p:IsA("BasePart") then
+                            p.CanCollide = false
+                            p.CanTouch   = false
+                        end
+                    end
                 end
                 task.wait()
             end
@@ -254,6 +263,20 @@ return function(section)
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 9 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage10.WinBlock9.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2976, 296, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3316, 256, 1641))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3747, 296, 1493))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3942, 296, 1462))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    if _winStage == 10 then
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage11.WinBlock10.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
