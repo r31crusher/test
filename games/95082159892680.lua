@@ -93,11 +93,13 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    hum:MoveTo(Vector3.new(0, 77, 1401))
+                    hum:MoveTo(Vector3.new(1, 77, 1416))
                     hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(-56, 54, 1473))
+                    hum:MoveTo(Vector3.new(-21, 54, 1481))
                     hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(-541, 54, 1470))
+                    hum:MoveTo(Vector3.new(-322, 54, 1465))
+                    hum.MoveToFinished:Wait()
+                    hum:MoveTo(Vector3.new(-539, 54, 1462))
                     hum.MoveToFinished:Wait()
                     if _winStage == 6 then
                         hum:MoveTo(workspace.Structure.Stage7.WinBlock6.Position)
