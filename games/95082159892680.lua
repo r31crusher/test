@@ -18,6 +18,7 @@ return function(section)
         local CS = game:GetService("CollectionService")
         local prevGap = math.huge
         local closing = false
+        local stable = 0
         while _farming do
             local wallL = CS:GetTagged("CrushWallL")[1]
             local wallR = CS:GetTagged("CrushWallR")[1]
@@ -25,9 +26,13 @@ return function(section)
             local gap = wallL.Position.Z - wallR.Position.Z
             if gap < prevGap then
                 closing = true
+                stable = 0
             elseif closing then
-                task.wait(3)
-                break
+                stable += 1
+                if stable >= 3 then
+                    task.wait(3)
+                    break
+                end
             end
             prevGap = gap
             task.wait(0.05)
