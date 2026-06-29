@@ -14,31 +14,6 @@ return function(section)
     part.Position = Vector3.new(1, 75, 1090)
     part.Parent = workspace
 
-    local function waitForWallsOpening()
-        local CS = game:GetService("CollectionService")
-        local prevGap = math.huge
-        local closing = false
-        local stable = 0
-        while _farming do
-            local wallL = CS:GetTagged("CrushWallL")[1]
-            local wallR = CS:GetTagged("CrushWallR")[1]
-            if not wallL or not wallR then break end
-            local gap = wallL.Position.Z - wallR.Position.Z
-            if gap < prevGap then
-                closing = true
-                stable = 0
-            elseif closing then
-                stable += 1
-                if stable >= 3 then
-                    task.wait(0.6)
-                    break
-                end
-            end
-            prevGap = gap
-            task.wait(0.05)
-        end
-    end
-
     local function waitForTsunamiWindow()
         local npcPiege = workspace:FindFirstChild("NPC & Piege")
         if not npcPiege then return end
@@ -76,6 +51,21 @@ return function(section)
         task.spawn(function()
             while _farming do
                 RS:WaitForChild("Remotes"):WaitForChild("UpdateSpeed"):FireServer("Walking")
+                task.wait()
+            end
+        end)
+
+        task.spawn(function()
+            local CS = game:GetService("CollectionService")
+            while _farming do
+                for _, w in CS:GetTagged("CrushWallL") do
+                    w.CanCollide = false
+                    w.CanTouch   = false
+                end
+                for _, w in CS:GetTagged("CrushWallR") do
+                    w.CanCollide = false
+                    w.CanTouch   = false
+                end
                 task.wait()
             end
         end)
@@ -146,7 +136,6 @@ return function(section)
                     end
                     plr.Character.Humanoid:MoveTo(Vector3.new(-563, 54, 1464))
                     plr.Character.Humanoid.MoveToFinished:Wait()
-                    waitForWallsOpening()
                     plr.Character.Humanoid:MoveTo(Vector3.new(-775, 54, 1460))
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     plr.Character.Humanoid:MoveTo(Vector3.new(-1008, 54, 1462))
