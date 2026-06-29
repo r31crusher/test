@@ -14,6 +14,26 @@ return function(section)
     part.Position = Vector3.new(1, 75, 1090)
     part.Parent = workspace
 
+    local function waitForWallsOpening()
+        local CS = game:GetService("CollectionService")
+        local prevGap = math.huge
+        local closing = false
+        while _farming do
+            local wallL = CS:GetTagged("CrushWallL")[1]
+            local wallR = CS:GetTagged("CrushWallR")[1]
+            if not wallL or not wallR then break end
+            local gap = wallL.Position.Z - wallR.Position.Z
+            if gap < prevGap then
+                closing = true
+            elseif closing then
+                task.wait(3)
+                break
+            end
+            prevGap = gap
+            task.wait(0.05)
+        end
+    end
+
     local function waitForTsunamiWindow()
         local npcPiege = workspace:FindFirstChild("NPC & Piege")
         if not npcPiege then return end
@@ -38,9 +58,9 @@ return function(section)
         conn:Disconnect()
     end
 
-    elements:Label("Currently supports up to 6 stages.", section)
+    elements:Label("Currently supports up to 7 stages.", section)
 
-    elements:Slider("Win Stage", section, 1, 6, 1, function(v)
+    elements:Slider("Win Stage", section, 1, 7, 1, function(v)
         _winStage = math.floor(v)
     end)
 
@@ -115,6 +135,19 @@ return function(section)
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 6 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage7.WinBlock6.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-563, 54, 1464))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    waitForWallsOpening()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-775, 54, 1460))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1008, 54, 1462))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    if _winStage == 7 then
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage8.WinBlock7.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
