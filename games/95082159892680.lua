@@ -321,6 +321,9 @@ return function(section)
                         task.wait(1)
                         return
                     end
+                    plr.Character.Humanoid:MoveTo(workspace.Treadmill.Treadmill.Conveyor.Position)
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    task.wait(5)
                     plr.Character.Humanoid:MoveTo(Vector3.new(-4384, 471, 1532))
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     plr.Character.Humanoid:MoveTo(Vector3.new(-4439, 470, 1534))
