@@ -14,16 +14,28 @@ return function(section)
     part.Position = Vector3.new(1, 75, 1090)
     part.Parent = workspace
 
-    local function waitForTsunamiClear()
+    local function waitForTsunamiWindow()
         local npcPiege = workspace:FindFirstChild("NPC & Piege")
         if not npcPiege then return end
+        local tsunami = npcPiege:FindFirstChild("Tsunami1")
+        if not tsunami then return end
+
+        local travelTime = tsunami:GetAttribute("TravelTime") or 5.02326
+        local waveStartedAt = nil
+
+        local conn = tsunami:GetAttributeChangedSignal("TsunamiStartTime"):Connect(function()
+            waveStartedAt = tick()
+        end)
+
         while _farming do
-            local tsunami = npcPiege:FindFirstChild("Tsunami1")
-            if not tsunami then break end
-            local part = tsunami:FindFirstChildWhichIsA("BasePart", true)
-            if not part or part.Position.X < -600 then break end
-            task.wait(0.25)
+            if waveStartedAt then
+                local remaining = travelTime - (tick() - waveStartedAt)
+                if remaining <= 3.2 then break end
+            end
+            task.wait(0.05)
         end
+
+        conn:Disconnect()
     end
 
     elements:Label("Currently supports up to 6 stages.", section)
@@ -92,6 +104,7 @@ return function(section)
                         task.wait(1)
                         return
                     end
+                    waitForTsunamiWindow()
                     plr.Character.Humanoid:MoveTo(Vector3.new(1, 77, 1416))
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     plr.Character.Humanoid:MoveTo(Vector3.new(-21, 54, 1481))
