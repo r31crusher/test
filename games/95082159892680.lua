@@ -38,6 +38,37 @@ return function(section)
         conn:Disconnect()
     end
 
+    local _stage9Bridges = {}
+
+    elements:Button("Add Bridges (Stage 9)", section, function()
+        for _, p in _stage9Bridges do p:Destroy() end
+        table.clear(_stage9Bridges)
+
+        local PAIRS = {
+            { Vector3.new(-1248, 304, 1468), Vector3.new(-1342, 282, 1466) },
+            { Vector3.new(-1510, 336, 1466), Vector3.new(-1563, 321, 1466) },
+            { Vector3.new(-1627, 321, 1464), Vector3.new(-1740, 290, 1464) },
+            { Vector3.new(-1864, 318, 1465), Vector3.new(-1934, 307, 1465) },
+            { Vector3.new(-2046, 307, 1465), Vector3.new(-2127, 307, 1466) },
+            { Vector3.new(-2183, 326, 1466), Vector3.new(-2244, 314, 1466) },
+            { Vector3.new(-2345, 325, 1466), Vector3.new(-2409, 322, 1466) },
+            { Vector3.new(-2530, 322, 1466), Vector3.new(-2594, 294, 1479) },
+            { Vector3.new(-2788, 308, 1464), Vector3.new(-2853, 283, 1464) },
+        }
+
+        for _, pair in PAIRS do
+            local a, b = pair[1], pair[2]
+            local bridge = Instance.new("Part")
+            bridge.Anchored     = true
+            bridge.CanCollide   = true
+            bridge.Size         = Vector3.new(10, 1, (b - a).Magnitude)
+            bridge.CFrame       = CFrame.lookAt((a + b) / 2, b)
+            bridge.Transparency = 0.5
+            bridge.Parent       = workspace
+            table.insert(_stage9Bridges, bridge)
+        end
+    end)
+
     elements:Label("Currently supports up to 8 stages.", section)
 
     elements:Slider("Win Stage", section, 1, 8, 1, function(v)
@@ -180,5 +211,7 @@ return function(section)
     section.AncestorRemoving:Connect(function()
         _farming = false
         part:Destroy()
+        for _, p in _stage9Bridges do p:Destroy() end
+        table.clear(_stage9Bridges)
     end)
 end
