@@ -93,7 +93,6 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    waitForTsunamiClear()
                     hum:MoveTo(Vector3.new(0, 77, 1401))
                     hum.MoveToFinished:Wait()
                     hum:MoveTo(Vector3.new(-56, 54, 1473))
