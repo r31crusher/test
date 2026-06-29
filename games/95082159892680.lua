@@ -58,17 +58,23 @@ return function(section)
             waveStartedAt = tick()
         end)
 
-        while _farming do
-            if waveStartedAt then
-                local hum      = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
-                local speed    = hum and hum.WalkSpeed or 16
-                local threshold = speed > 140
-                    and math.min(91 / (speed - 140), travelTime - 0.05)
-                    or  3.2
-                local remaining = travelTime - (tick() - waveStartedAt)
-                if remaining <= threshold then break end
+        local hum   = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+        local speed = hum and hum.WalkSpeed or 16
+
+        if speed > 140 then
+            -- faster than tsunami: go the moment wave spawns
+            while _farming and not waveStartedAt do
+                task.wait(0.05)
             end
-            task.wait(0.05)
+        else
+            -- slower than tsunami: follow behind, wait until 3.2s remain
+            while _farming do
+                if waveStartedAt then
+                    local remaining = travelTime - (tick() - waveStartedAt)
+                    if remaining <= 3.2 then break end
+                end
+                task.wait(0.05)
+            end
         end
 
         conn:Disconnect()
