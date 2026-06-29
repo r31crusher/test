@@ -46,64 +46,63 @@ return function(section)
         task.spawn(function()
             while _farming do
                 pcall(function()
-                    local hum = plr.Character.Humanoid
-                    hum:MoveTo(Vector3.new(2, 9, 282))
-                    hum.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(2, 9, 282))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 1 then
-                        hum:MoveTo(workspace.Structure.Stage2.WinBlock1.Position)
-                        hum.MoveToFinished:Wait()
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage2.WinBlock1.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
                     end
-                    hum:MoveTo(Vector3.new(70, 9, 398))
-                    hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(1, 9, 505))
-                    hum.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(70, 9, 398))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(1, 9, 505))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 2 then
-                        hum:MoveTo(workspace.Structure.Stage3.WinBlock2.Position)
-                        hum.MoveToFinished:Wait()
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage3.WinBlock2.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
                     end
-                    hum:MoveTo(Vector3.new(19, 9, 541))
-                    hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(20, 77, 754))
-                    hum.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(19, 9, 541))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(20, 77, 754))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 3 then
-                        hum:MoveTo(workspace.Structure.Stage4.WinBlock3.Position)
-                        hum.MoveToFinished:Wait()
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage4.WinBlock3.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
                     end
-                    hum:MoveTo(Vector3.new(1, 77, 817))
-                    hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(1, 77, 1042))
-                    hum.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(1, 77, 817))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(1, 77, 1042))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 4 then
-                        hum:MoveTo(workspace.Structure.Stage5.WinBlock4.Position)
-                        hum.MoveToFinished:Wait()
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage5.WinBlock4.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
                     end
-                    hum:MoveTo(Vector3.new(2, 77, 1363))
-                    hum.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(2, 77, 1363))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 5 then
-                        hum:MoveTo(workspace.Structure.Stage6.WinBlock5.Position)
-                        hum.MoveToFinished:Wait()
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage6.WinBlock5.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
                     end
-                    hum:MoveTo(Vector3.new(1, 77, 1416))
-                    hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(-21, 54, 1481))
-                    hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(-322, 54, 1465))
-                    hum.MoveToFinished:Wait()
-                    hum:MoveTo(Vector3.new(-539, 54, 1462))
-                    hum.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(1, 77, 1416))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-21, 54, 1481))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-322, 54, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-539, 54, 1462))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 6 then
-                        hum:MoveTo(workspace.Structure.Stage7.WinBlock6.Position)
-                        hum.MoveToFinished:Wait()
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage7.WinBlock6.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
                     end
