@@ -60,8 +60,13 @@ return function(section)
 
         while _farming do
             if waveStartedAt then
+                local hum      = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+                local speed    = hum and hum.WalkSpeed or 16
+                local threshold = speed > 140
+                    and math.min(91 / (speed - 140), travelTime - 0.05)
+                    or  3.2
                 local remaining = travelTime - (tick() - waveStartedAt)
-                if remaining <= 3.2 then break end
+                if remaining <= threshold then break end
             end
             task.wait(0.05)
         end
