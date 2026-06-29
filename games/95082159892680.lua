@@ -14,6 +14,36 @@ return function(section)
     part.Position = Vector3.new(1, 75, 1090)
     part.Parent = workspace
 
+    local _stage9Bridges = {}
+
+    local BRIDGE_PAIRS = {
+        { Vector3.new(-1248, 302, 1468), Vector3.new(-1342, 281, 1466) },
+        { Vector3.new(-1510, 334, 1466), Vector3.new(-1563, 320, 1466) },
+        { Vector3.new(-1627, 319, 1464), Vector3.new(-1740, 289, 1464) },
+        { Vector3.new(-1864, 315, 1465), Vector3.new(-1934, 306, 1465) },
+        { Vector3.new(-2046, 304, 1465), Vector3.new(-2127, 306, 1466) },
+        { Vector3.new(-2183, 323, 1466), Vector3.new(-2244, 313, 1466) },
+        { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
+        { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
+        { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
+    }
+
+    local function spawnBridges()
+        for _, p in _stage9Bridges do p:Destroy() end
+        table.clear(_stage9Bridges)
+        for _, pair in BRIDGE_PAIRS do
+            local a, b = pair[1], pair[2]
+            local bridge = Instance.new("Part")
+            bridge.Anchored   = true
+            bridge.CanCollide = true
+            bridge.Size       = Vector3.new(10, 1, (b - a).Magnitude)
+            bridge.CFrame     = CFrame.lookAt((a + b) / 2, b)
+            bridge.Transparency = 0.5
+            bridge.Parent     = workspace
+            table.insert(_stage9Bridges, bridge)
+        end
+    end
+
     local function waitForTsunamiWindow()
         local npcPiege = workspace:FindFirstChild("NPC & Piege")
         if not npcPiege then return end
@@ -38,46 +68,17 @@ return function(section)
         conn:Disconnect()
     end
 
-    local _stage9Bridges = {}
+    elements:Label("Currently supports up to 9 stages.", section)
 
-    elements:Button("Add Bridges (Stage 9)", section, function()
-        for _, p in _stage9Bridges do p:Destroy() end
-        table.clear(_stage9Bridges)
-
-        local PAIRS = {
-            { Vector3.new(-1248, 302, 1468), Vector3.new(-1342, 281, 1466) },
-            { Vector3.new(-1510, 334, 1466), Vector3.new(-1563, 320, 1466) },
-            { Vector3.new(-1627, 319, 1464), Vector3.new(-1740, 289, 1464) },
-            { Vector3.new(-1864, 315, 1465), Vector3.new(-1934, 306, 1465) },
-            { Vector3.new(-2046, 304, 1465), Vector3.new(-2127, 306, 1466) },
-            { Vector3.new(-2183, 323, 1466), Vector3.new(-2244, 313, 1466) },
-            { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
-            { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
-            { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
-        }
-
-        for _, pair in PAIRS do
-            local a, b = pair[1], pair[2]
-            local bridge = Instance.new("Part")
-            bridge.Anchored     = true
-            bridge.CanCollide   = true
-            bridge.Size         = Vector3.new(10, 1, (b - a).Magnitude)
-            bridge.CFrame       = CFrame.lookAt((a + b) / 2, b)
-            bridge.Transparency = 0.5
-            bridge.Parent       = workspace
-            table.insert(_stage9Bridges, bridge)
-        end
-    end)
-
-    elements:Label("Currently supports up to 8 stages.", section)
-
-    elements:Slider("Win Stage", section, 1, 8, 1, function(v)
+    elements:Slider("Win Stage", section, 1, 9, 1, function(v)
         _winStage = math.floor(v)
     end)
 
     elements:Toggle("Autofarm", section, function(v)
         _farming = v
         if not v then return end
+
+        spawnBridges()
 
         task.spawn(function()
             while _farming do
@@ -87,7 +88,7 @@ return function(section)
         end)
 
         task.spawn(function()
-            local CS       = game:GetService("CollectionService")
+            local CS        = game:GetService("CollectionService")
             local lavaTower = workspace["NPC & Piege"] and workspace["NPC & Piege"]:FindFirstChild("LavaTower")
             while _farming do
                 for _, w in CS:GetTagged("CrushWallL") do
@@ -199,6 +200,60 @@ return function(section)
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 8 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage9.WinBlock8.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1137, 296, 1464))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1216, 296, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1247, 304, 1468))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1339, 285, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1427, 336, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1512, 337, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1574, 321, 1467))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1623, 321, 1464))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1751, 290, 1463))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1860, 316, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-1933, 309, 1464))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2042, 307, 1464))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2138, 311, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2190, 325, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2252, 314, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2346, 326, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2414, 322, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2520, 322, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2563, 308, 1474))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2610, 294, 1485))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2710, 294, 1481))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2790, 309, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2880, 283, 1464))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2968, 296, 1463))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    if _winStage == 9 then
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage10.WinBlock9.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
