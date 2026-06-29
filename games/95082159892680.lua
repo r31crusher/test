@@ -48,11 +48,11 @@ return function(section)
             { Vector3.new(-1248, 302, 1468), Vector3.new(-1342, 281, 1466) },
             { Vector3.new(-1510, 334, 1466), Vector3.new(-1563, 320, 1466) },
             { Vector3.new(-1627, 319, 1464), Vector3.new(-1740, 289, 1464) },
-            { Vector3.new(-1864, 316, 1465), Vector3.new(-1934, 306, 1465) },
-            { Vector3.new(-2046, 305, 1465), Vector3.new(-2127, 306, 1466) },
-            { Vector3.new(-2183, 324, 1466), Vector3.new(-2244, 313, 1466) },
+            { Vector3.new(-1864, 315, 1465), Vector3.new(-1934, 306, 1465) },
+            { Vector3.new(-2046, 304, 1465), Vector3.new(-2127, 306, 1466) },
+            { Vector3.new(-2183, 323, 1466), Vector3.new(-2244, 313, 1466) },
             { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
-            { Vector3.new(-2530, 320, 1466), Vector3.new(-2594, 293, 1479) },
+            { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
             { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
         }
 
