@@ -23,7 +23,7 @@ return function(section)
             local startTime  = tsunami:GetAttribute("TsunamiStartTime")
             local travelTime = (tsunami:GetAttribute("TravelTime") or 6) + 0.5
             if not startTime then break end
-            local remaining = travelTime - (os.time() - startTime)
+            local remaining = travelTime - (workspace:GetServerTimeNow() - startTime)
             if remaining <= 0 then break end
             task.wait(remaining)
         end
