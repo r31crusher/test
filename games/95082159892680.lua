@@ -26,6 +26,7 @@ return function(section)
         { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
         { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
         { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
+        { Vector3.new(-3994, 295, 1466), Vector3.new(-4328, 471, 1514) },
     }
 
     local function spawnBridges()
@@ -267,13 +268,13 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2976, 296, 1465))
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-2972, 296, 1465))
                     plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-3316, 256, 1641))
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3179, 296, 1335))
                     plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-3747, 296, 1493))
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3513, 296, 1338))
                     plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-3942, 296, 1462))
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3932, 296, 1464))
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 10 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage11.WinBlock10.Position)
