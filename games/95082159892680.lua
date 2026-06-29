@@ -20,12 +20,9 @@ return function(section)
         while _farming do
             local tsunami = npcPiege:FindFirstChild("Tsunami1")
             if not tsunami then break end
-            local startTime  = tsunami:GetAttribute("TsunamiStartTime")
-            local travelTime = (tsunami:GetAttribute("TravelTime") or 6) + 0.5
-            if not startTime then break end
-            local remaining = travelTime - (workspace:GetServerTimeNow() - startTime)
-            if remaining <= 0 then break end
-            task.wait(remaining)
+            local x = tsunami:GetPivot().Position.X
+            if x < -600 then break end
+            task.wait(0.25)
         end
     end
 
