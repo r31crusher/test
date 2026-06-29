@@ -26,13 +26,13 @@ return function(section)
         { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
         { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
         { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
-        { Vector3.new(-3994, 295, 1454), Vector3.new(-4296, 296, 1456) },
-        { Vector3.new(-4318, 342, 1443), Vector3.new(-4314, 343, 1338) },
-        { Vector3.new(-4289, 368, 1308), Vector3.new(-4188, 369, 1307) },
-        { Vector3.new(-4157, 368, 1303), Vector3.new(-4057, 369, 1304) },
-        { Vector3.new(-4012, 390, 1327), Vector3.new(-4039, 447, 1463) },
-        { Vector3.new(-4060, 456, 1497), Vector3.new(-4164, 453, 1548) },
-        { Vector3.new(-4191, 454, 1540), Vector3.new(-4258, 457, 1536) },
+        { Vector3.new(-3994, 294, 1454), Vector3.new(-4296, 296, 1456) },
+        { Vector3.new(-4318, 341, 1443), Vector3.new(-4314, 343, 1338) },
+        { Vector3.new(-4289, 367, 1308), Vector3.new(-4188, 369, 1307) },
+        { Vector3.new(-4157, 367, 1303), Vector3.new(-4057, 369, 1304) },
+        { Vector3.new(-4012, 389, 1327), Vector3.new(-4039, 447, 1463) },
+        { Vector3.new(-4060, 455, 1497), Vector3.new(-4164, 453, 1548) },
+        { Vector3.new(-4191, 453, 1540), Vector3.new(-4258, 457, 1536) },
     }
 
     local function spawnBridges()
