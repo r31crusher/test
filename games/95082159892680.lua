@@ -30,7 +30,7 @@ return function(section)
             elseif closing then
                 stable += 1
                 if stable >= 3 then
-                    task.wait(2)
+                    task.wait(0.6)
                     break
                 end
             end
