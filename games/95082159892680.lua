@@ -69,9 +69,9 @@ return function(section)
         conn:Disconnect()
     end
 
-    elements:Label("Currently supports up to 10 stages.", section)
+    elements:Label("Currently supports up to 11 stages.", section)
 
-    elements:Slider("Win Stage", section, 1, 10, 1, function(v)
+    elements:Slider("Win Stage", section, 1, 11, 1, function(v)
         _winStage = math.floor(v)
     end)
 
@@ -278,6 +278,24 @@ return function(section)
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     if _winStage == 10 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage11.WinBlock10.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3957, 296, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3993, 296, 1465))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-3997, 299, 1466))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-4145, 377, 1487))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-4317, 468, 1511))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    plr.Character.Humanoid:MoveTo(Vector3.new(-4367, 471, 1525))
+                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    if _winStage == 11 then
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage12.WinBlock11.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
