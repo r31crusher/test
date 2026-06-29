@@ -20,8 +20,8 @@ return function(section)
         while _farming do
             local tsunami = npcPiege:FindFirstChild("Tsunami1")
             if not tsunami then break end
-            local x = tsunami:GetPivot().Position.X
-            if x < -600 then break end
+            local part = tsunami:FindFirstChildWhichIsA("BasePart", true)
+            if not part or part.Position.X < -600 then break end
             task.wait(0.25)
         end
     end
