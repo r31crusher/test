@@ -23,6 +23,7 @@ return function(section)
 
         local noclip = RS.Heartbeat:Connect(function()
             if plr.Character then
+                plr.Character.Humanoid.WalkSpeed = 400
                 for _, p in plr.Character:GetDescendants() do
                     if p:IsA("BasePart") then
                         p.CanCollide = false
@@ -34,7 +35,7 @@ return function(section)
         task.spawn(function()
             while _farming do
                 flyTo(Vector3.new(5129, 699, -2559))
-                task.wait(1)
+                task.wait(5)
             end
             noclip:Disconnect()
         end)
