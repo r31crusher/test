@@ -26,13 +26,6 @@ return function(section)
         { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
         { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
         { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
-        { Vector3.new(-3994, 294, 1454), Vector3.new(-4296, 296, 1456) },
-        { Vector3.new(-4318, 341, 1443), Vector3.new(-4314, 343, 1338) },
-        { Vector3.new(-4289, 367, 1308), Vector3.new(-4188, 369, 1307) },
-        { Vector3.new(-4157, 367, 1303), Vector3.new(-4057, 369, 1304) },
-        { Vector3.new(-4012, 389, 1327), Vector3.new(-4039, 447, 1463) },
-        { Vector3.new(-4060, 455, 1497), Vector3.new(-4164, 453, 1548) },
-        { Vector3.new(-4191, 453, 1540), Vector3.new(-4258, 457, 1536) },
     }
 
     local function spawnBridges()
@@ -48,6 +41,15 @@ return function(section)
             bridge.Transparency = 0.5
             bridge.Parent     = workspace
             table.insert(_stage9Bridges, bridge)
+        end
+    end
+
+    local function flyTo(pos)
+        local speed = plr.Character.Humanoid.WalkSpeed
+        while _farming and (plr.Character.HumanoidRootPart.Position - pos).Magnitude > 2 do
+            local dir = (pos - plr.Character.HumanoidRootPart.Position).Unit
+            plr.Character.HumanoidRootPart.AssemblyLinearVelocity = dir * speed
+            task.wait()
         end
     end
 
@@ -309,88 +311,23 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-3952, 296, 1463))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-3974, 296, 1451))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4156, 298, 1454))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4289, 299, 1455))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4303, 298, 1458))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4303, 321, 1458))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4323, 343, 1458))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4318, 344, 1441))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4314, 347, 1326))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4307, 351, 1297))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4301, 369, 1299))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4289, 370, 1304))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4195, 372, 1306))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4151, 370, 1303))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4137, 370, 1303))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4108, 371, 1303))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4076, 372, 1304))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4041, 369, 1302))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4024, 374, 1301))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4024, 387, 1300))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4014, 391, 1303))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4013, 391, 1322))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4015, 396, 1335))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4023, 412, 1376))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4030, 427, 1408))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4036, 440, 1439))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4042, 449, 1468))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4045, 453, 1482))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4046, 455, 1491))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4061, 458, 1498))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4078, 458, 1504))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4125, 457, 1527))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4146, 456, 1537))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4179, 452, 1551))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4189, 455, 1540))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4200, 456, 1540))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4214, 457, 1538))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4259, 460, 1534))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4268, 460, 1534))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4305, 471, 1532))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-4354, 471, 1529))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    flyTo(Vector3.new(-3949, 296, 1465))
+                    flyTo(Vector3.new(-4293, 299, 1455))
+                    flyTo(Vector3.new(-4299, 345, 1448))
+                    flyTo(Vector3.new(-4316, 345, 1448))
+                    flyTo(Vector3.new(-4314, 348, 1330))
+                    flyTo(Vector3.new(-4303, 371, 1305))
+                    flyTo(Vector3.new(-4183, 370, 1305))
+                    flyTo(Vector3.new(-4049, 371, 1305))
+                    flyTo(Vector3.new(-4027, 395, 1314))
+                    flyTo(Vector3.new(-4017, 395, 1314))
+                    flyTo(Vector3.new(-4042, 451, 1463))
+                    flyTo(Vector3.new(-4062, 458, 1497))
+                    flyTo(Vector3.new(-4166, 455, 1543))
+                    flyTo(Vector3.new(-4264, 461, 1533))
+                    flyTo(Vector3.new(-4314, 476, 1528))
+                    flyTo(Vector3.new(-4357, 472, 1528))
+                    plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     if _winStage == 11 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage12.WinBlock11.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
