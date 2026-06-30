@@ -11,12 +11,16 @@ return function(section)
     local _speed = 400
 
     local function flyTo(pos)
-        while (_farming or _farming2) and (plr.Character.HumanoidRootPart.Position - pos).Magnitude > 2 do
-            local dir = (pos - plr.Character.HumanoidRootPart.Position).Unit
-            plr.Character.HumanoidRootPart.AssemblyLinearVelocity = dir * _speed
+        while _farming or _farming2 do
+            local char = plr.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then task.wait() continue end
+            if (hrp.Position - pos).Magnitude <= 2 then break end
+            hrp.AssemblyLinearVelocity = (pos - hrp.Position).Unit * _speed
             task.wait()
         end
-        plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
     end
 
     elements:Toggle("World 1 Autofarm", section, function(v)
