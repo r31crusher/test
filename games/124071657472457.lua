@@ -131,6 +131,8 @@ return function(section)
                     if hrp and (hrp.Position - platePos).Magnitude > 50 then break end
                     if os.clock() - waitStart > 30 then break end
                 end
+                local hrp2 = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                if hrp2 then hrp2.CFrame = CFrame.new(104, 6, 74) end
                 task.wait(10)
             end
             noclip2:Disconnect()
