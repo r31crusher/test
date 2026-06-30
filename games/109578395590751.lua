@@ -118,6 +118,14 @@ return function(section)
                 flyTo(Vector3.new(91, 864, 26849))
                 flyTo(Vector3.new(-168.218, 817.925, 27200))
                 flyTo(Vector3.new(-168.218, 817.925, 26801.1))
+                local platePos = Vector3.new(-168.218, 817.925, 26801.1)
+                local waitStart = os.clock()
+                while _farming2 do
+                    task.wait()
+                    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position - platePos).Magnitude > 50 then break end
+                    if os.clock() - waitStart > 30 then break end
+                end
                 task.wait(15)
             end
             noclip2:Disconnect()
