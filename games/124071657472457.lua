@@ -7,6 +7,7 @@ return function(section)
     local plr = game:GetService("Players").LocalPlayer
 
     local _farming = false
+    local _farming2 = false
 
     local _speed = 400
 
@@ -68,7 +69,6 @@ return function(section)
         end)
     end)
 
-    local _farming2 = false
     elements:Toggle("World 2 Autofarm", section, function(v)
         _farming2 = v
         if not v then return end
