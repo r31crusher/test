@@ -25,9 +25,9 @@ return function(section)
         local function hookSpeed()
             if speedConn then speedConn:Disconnect() end
             if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
-                plr.Character.Humanoid.WalkSpeed = 400
+                plr.Character.Humanoid.WalkSpeed = 250
                 speedConn = plr.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                    plr.Character.Humanoid.WalkSpeed = 400
+                    plr.Character.Humanoid.WalkSpeed = 250
                 end)
             end
         end
