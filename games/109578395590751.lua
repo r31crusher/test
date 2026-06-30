@@ -126,7 +126,6 @@ return function(section)
                     if hrp and (hrp.Position - platePos).Magnitude > 50 then break end
                     if os.clock() - waitStart > 30 then break end
                 end
-                task.wait(15)
             end
             noclip2:Disconnect()
         end)
