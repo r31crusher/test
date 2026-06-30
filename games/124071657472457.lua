@@ -1,4 +1,5 @@
--- +1 Speed Brick Escape (PlaceId 109578395590751)
+-- +1 Speed Brick Escape World 2 (PlaceId 124071657472457)
+-- Same menu as 109578395590751
 
 return function(section)
     local elements = getgenv()._astroElements
