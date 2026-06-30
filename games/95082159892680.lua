@@ -57,7 +57,7 @@ return function(section)
 
     elements:Label("Currently supports up to 12 stages.", section)
 
-    elements:Slider("Win Stage", section, 1, 12, 1, function(v)
+    elements:Slider("Win Stage", section, 1, 14, 1, function(v)
         _winStage = math.floor(v)
     end)
 
@@ -278,6 +278,34 @@ return function(section)
                     plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     if _winStage == 12 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage13.WinBlock12.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    flyTo(Vector3.new(-5358, 470, 1474))
+                    flyTo(Vector3.new(-5391, 478, 1477))
+                    flyTo(Vector3.new(-5888, 488, 1566))
+                    flyTo(Vector3.new(-6199, 488, 1436))
+                    flyTo(Vector3.new(-6474, 487, 1388))
+                    flyTo(Vector3.new(-6754, 512, 1471))
+                    flyTo(Vector3.new(-6789, 521, 1486))
+                    if _winStage == 13 then
+                        plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage14.WinBlock13.Position)
+                        plr.Character.Humanoid.MoveToFinished:Wait()
+                        task.wait(1)
+                        return
+                    end
+                    flyTo(Vector3.new(-6822, 521, 1486))
+                    flyTo(Vector3.new(-6952, 549, 1483))
+                    flyTo(Vector3.new(-7271, 547, 1483))
+                    flyTo(Vector3.new(-7763, 547, 1482))
+                    flyTo(Vector3.new(-8281, 549, 1485))
+                    flyTo(Vector3.new(-8330, 484, 1488))
+                    flyTo(Vector3.new(-8352, 484, 1488))
+                    if _winStage == 14 then
+                        plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        plr.Character.Humanoid:MoveTo(workspace.Structure.Stage15.WinBlock14.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
                         task.wait(1)
                         return
