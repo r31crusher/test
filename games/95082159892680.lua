@@ -20,40 +20,6 @@ return function(section)
         end
     end
 
-    local function waitForTsunamiWindow()
-        local npcPiege = workspace:FindFirstChild("NPC & Piege")
-        if not npcPiege then return end
-        local tsunami = npcPiege:FindFirstChild("Tsunami1")
-        if not tsunami then return end
-
-        local travelTime = tsunami:GetAttribute("TravelTime") or 5.02326
-        local waveStartedAt = nil
-
-        local conn = tsunami:GetAttributeChangedSignal("TsunamiStartTime"):Connect(function()
-            waveStartedAt = tick()
-        end)
-
-        local hum   = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
-        local speed = hum and hum.WalkSpeed or 16
-
-        if speed > 140 then
-            -- faster than tsunami: go the moment wave spawns
-            while _farming and not waveStartedAt do
-                task.wait(0.05)
-            end
-        else
-            -- slower than tsunami: follow behind, wait until 3.2s remain
-            while _farming do
-                if waveStartedAt then
-                    local remaining = travelTime - (tick() - waveStartedAt)
-                    if remaining <= 3.2 then break end
-                end
-                task.wait(0.05)
-            end
-        end
-
-        conn:Disconnect()
-    end
 
     elements:Label("Currently supports up to 12 stages.", section)
 
@@ -155,11 +121,12 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    waitForTsunamiWindow()
-                    flyTo(Vector3.new(1, 77, 1416))
-                    flyTo(Vector3.new(-21, 54, 1481))
-                    flyTo(Vector3.new(-322, 54, 1465))
-                    flyTo(Vector3.new(-539, 54, 1462))
+                    flyTo(Vector3.new(-1, 77, 1417))
+                    flyTo(Vector3.new(-2, 110, 1419))
+                    flyTo(Vector3.new(-9, 115, 1449))
+                    flyTo(Vector3.new(-287, 120, 1450))
+                    flyTo(Vector3.new(-432, 114, 1457))
+                    flyTo(Vector3.new(-516, 54, 1470))
                     if _winStage == 6 then
                         plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage7.WinBlock6.Position)
