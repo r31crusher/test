@@ -177,12 +177,12 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    flyTo(Vector3.new(-1022, 54, 1465))
-                    flyTo(Vector3.new(-1058, 54, 1464))
-                    flyTo(Vector3.new(-1088, 54, 1465))
-                    flyTo(Vector3.new(-1088, 117, 1465))
-                    flyTo(Vector3.new(-1088, 282, 1465))
-                    flyTo(Vector3.new(-1119, 296, 1465))
+                    flyTo(Vector3.new(-1028, 54, 1466))
+                    flyTo(Vector3.new(-1086, 54, 1466))
+                    flyTo(Vector3.new(-1086, 291, 1466))
+                    flyTo(Vector3.new(-1086, 299, 1466))
+                    flyTo(Vector3.new(-1097, 298, 1465))
+                    flyTo(Vector3.new(-1120, 296, 1466))
                     if _winStage == 8 then
                         plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage9.WinBlock8.Position)
