@@ -7,7 +7,7 @@ return function(section)
 
     local _farming = false
 
-    local _speed = 250
+    local _speed = 400
 
     local function flyTo(pos)
         while _farming and (plr.Character.HumanoidRootPart.Position - pos).Magnitude > 2 do
@@ -26,9 +26,9 @@ return function(section)
         local function hookSpeed()
             if speedConn then speedConn:Disconnect() end
             if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
-                plr.Character.Humanoid.WalkSpeed = 250
+                plr.Character.Humanoid.WalkSpeed = 400
                 speedConn = plr.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                    plr.Character.Humanoid.WalkSpeed = 250
+                    plr.Character.Humanoid.WalkSpeed = 400
                 end)
             end
         end
