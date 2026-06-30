@@ -45,6 +45,14 @@ return function(section)
             end
         end)
 
+        local swingRemote = game:GetService("ReplicatedStorage"):WaitForChild("HammerSimSwing")
+        task.spawn(function()
+            while _farming do
+                swingRemote:FireServer()
+                task.wait(0.6)
+            end
+        end)
+
         task.spawn(function()
             while _farming do
                 flyTo(Vector3.new(5129, 699, -2559))
