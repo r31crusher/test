@@ -7,11 +7,15 @@ return function(section)
 
     local _farming = false
     local _farming2 = false
+    local _charGen = 0
+    plr.CharacterAdded:Connect(function() _charGen += 1 end)
 
     local _speed = 400
 
     local function flyTo(pos)
+        local gen = _charGen
         while _farming or _farming2 do
+            if _charGen ~= gen then return end
             local char = plr.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if not hrp then task.wait() continue end
@@ -43,14 +47,10 @@ return function(section)
         local noclip = RS.Heartbeat:Connect(function()
             if plr.Character then
                 for _, p in plr.Character:GetDescendants() do
-                    if p:IsA("BasePart") then
-                        p.CanCollide = false
-                    end
+                    if p:IsA("BasePart") then p.CanCollide = false end
                 end
                 local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum:Move(Vector3.new(0, 0, -1))
-                end
+                if hum then hum:Move(Vector3.new(0, 0, -1)) end
             end
         end)
 
@@ -64,8 +64,11 @@ return function(section)
 
         task.spawn(function()
             while _farming do
+                local gen = _charGen
                 flyTo(Vector3.new(5129, 699, -2559))
+                if _charGen ~= gen then continue end
                 flyTo(Vector3.new(90, 13, 65))
+                if _charGen ~= gen then continue end
                 task.wait(15)
             end
             noclip:Disconnect()
@@ -92,14 +95,10 @@ return function(section)
         local noclip2 = RS.Heartbeat:Connect(function()
             if plr.Character then
                 for _, p in plr.Character:GetDescendants() do
-                    if p:IsA("BasePart") then
-                        p.CanCollide = false
-                    end
+                    if p:IsA("BasePart") then p.CanCollide = false end
                 end
                 local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum:Move(Vector3.new(0, 0, -1))
-                end
+                if hum then hum:Move(Vector3.new(0, 0, -1)) end
             end
         end)
 
@@ -113,11 +112,17 @@ return function(section)
 
         task.spawn(function()
             while _farming2 do
+                local gen = _charGen
                 flyTo(Vector3.new(800, 42, 5))
+                if _charGen ~= gen then continue end
                 flyTo(Vector3.new(1239, 904, 25249))
+                if _charGen ~= gen then continue end
                 flyTo(Vector3.new(91, 864, 26849))
+                if _charGen ~= gen then continue end
                 flyTo(Vector3.new(-168.218, 817.925, 27200))
+                if _charGen ~= gen then continue end
                 flyTo(Vector3.new(-168.218, 817.925, 26801.1))
+                if _charGen ~= gen then continue end
                 local platePos = Vector3.new(-168.218, 817.925, 26801.1)
                 local waitStart = os.clock()
                 while _farming2 do
