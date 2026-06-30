@@ -50,8 +50,8 @@ return function(section)
             end
         end)
 
-        local swingRemote = game:GetService("ReplicatedStorage"):WaitForChild("HammerSimSwing")
         task.spawn(function()
+            local swingRemote = game:GetService("ReplicatedStorage"):WaitForChild("HammerSimSwing")
             while _farming do
                 swingRemote:FireServer()
                 task.wait(0.6)
@@ -99,8 +99,8 @@ return function(section)
             end
         end)
 
-        local swingRemote2 = game:GetService("ReplicatedStorage"):WaitForChild("HammerSimSwing")
         task.spawn(function()
+            local swingRemote2 = game:GetService("ReplicatedStorage"):WaitForChild("HammerSimSwing")
             while _farming2 do
                 swingRemote2:FireServer()
                 task.wait(0.6)
@@ -109,8 +109,10 @@ return function(section)
 
         task.spawn(function()
             while _farming2 do
+                flyTo(Vector3.new(800, 42, 5))
                 flyTo(Vector3.new(1239, 904, 25249))
                 flyTo(Vector3.new(91, 864, 26849))
+                flyTo(Vector3.new(-168.218, 817.925, 27200))
                 flyTo(Vector3.new(-168.218, 817.925, 26801.1))
                 task.wait(15)
             end
