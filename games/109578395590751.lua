@@ -42,6 +42,10 @@ return function(section)
                         p.CanCollide = false
                     end
                 end
+                local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum:Move(Vector3.new(0, 0, -1))
+                end
             end
         end)
 
