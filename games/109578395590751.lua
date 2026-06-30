@@ -60,7 +60,13 @@ return function(section)
         task.spawn(function()
             while _farming do
                 flyTo(Vector3.new(5129, 699, -2559))
-                task.wait(15)
+                local deadline = os.clock() + 15
+                local brickPts = {Vector3.new(143, 11, 45), Vector3.new(147, 6, 95)}
+                local bi = 1
+                while _farming and os.clock() < deadline do
+                    flyTo(brickPts[bi])
+                    bi = bi % 2 + 1
+                end
             end
             noclip:Disconnect()
         end)
