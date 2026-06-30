@@ -56,9 +56,27 @@ return function(section)
 
     elements:Label("Currently supports up to 15 stages.", section)
 
-    elements:Button("Unlock Treadmill", section, function()
-        local ClientState = require(RS:WaitForChild("ClientState"))
-        ClientState:Update({ AdminTreadmillActive = true })
+    local _autoRebirth = false
+    local REBIRTH_TIERS = {15,25,40,60,75,100,125,150,175,200,225,260,300,340,380,420,465,510,560,600}
+
+    elements:Toggle("Auto Rebirth", section, function(v)
+        _autoRebirth = v
+        if not v then return end
+        task.spawn(function()
+            local ClientState = require(RS:WaitForChild("ClientState"))
+            local rebirthRemote = RS:WaitForChild("Remotes"):WaitForChild("Rebirth")
+            while _autoRebirth do
+                local state = ClientState:Get()
+                local rebirths = state.Rebirths or 0
+                local tierIdx = rebirths + 1
+                local required = REBIRTH_TIERS[tierIdx] or REBIRTH_TIERS[#REBIRTH_TIERS]
+                if (state.Level or 0) >= required then
+                    rebirthRemote:FireServer()
+                    task.wait(1)
+                end
+                task.wait(0.5)
+            end
+        end)
     end)
 
     elements:Slider("Win Stage", section, 1, 15, 1, function(v)
