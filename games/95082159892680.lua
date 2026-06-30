@@ -57,17 +57,8 @@ return function(section)
     elements:Label("Currently supports up to 15 stages.", section)
 
     elements:Button("Unlock Treadmill", section, function()
-        local admin = workspace:FindFirstChild("Treadmill") and workspace.Treadmill:FindFirstChild("TreadmillAdmin")
-        if not admin then return end
-        local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-        for _, part in admin:GetDescendants() do
-            if part:IsA("BasePart") then
-                if hrp then firetouchinterest(part, hrp, 0) end
-            end
-            if part:IsA("ProximityPrompt") then
-                fireproximityprompt(part)
-            end
-        end
+        local ClientState = require(RS:WaitForChild("ClientState"))
+        ClientState:Update({ AdminTreadmillActive = true })
     end)
 
     elements:Slider("Win Stage", section, 1, 15, 1, function(v)
