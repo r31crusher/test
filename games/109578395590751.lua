@@ -10,7 +10,7 @@ return function(section)
     local _speed = 400
 
     local function flyTo(pos)
-        while _farming and (plr.Character.HumanoidRootPart.Position - pos).Magnitude > 2 do
+        while (_farming or _farming2) and (plr.Character.HumanoidRootPart.Position - pos).Magnitude > 2 do
             local dir = (pos - plr.Character.HumanoidRootPart.Position).Unit
             plr.Character.HumanoidRootPart.AssemblyLinearVelocity = dir * _speed
             task.wait()
