@@ -14,35 +14,7 @@ return function(section)
     part.Position = Vector3.new(1, 75, 1090)
     part.Parent = workspace
 
-    local _stage9Bridges = {}
 
-    local BRIDGE_PAIRS = {
-        { Vector3.new(-1248, 302, 1468), Vector3.new(-1342, 281, 1466) },
-        { Vector3.new(-1510, 334, 1466), Vector3.new(-1563, 320, 1466) },
-        { Vector3.new(-1627, 319, 1464), Vector3.new(-1740, 289, 1464) },
-        { Vector3.new(-1864, 315, 1465), Vector3.new(-1934, 306, 1465) },
-        { Vector3.new(-2046, 304, 1465), Vector3.new(-2127, 306, 1466) },
-        { Vector3.new(-2183, 323, 1466), Vector3.new(-2244, 313, 1466) },
-        { Vector3.new(-2345, 323, 1466), Vector3.new(-2409, 321, 1466) },
-        { Vector3.new(-2530, 318, 1466), Vector3.new(-2594, 293, 1479) },
-        { Vector3.new(-2788, 306, 1464), Vector3.new(-2853, 282, 1464) },
-    }
-
-    local function spawnBridges()
-        for _, p in _stage9Bridges do p:Destroy() end
-        table.clear(_stage9Bridges)
-        for _, pair in BRIDGE_PAIRS do
-            local a, b = pair[1], pair[2]
-            local bridge = Instance.new("Part")
-            bridge.Anchored   = true
-            bridge.CanCollide = true
-            bridge.Size       = Vector3.new(10, 1, (b - a).Magnitude)
-            bridge.CFrame     = CFrame.lookAt((a + b) / 2, b)
-            bridge.Transparency = 0.5
-            bridge.Parent     = workspace
-            table.insert(_stage9Bridges, bridge)
-        end
-    end
 
     local function flyTo(pos)
         local speed = plr.Character.Humanoid.WalkSpeed
@@ -97,8 +69,6 @@ return function(section)
     elements:Toggle("Autofarm", section, function(v)
         _farming = v
         if not v then return end
-
-        spawnBridges()
 
         task.spawn(function()
             while _farming do
@@ -243,54 +213,31 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1137, 296, 1464))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1216, 296, 1466))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1247, 304, 1468))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1339, 285, 1466))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1427, 336, 1465))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1512, 337, 1465))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1574, 321, 1467))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1623, 321, 1464))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1751, 290, 1463))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1860, 316, 1465))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-1933, 309, 1464))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2042, 307, 1464))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2138, 311, 1466))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2190, 325, 1465))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2252, 314, 1465))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2346, 326, 1466))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2414, 322, 1465))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2520, 322, 1466))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2563, 308, 1474))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2610, 294, 1485))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2710, 294, 1481))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2790, 309, 1466))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2880, 283, 1464))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    plr.Character.Humanoid:MoveTo(Vector3.new(-2968, 296, 1463))
-                    plr.Character.Humanoid.MoveToFinished:Wait()
+                    flyTo(Vector3.new(-1137, 296, 1464))
+                    flyTo(Vector3.new(-1216, 296, 1466))
+                    flyTo(Vector3.new(-1247, 304, 1468))
+                    flyTo(Vector3.new(-1339, 285, 1466))
+                    flyTo(Vector3.new(-1427, 336, 1465))
+                    flyTo(Vector3.new(-1512, 337, 1465))
+                    flyTo(Vector3.new(-1574, 321, 1467))
+                    flyTo(Vector3.new(-1623, 321, 1464))
+                    flyTo(Vector3.new(-1751, 290, 1463))
+                    flyTo(Vector3.new(-1860, 316, 1465))
+                    flyTo(Vector3.new(-1933, 309, 1464))
+                    flyTo(Vector3.new(-2042, 307, 1464))
+                    flyTo(Vector3.new(-2138, 311, 1466))
+                    flyTo(Vector3.new(-2190, 325, 1465))
+                    flyTo(Vector3.new(-2252, 314, 1465))
+                    flyTo(Vector3.new(-2346, 326, 1466))
+                    flyTo(Vector3.new(-2414, 322, 1465))
+                    flyTo(Vector3.new(-2520, 322, 1466))
+                    flyTo(Vector3.new(-2563, 308, 1474))
+                    flyTo(Vector3.new(-2610, 294, 1485))
+                    flyTo(Vector3.new(-2710, 294, 1481))
+                    flyTo(Vector3.new(-2790, 309, 1466))
+                    flyTo(Vector3.new(-2880, 283, 1464))
+                    flyTo(Vector3.new(-2968, 296, 1463))
+                    plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     if _winStage == 9 then
                         plr.Character.Humanoid:MoveTo(workspace.Structure.Stage10.WinBlock9.Position)
                         plr.Character.Humanoid.MoveToFinished:Wait()
@@ -334,9 +281,6 @@ return function(section)
                         task.wait(1)
                         return
                     end
-                    plr.Character.Humanoid:MoveTo(workspace.Treadmill.Treadmill.Conveyor.Position)
-                    plr.Character.Humanoid.MoveToFinished:Wait()
-                    task.wait(5)
                     plr.Character.Humanoid:MoveTo(Vector3.new(-4384, 471, 1532))
                     plr.Character.Humanoid.MoveToFinished:Wait()
                     plr.Character.Humanoid:MoveTo(Vector3.new(-4439, 470, 1534))
@@ -391,7 +335,5 @@ return function(section)
     section.AncestorRemoving:Connect(function()
         _farming = false
         part:Destroy()
-        for _, p in _stage9Bridges do p:Destroy() end
-        table.clear(_stage9Bridges)
     end)
 end
