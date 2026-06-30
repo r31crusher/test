@@ -60,7 +60,7 @@ return function(section)
         task.spawn(function()
             while _farming do
                 flyTo(Vector3.new(5129, 699, -2559))
-                plr.Character.HumanoidRootPart.CFrame = CFrame.new(90, 13, 65)
+                flyTo(Vector3.new(90, 13, 65))
                 task.wait(15)
             end
             noclip:Disconnect()
