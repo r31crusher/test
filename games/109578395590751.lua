@@ -7,11 +7,12 @@ return function(section)
 
     local _farming = false
 
+    local _speed = 250
+
     local function flyTo(pos)
         while _farming and (plr.Character.HumanoidRootPart.Position - pos).Magnitude > 2 do
-            local speed = plr.Character.Humanoid.WalkSpeed
             local dir = (pos - plr.Character.HumanoidRootPart.Position).Unit
-            plr.Character.HumanoidRootPart.AssemblyLinearVelocity = dir * speed
+            plr.Character.HumanoidRootPart.AssemblyLinearVelocity = dir * _speed
             task.wait()
         end
         plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
