@@ -70,13 +70,45 @@ return function(section)
                     end
                     lastPos = newPos
                 end
-                task.wait(5)
+                local deadline = os.clock() + 10
+                local brickPts = {Vector3.new(5109, 699, -2559), Vector3.new(5119, 699, -2559)}
+                local bi = 1
+                while _farming and os.clock() < deadline do
+                    flyTo(brickPts[bi])
+                    bi = bi % 2 + 1
+                end
             end
             noclip:Disconnect()
         end)
     end)
 
+    local _autoRebirth = false
+    elements:Toggle("Auto Rebirth", section, function(v)
+        _autoRebirth = v
+        if not v then return end
+        task.spawn(function()
+            local RS2 = game:GetService("ReplicatedStorage")
+            local rebirthRemote = RS2:WaitForChild("BrickRebirthRequest")
+            local victoryRemote = RS2:WaitForChild("VictoryUpdate")
+            local currentWins = 0
+            local conn = victoryRemote.OnClientEvent:Connect(function(wins)
+                if typeof(wins) == "number" then
+                    currentWins = wins
+                end
+            end)
+            while _autoRebirth do
+                if currentWins >= 1000 then
+                    rebirthRemote:FireServer()
+                    task.wait(1)
+                end
+                task.wait(0.5)
+            end
+            conn:Disconnect()
+        end)
+    end)
+
     section.AncestorRemoving:Connect(function()
         _farming = false
+        _autoRebirth = false
     end)
 end
