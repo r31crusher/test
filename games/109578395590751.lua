@@ -47,6 +47,16 @@ return function(section)
         task.spawn(function()
             while _farming do
                 flyTo(Vector3.new(5129, 699, -2559))
+                -- wait for teleport back (large position jump)
+                local lastPos = plr.Character.HumanoidRootPart.Position
+                while _farming do
+                    task.wait()
+                    local newPos = plr.Character.HumanoidRootPart.Position
+                    if (newPos - lastPos).Magnitude > 50 then
+                        break
+                    end
+                    lastPos = newPos
+                end
                 task.wait(5)
             end
             noclip:Disconnect()
