@@ -21,9 +21,21 @@ return function(section)
         _farming = v
         if not v then return end
 
+        local speedConn
+        local function hookSpeed()
+            if speedConn then speedConn:Disconnect() end
+            if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+                plr.Character.Humanoid.WalkSpeed = 400
+                speedConn = plr.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                    plr.Character.Humanoid.WalkSpeed = 400
+                end)
+            end
+        end
+        hookSpeed()
+        plr.CharacterAdded:Connect(hookSpeed)
+
         local noclip = RS.Heartbeat:Connect(function()
             if plr.Character then
-                plr.Character.Humanoid.WalkSpeed = 400
                 for _, p in plr.Character:GetDescendants() do
                     if p:IsA("BasePart") then
                         p.CanCollide = false
